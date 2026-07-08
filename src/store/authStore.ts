@@ -1,0 +1,114 @@
+import { create } from "zustand";
+import { persist } from "zustand/middleware";
+import type { AvatarPresetId } from "../components/AvatarPicker";
+
+export type SocialProvider = "google" | "kakao" | "naver";
+
+export interface AuthUser {
+  id: string;
+  email: string;
+  realName: string;
+  nickname: string;
+  avatarId: AvatarPresetId | null;
+  avatarImageUrl: string | null;
+}
+
+interface TermsAgreement {
+  service: boolean; // [필수] 서비스 이용약관
+  privacy: boolean; // [필수] 개인정보 수집 및 이용
+  externalTool: boolean; // [필수] 외부 협업 툴 데이터 접근
+  marketing: boolean; // [선택] 마케팅 정보 수신
+}
+
+interface SignupDraft {
+  method: SocialProvider | "email" | null;
+  terms: TermsAgreement;
+  realName: string;
+  email: string;
+  isEmailVerified: boolean;
+  password: string;
+  avatarId: AvatarPresetId | null;
+  avatarImageUrl: string | null;
+  nickname: string;
+  isNicknameAvailable: boolean;
+}
+
+const emptyTerms: TermsAgreement = {
+  service: false,
+  privacy: false,
+  externalTool: false,
+  marketing: false,
+};
+
+const emptySignupDraft: SignupDraft = {
+  method: null,
+  terms: emptyTerms,
+  realName: "",
+  email: "",
+  isEmailVerified: false,
+  password: "",
+  avatarId: null,
+  avatarImageUrl: null,
+  nickname: "",
+  isNicknameAvailable: false,
+};
+
+interface AuthState {
+  user: AuthUser | null;
+  signupDraft: SignupDraft;
+
+  // auth actions
+  login: (user: AuthUser) => void;
+  logout: () => void;
+
+  // signup draft actions (다단계 진행 중 데이터 유지)
+  setSignupMethod: (method: SignupDraft["method"]) => void;
+  setTerms: (terms: Partial<TermsAgreement>) => void;
+  setSignupField: <K extends keyof SignupDraft>(key: K, value: SignupDraft[K]) => void;
+  resetSignupDraft: () => void;
+  completeSignup: () => AuthUser;
+}
+
+export const useAuthStore = create<AuthState>()(
+  persist(
+    (set, get) => ({
+      user: null,
+      signupDraft: emptySignupDraft,
+
+      login: (user) => set({ user }),
+      logout: () => set({ user: null }),
+
+      setSignupMethod: (method) =>
+        set((state) => ({ signupDraft: { ...state.signupDraft, method } })),
+
+      setTerms: (terms) =>
+        set((state) => ({
+          signupDraft: { ...state.signupDraft, terms: { ...state.signupDraft.terms, ...terms } },
+        })),
+
+      setSignupField: (key, value) =>
+        set((state) => ({ signupDraft: { ...state.signupDraft, [key]: value } })),
+
+      resetSignupDraft: () => set({ signupDraft: emptySignupDraft }),
+
+      completeSignup: () => {
+        const draft = get().signupDraft;
+        const newUser: AuthUser = {
+          id: crypto.randomUUID(),
+          email: draft.email,
+          realName: draft.realName,
+          nickname: draft.nickname,
+          avatarId: draft.avatarId,
+          avatarImageUrl: draft.avatarImageUrl,
+        };
+        set({ user: newUser });
+        get().resetSignupDraft();
+        return newUser;
+      },
+    }),
+    {
+      name: "plog-auth-storage",
+      partialize: (state) => ({ user: state.user }), // signupDraft는 새로고침 시 굳이 유지 안 함
+    }
+  )
+);
