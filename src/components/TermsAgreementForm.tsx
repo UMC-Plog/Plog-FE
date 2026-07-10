@@ -96,7 +96,7 @@ function Checkbox({ checked, className }: { checked: boolean; className?: string
   return (
     <span
       className={cn(
-        "flex h-5 w-5 shrink-0 items-center justify-center rounded-[6px] border transition-colors",
+        "flex h-5 w-5 shrink-0 items-center justify-center rounded-sm border transition-colors",
         checked ? "border-blue-500 bg-blue-500 text-white" : "border-gray-300 bg-white",
         className
       )}

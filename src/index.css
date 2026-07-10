@@ -22,10 +22,10 @@ body {
 
 /* 인증/온보딩 화면 공통 모바일 셸 (성재 담당 컴포넌트에서 사용) */
 .app-shell {
-  max-width: 28rem;
+  max-width: theme("maxWidth.mobile");
   margin-inline: auto;
   min-height: 100vh;
-  background: #ffffff;
+  background: theme("colors.gray.25");
   display: flex;
   flex-direction: column;
   position: relative;

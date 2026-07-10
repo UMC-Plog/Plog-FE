@@ -1,15 +1,23 @@
 import { useRef } from "react";
 import { cn } from "../lib/utils";
+import otterImg from "../assets/수달.png";
+import penguinImg from "../assets/펭귄.png";
+import frogImg from "../assets/개구리.png";
+import koalaImg from "../assets/코알라.png";
+import pandaImg from "../assets/판다.png";
+import smileImg from "../assets/스마일.png";
+import ghostImg from "../assets/고스트.png";
+import tigerImg from "../assets/호랑이.png";
 
 export const AVATAR_PRESETS = [
-  { id: "otter", emoji: "🦦", bg: "bg-gray-200" },
-  { id: "penguin", emoji: "🐧", bg: "bg-blue-200" },
-  { id: "frog", emoji: "🐸", bg: "bg-green-200" },
-  { id: "koala", emoji: "🐨", bg: "bg-aqua-200" },
-  { id: "panda", emoji: "🐼", bg: "bg-aqua-100" },
-  { id: "smile", emoji: "😊", bg: "bg-yellow-200" },
-  { id: "ghost", emoji: "👻", bg: "bg-purple-200" },
-  { id: "tiger", emoji: "🐯", bg: "bg-orange-200" },
+  { id: "otter", label: "수달", src: otterImg },
+  { id: "penguin", label: "펭귄", src: penguinImg },
+  { id: "frog", label: "개구리", src: frogImg },
+  { id: "koala", label: "코알라", src: koalaImg },
+  { id: "panda", label: "판다", src: pandaImg },
+  { id: "smile", label: "스마일", src: smileImg },
+  { id: "ghost", label: "고스트", src: ghostImg },
+  { id: "tiger", label: "호랑이", src: tigerImg },
 ] as const;
 
 export type AvatarPresetId = (typeof AVATAR_PRESETS)[number]["id"];
@@ -39,8 +47,8 @@ export function AvatarPicker({
         <div className="relative">
           <div
             className={cn(
-              "flex h-24 w-24 items-center justify-center overflow-hidden rounded-full text-5xl",
-              customImageUrl ? "" : selected ? selected.bg : "bg-gray-100"
+              "flex h-24 w-24 items-center justify-center overflow-hidden rounded-full",
+              customImageUrl || selected ? "" : "bg-gray-100"
             )}
           >
             {customImageUrl ? (
@@ -50,7 +58,11 @@ export function AvatarPicker({
                 className="h-full w-full object-cover"
               />
             ) : selected ? (
-              selected.emoji
+              <img
+                src={selected.src}
+                alt={selected.label}
+                className="h-full w-full object-cover"
+              />
             ) : (
               <span className="text-gray-300 text-4xl">👤</span>
             )}
@@ -85,14 +97,13 @@ export function AvatarPicker({
             onClick={() => onSelect(avatar.id)}
             aria-pressed={value === avatar.id}
             className={cn(
-              "flex h-14 w-14 items-center justify-center rounded-full text-2xl transition-all",
-              avatar.bg,
+              "flex h-14 w-14 items-center justify-center overflow-hidden rounded-full transition-all",
               value === avatar.id
                 ? "ring-2 ring-blue-500 ring-offset-2"
                 : "hover:ring-2 hover:ring-gray-200 hover:ring-offset-2"
             )}
           >
-            {avatar.emoji}
+            <img src={avatar.src} alt={avatar.label} className="h-full w-full object-cover" />
           </button>
         ))}
       </div>

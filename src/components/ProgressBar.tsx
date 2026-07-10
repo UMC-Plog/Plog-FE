@@ -21,11 +21,8 @@ export function ProgressBar({ total, current }: ProgressBarProps) {
       aria-valuemax={total}
     >
       <div
-        className="h-full rounded-full transition-all duration-300 ease-out"
-        style={{
-          width: `${percent}%`,
-          background: "linear-gradient(95deg, #2186FB 0%, #06BCC4 100%)",
-        }}
+        className="h-full rounded-full bg-plog-gradient transition-all duration-300 ease-out"
+        style={{ width: `${percent}%` }}
       />
     </div>
   );

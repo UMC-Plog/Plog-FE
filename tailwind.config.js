@@ -122,7 +122,7 @@ export default {
         "plog-gradient": "linear-gradient(95deg, #2186FB 0%, #06BCC4 52%, #173E8A 100%)",
       },
       maxWidth: {
-        mobile: "430px",
+        mobile: "402px",
       },
     },
   },
