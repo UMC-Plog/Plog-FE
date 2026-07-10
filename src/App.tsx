@@ -1,5 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
-import LoginPage from './pages/LoginPage'
+import { LoginPage } from './pages/LoginPage'
 import HomePage from './pages/HomePage'
 import ReportPage from './pages/ReportPage'
 import ChatPage from './pages/ChatPage'
@@ -10,16 +10,31 @@ import ProjectFeedPage from './pages/project/ProjectFeedPage'
 import ProjectChatPage from './pages/project/ProjectChatPage'
 import ProjectTaskPage from './pages/project/ProjectTaskPage'
 import ProjectReportPage from './pages/project/ProjectReportPage'
+import { SplashPage } from './pages/SplashPage'
+import { SignupPage } from './pages/SignupPage'
+import { SignupSocialConsentPage } from './pages/SignupSocialConsentPage'
+import { SignupEmailStepPage } from './pages/SignupEmailStepPage'
+import { ProfileSetupPage } from './pages/ProfileSetupPage'
+import { FindPasswordPage } from './pages/FindPasswordPage'
+import { ResetPasswordPage } from './pages/ResetPasswordPage'
 
 function App() {
   return (
     <BrowserRouter>
       <Routes>
+        {/* 담당자 A — 인증/온보딩 (페이지 ID는 팀 노션 "역할 분담 상세" 문서 기준) */}
+        <Route path="/" element={<SplashPage />} />
         <Route path="/login" element={<LoginPage />} />
+        <Route path="/signup" element={<SignupPage />} />
+        <Route path="/signup/social-consent" element={<SignupSocialConsentPage />} />
+        <Route path="/signup/email" element={<SignupEmailStepPage />} />
+        <Route path="/signup/profile" element={<ProfileSetupPage />} />
+        <Route path="/find-password" element={<FindPasswordPage />} />
+        <Route path="/reset-password" element={<ResetPasswordPage />} />
 
         {/* 하단 탭바가 있는 화면들 */}
         <Route element={<BottomTabBar />}>
-          <Route path="/" element={<HomePage />} />
+          <Route path="/home" element={<HomePage />} />
           <Route path="/report" element={<ReportPage />} />
           <Route path="/chat" element={<ChatPage />} />
           <Route path="/my" element={<MyPage />} />
@@ -34,7 +49,7 @@ function App() {
           <Route path="report" element={<ProjectReportPage />} />
         </Route>
 
-        <Route path="*" element={<Navigate to="/" replace />} />
+        <Route path="*" element={<Navigate to="/home" replace />} />
       </Routes>
     </BrowserRouter>
   )

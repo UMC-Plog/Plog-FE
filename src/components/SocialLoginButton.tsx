@@ -1,0 +1,77 @@
+import { cn } from "../lib/utils";
+
+export type SocialProvider = "google" | "kakao" | "naver";
+
+interface SocialLoginButtonProps {
+  provider: SocialProvider;
+  onClick?: () => void;
+}
+
+const CONFIG: Record<
+  SocialProvider,
+  { label: string; className: string; icon: React.ReactNode }
+> = {
+  google: {
+    label: "구글 로그인",
+    className: "bg-gray-50 text-gray-700 border border-gray-200 hover:bg-gray-100",
+    icon: (
+      <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden>
+        <path
+          fill="#4285F4"
+          d="M17.64 9.2c0-.64-.06-1.25-.16-1.84H9v3.48h4.84a4.14 4.14 0 0 1-1.8 2.72v2.26h2.9c1.7-1.57 2.7-3.88 2.7-6.62z"
+        />
+        <path
+          fill="#34A853"
+          d="M9 18c2.43 0 4.47-.8 5.96-2.18l-2.9-2.26c-.8.54-1.84.86-3.06.86-2.35 0-4.34-1.59-5.05-3.72H.95v2.33A9 9 0 0 0 9 18z"
+        />
+        <path
+          fill="#FBBC05"
+          d="M3.95 10.7A5.4 5.4 0 0 1 3.67 9c0-.59.1-1.17.28-1.7V4.97H.95A9 9 0 0 0 0 9c0 1.45.35 2.83.95 4.03l3-2.33z"
+        />
+        <path
+          fill="#EA4335"
+          d="M9 3.58c1.32 0 2.51.46 3.44 1.35l2.58-2.58C13.46.89 11.43 0 9 0A9 9 0 0 0 .95 4.97l3 2.33C4.66 5.17 6.65 3.58 9 3.58z"
+        />
+      </svg>
+    ),
+  },
+  kakao: {
+    label: "카카오 로그인",
+    className: "bg-[#FEE500] text-[#191919] hover:bg-[#f5dc00]",
+    icon: (
+      <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden>
+        <path
+          fill="#191919"
+          d="M9 1.5C4.58 1.5 1 4.3 1 7.75c0 2.2 1.46 4.13 3.66 5.24-.16.58-.58 2.1-.66 2.43-.1.4.15.4.31.29.13-.09 2.05-1.39 2.88-1.96.59.08 1.2.13 1.81.13 4.42 0 8-2.8 8-6.25S13.42 1.5 9 1.5z"
+        />
+      </svg>
+    ),
+  },
+  naver: {
+    label: "네이버 로그인",
+    className: "bg-[#03C75A] text-white hover:bg-[#02b350]",
+    icon: (
+      <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden>
+        <path fill="#fff" d="M9.5 8.6 6.2 3.5H3.5v9h3V7.4l3.3 5.1h2.7v-9h-3v5.1z" />
+      </svg>
+    ),
+  },
+};
+
+export function SocialLoginButton({ provider, onClick }: SocialLoginButtonProps) {
+  const { label, className, icon } = CONFIG[provider];
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        "flex h-12 w-full items-center justify-center gap-2 rounded-md text-body font-semibold transition-colors",
+        className
+      )}
+    >
+      {icon}
+      {label}
+    </button>
+  );
+}

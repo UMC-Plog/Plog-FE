@@ -20,6 +20,20 @@ export default {
           800: "#0E4790",
           900: "#123C73",
         },
+        // primary와 동일한 팔레트의 별칭 (인증/온보딩 화면에서 blue-* 클래스로 사용)
+        blue: {
+          DEFAULT: "#2186FB",
+          50: "#EBF3FE",
+          100: "#D6E7FE",
+          200: "#ADCFFD",
+          300: "#7DB2FC",
+          400: "#4D9CFC",
+          500: "#2186FB",
+          600: "#0E6FE8",
+          700: "#0B59BC",
+          800: "#0E4790",
+          900: "#123C73",
+        },
         aqua: {
           DEFAULT: "#06BCC4", // Plog Aqua
           50: "#E2FAFB",
@@ -108,7 +122,7 @@ export default {
         "plog-gradient": "linear-gradient(95deg, #2186FB 0%, #06BCC4 52%, #173E8A 100%)",
       },
       maxWidth: {
-        mobile: "430px",
+        mobile: "402px",
       },
     },
   },

@@ -2,7 +2,7 @@ import { NavLink, Outlet } from 'react-router-dom'
 
 // Figma 하단 탭바 기준: 프로젝트 / 리포트 / 채팅 / 마이
 const tabs = [
-  { to: '/', label: '프로젝트' },
+  { to: '/home', label: '프로젝트' },
   { to: '/report', label: '리포트' },
   { to: '/chat', label: '채팅' },
   { to: '/my', label: '마이' },
@@ -21,7 +21,7 @@ export default function BottomTabBar() {
             <li key={tab.to}>
               <NavLink
                 to={tab.to}
-                end={tab.to === '/'}
+                end={tab.to === '/home'}
                 className={({ isActive }) =>
                   `flex flex-col items-center gap-1 text-caption px-3 py-1 ${
                     isActive ? 'text-primary' : 'text-gray-400'
