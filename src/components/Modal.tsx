@@ -7,12 +7,7 @@ interface ModalProps {
   children: ReactNode;
 }
 
-/**
- * ⚠️ 임시 구현체입니다.
- * 컴포넌트 개발 원칙 문서 기준 Modal/BottomSheet는 "전역 공통 컴포넌트"로,
- * 팀 회의에서 담당자/최종 스펙(BottomSheet 포함 여부 등)을 확정할 예정입니다.
- * 회의 후 팀 공용 버전이 나오면 이 파일을 교체하세요.
- */
+/** Plog 전역 공통 Modal — 중앙 정렬 팝업 (업무카드 상세, 삭제확인 등) */
 export function Modal({ open, onClose, children }: ModalProps) {
   useEffect(() => {
     if (!open) return;
@@ -26,13 +21,48 @@ export function Modal({ open, onClose, children }: ModalProps) {
   if (!open) return null;
 
   return createPortal(
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/40 px-6">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/40 px-6"
+      onClick={onClose}
+    >
       <div
         role="dialog"
         aria-modal="true"
         className="w-full max-w-sm rounded-xl bg-white p-6 shadow-xl animate-in"
         onClick={(e) => e.stopPropagation()}
       >
+        {children}
+      </div>
+    </div>,
+    document.body
+  );
+}
+
+/** Plog 전역 공통 BottomSheet — 하단에서 올라오는 시트 (액션 목록, 필터 등) */
+export function BottomSheet({ open, onClose, children }: ModalProps) {
+  useEffect(() => {
+    if (!open) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose?.();
+    };
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [open, onClose]);
+
+  if (!open) return null;
+
+  return createPortal(
+    <div
+      className="fixed inset-0 z-50 flex items-end justify-center bg-gray-900/40"
+      onClick={onClose}
+    >
+      <div
+        role="dialog"
+        aria-modal="true"
+        className="w-full max-w-mobile rounded-t-xl bg-white p-6 pb-8 shadow-xl animate-in slide-in-from-bottom"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="mx-auto mb-4 h-1 w-10 rounded-full bg-gray-200" />
         {children}
       </div>
     </div>,
