@@ -13,6 +13,12 @@ export interface AuthUser {
   avatarImageUrl: string | null;
 }
 
+export interface ProfileUpdate {
+  nickname: string;
+  avatarId: AvatarPresetId | null;
+  avatarImageUrl: string | null;
+}
+
 interface TermsAgreement {
   service: boolean; // [필수] 서비스 이용약관
   privacy: boolean; // [필수] 개인정보 수집 및 이용
@@ -60,6 +66,7 @@ interface AuthState {
   // auth actions
   login: (user: AuthUser) => void;
   logout: () => void;
+  updateProfile: (profile: ProfileUpdate) => void;
 
   // signup draft actions (다단계 진행 중 데이터 유지)
   setSignupMethod: (method: SignupDraft["method"]) => void;
@@ -77,6 +84,10 @@ export const useAuthStore = create<AuthState>()(
 
       login: (user) => set({ user }),
       logout: () => set({ user: null }),
+      updateProfile: (profile) =>
+        set((state) => ({
+          user: state.user ? { ...state.user, ...profile } : null,
+        })),
 
       setSignupMethod: (method) =>
         set((state) => ({ signupDraft: { ...state.signupDraft, method } })),
