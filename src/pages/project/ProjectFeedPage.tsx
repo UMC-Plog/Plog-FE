@@ -3,13 +3,16 @@ import { useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { Button } from '../../components/Button'
 import { EmptyState } from '../../components/EmptyState'
+import { PostFeedItem } from '../../components/post/PostFeedItem'
 import { useNoticeStore } from '../../store/noticeStore'
+import { usePostStore } from '../../store/postStore'
 
 export default function ProjectFeedPage() {
   const { id: projectId } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const [isWriteMenuOpen, setIsWriteMenuOpen] = useState(false)
   const allNotices = useNoticeStore((state) => state.notices)
+  const allPosts = usePostStore((state) => state.posts)
 
   const notices = useMemo(
     () =>
@@ -21,6 +24,16 @@ export default function ProjectFeedPage() {
     [allNotices, projectId]
   )
 
+  const posts = useMemo(
+    () =>
+      projectId
+        ? allPosts
+            .filter((post) => post.projectId === projectId)
+            .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+        : [],
+    [allPosts, projectId]
+  )
+
   const closeWriteMenu = () => setIsWriteMenuOpen(false)
 
   const handleCreateNotice = () => {
@@ -28,16 +41,22 @@ export default function ProjectFeedPage() {
     if (projectId) navigate(`/project/${projectId}/notices/new`)
   }
 
+  const handleCreatePost = () => {
+    closeWriteMenu()
+    if (projectId) navigate(`/project/${projectId}/posts/new`)
+  }
+
   return (
     <div className="relative flex min-h-[calc(100svh-theme(spacing.12)-theme(spacing.10))] overflow-hidden whitespace-pre-line bg-gray-25">
-      {notices.length === 0 ? (
+      {notices.length === 0 && posts.length === 0 ? (
         <EmptyState
           title="아직 게시글이 없어요"
           description={'첫 게시물이나 공지를 작성해\n팀원들과 진행 상황을 공유해보세요'}
         />
       ) : (
-        <div className="w-full space-y-2 px-4 py-4">
-          {notices.map((notice) => (
+        <div className="w-full px-4 py-4">
+          <div className="space-y-2">
+            {notices.map((notice) => (
             <button
               key={notice.id}
               type="button"
@@ -51,7 +70,13 @@ export default function ProjectFeedPage() {
                 <span className="font-semibold">[공지]</span> {notice.title}
               </p>
             </button>
-          ))}
+            ))}
+          </div>
+          {posts.length > 0 && (
+            <div className="mt-4 space-y-4">
+              {posts.map((post) => <PostFeedItem key={post.id} post={post} />)}
+            </div>
+          )}
         </div>
       )}
 
@@ -68,7 +93,7 @@ export default function ProjectFeedPage() {
         <div className="absolute bottom-20 right-4 z-20 overflow-hidden rounded-lg bg-white shadow-lg">
           <button
             type="button"
-            onClick={closeWriteMenu}
+            onClick={handleCreatePost}
             className="flex w-full items-center gap-2 px-4 py-3 text-left text-body-sm text-gray-700 hover:bg-gray-50"
           >
             <SquarePen

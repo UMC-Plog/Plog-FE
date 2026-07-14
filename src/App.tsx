@@ -12,6 +12,7 @@ import ProjectTaskPage from './pages/project/ProjectTaskPage'
 import ProjectReportPage from './pages/project/ProjectReportPage'
 import NoticeFormPage from './pages/project/notice/NoticeFormPage'
 import NoticeDetailPage from './pages/project/notice/NoticeDetailPage'
+import PostFormPage from './pages/project/post/PostFormPage'
 import { SplashPage } from './pages/SplashPage'
 import { SignupPage } from './pages/SignupPage'
 import { SignupSocialConsentPage } from './pages/SignupSocialConsentPage'
@@ -54,6 +55,7 @@ function App() {
         <Route path="/project/:id/notices/new" element={<NoticeFormPage />} />
         <Route path="/project/:id/notices/:noticeId" element={<NoticeDetailPage />} />
         <Route path="/project/:id/notices/:noticeId/edit" element={<NoticeFormPage />} />
+        <Route path="/project/:id/posts/new" element={<PostFormPage />} />
 
         <Route path="*" element={<Navigate to="/home" replace />} />
       </Routes>

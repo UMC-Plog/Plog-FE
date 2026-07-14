@@ -1,5 +1,6 @@
 import { NavLink, Outlet } from 'react-router-dom'
 import { TopNavBar } from './TopNavBar'
+import { TEMP_PROJECT_NAME } from '../lib/project'
 
 // Figma 프로젝트 상세 상단 탭 기준: 피드 / 채팅 / 업무 / 리포트
 const tabs = [
@@ -9,12 +10,10 @@ const tabs = [
   { to: 'report', label: '리포트' },
 ]
 
-const projectTitle = '테스트 프로젝트'
-
 export default function ProjectTabBar() {
   return (
     <div className="flex flex-col min-h-svh">
-      <TopNavBar title={projectTitle} />
+      <TopNavBar title={TEMP_PROJECT_NAME} />
 
       <nav className="border-b border-gray-200 bg-white">
         <ul className="flex">

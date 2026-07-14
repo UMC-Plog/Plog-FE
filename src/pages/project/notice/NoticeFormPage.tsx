@@ -6,10 +6,9 @@ import { Button } from '../../../components/Button'
 import { Input } from '../../../components/Input'
 import { Layout } from '../../../components/Layout'
 import { TextArea } from '../../../components/TextArea'
+import { TEMP_PROJECT_NAME } from '../../../lib/project'
 import { useAuthStore } from '../../../store/authStore'
 import { useNoticeStore } from '../../../store/noticeStore'
-
-const TEMP_PROJECT_NAME = '테스트 프로젝트'
 
 export default function NoticeFormPage() {
   const { id: projectId, noticeId } = useParams<{ id: string; noticeId: string }>()
