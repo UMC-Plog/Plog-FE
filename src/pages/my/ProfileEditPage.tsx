@@ -11,6 +11,10 @@ import { Button } from "../../components/Button";
 import { Input } from "../../components/Input";
 import { Layout } from "../../components/Layout";
 import { AlertModal, BottomSheet } from "../../components/Modal";
+import {
+  getPersistentProfileImage,
+  readProfileImage,
+} from "../../lib/profileImage";
 import { mockCheckNickname } from "../../mocks/nickname";
 import { useAuthStore } from "../../store/authStore";
 
@@ -21,19 +25,23 @@ export function ProfileEditPage() {
   const user = useAuthStore((state) => state.user);
   const updateProfile = useAuthStore((state) => state.updateProfile);
   const originalNickname = user?.nickname ?? "";
-  const initialAvatarId = user?.avatarId ?? "otter";
+  const initialCustomImageUrl = getPersistentProfileImage(user?.avatarImageUrl);
+  const initialAvatarId = user?.avatarId ?? (initialCustomImageUrl ? null : "otter");
 
   const [nickname, setNickname] = useState(originalNickname);
   const [avatarId, setAvatarId] = useState<AvatarPresetId | null>(initialAvatarId);
-  const [customImageUrl, setCustomImageUrl] = useState<string | null>(user?.avatarImageUrl ?? null);
+  const [customImageUrl, setCustomImageUrl] = useState<string | null>(initialCustomImageUrl);
   const [stagedAvatarId, setStagedAvatarId] = useState<AvatarPresetId | null>(initialAvatarId);
-  const [stagedImageUrl, setStagedImageUrl] = useState<string | null>(user?.avatarImageUrl ?? null);
+  const [stagedImageUrl, setStagedImageUrl] = useState<string | null>(initialCustomImageUrl);
   const [avatarSheetOpen, setAvatarSheetOpen] = useState(false);
+  const [imageError, setImageError] = useState("");
+  const [imageReading, setImageReading] = useState(false);
   const [checkState, setCheckState] = useState<NicknameCheckState>("idle");
   const [checkedNickname, setCheckedNickname] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [savedOpen, setSavedOpen] = useState(false);
   const latestNicknameRef = useRef(nickname);
+  const imageRequestRef = useRef(0);
   const saveStartedRef = useRef(false);
 
   const normalizedNickname = nickname.trim();
@@ -42,10 +50,17 @@ export function ProfileEditPage() {
   const nicknameChecked =
     checkState === "available" && checkedNickname === normalizedNickname;
   const avatarSelected = avatarId !== null || customImageUrl !== null;
+  const hasChanges =
+    normalizedNickname !== originalNickname ||
+    avatarId !== initialAvatarId ||
+    customImageUrl !== initialCustomImageUrl;
   const canSave =
+    user !== null &&
+    hasChanges &&
     nicknameValid &&
     (nicknameUnchanged || nicknameChecked) &&
     avatarSelected &&
+    !imageReading &&
     !saving;
 
   const nicknameError = !nicknameValid
@@ -93,8 +108,11 @@ export function ProfileEditPage() {
   };
 
   const closeAvatarSheet = () => {
+    imageRequestRef.current += 1;
     setStagedAvatarId(avatarId);
     setStagedImageUrl(customImageUrl);
+    setImageError("");
+    setImageReading(false);
     setAvatarSheetOpen(false);
   };
 
@@ -104,9 +122,25 @@ export function ProfileEditPage() {
     setAvatarSheetOpen(false);
   };
 
-  const handleUpload = (file: File) => {
-    setStagedImageUrl(URL.createObjectURL(file));
-    setStagedAvatarId(null);
+  const handleUpload = async (file: File) => {
+    const requestId = ++imageRequestRef.current;
+    setImageReading(true);
+    setImageError("");
+
+    try {
+      const imageUrl = await readProfileImage(file);
+      if (requestId !== imageRequestRef.current) return;
+
+      setStagedImageUrl(imageUrl);
+      setStagedAvatarId(null);
+    } catch (error) {
+      if (requestId !== imageRequestRef.current) return;
+      setImageError(error instanceof Error ? error.message : "이미지를 불러오지 못했어요.");
+    } finally {
+      if (requestId === imageRequestRef.current) {
+        setImageReading(false);
+      }
+    }
   };
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
@@ -231,18 +265,23 @@ export function ProfileEditPage() {
             onSelect={(nextAvatarId) => {
               setStagedAvatarId(nextAvatarId);
               setStagedImageUrl(null);
+              setImageError("");
             }}
             onUpload={handleUpload}
             showLabel={false}
             size="lg"
           />
+          <p className="mt-2 min-h-5 text-body-sm text-error" aria-live="polite">
+            {imageError}
+          </p>
         </div>
         <div className="mt-8">
           <Button
             type="button"
             size="lg"
             onClick={applyAvatar}
-            disabled={!stagedAvatarId && !stagedImageUrl}
+            loading={imageReading}
+            disabled={(!stagedAvatarId && !stagedImageUrl) || imageReading}
             className="enabled:!text-white disabled:!text-gray-400"
           >
             변경

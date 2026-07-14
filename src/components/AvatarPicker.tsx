@@ -86,11 +86,12 @@ export function AvatarPicker({
               <input
                 ref={fileInputRef}
                 type="file"
-                accept="image/*"
+                accept="image/jpeg,image/png,image/webp"
                 className="hidden"
                 onChange={(e) => {
                   const file = e.target.files?.[0];
                   if (file) onUpload(file);
+                  e.target.value = "";
                 }}
               />
             </>

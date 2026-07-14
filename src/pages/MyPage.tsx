@@ -1,8 +1,11 @@
 import { ChevronRight, FileText } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import notionIcon from "../assets/integrations/notion.png";
 import { AVATAR_PRESETS } from "../components/AvatarPicker";
+import { getPersistentProfileImage } from "../lib/profileImage";
 import { cn } from "../lib/utils";
 import { useAuthStore } from "../store/authStore";
+import { useIntegrationStore } from "../store/integrationStore";
 
 function PlogMark() {
   return (
@@ -54,8 +57,8 @@ function AccountLogo({ account }: { account: "github" | "figma" | "notion" | "do
 
   if (account === "notion") {
     return (
-      <span className="flex h-8 w-8 items-center justify-center rounded-md bg-white text-body font-extrabold text-gray-900 shadow-sm">
-        N
+      <span className="flex h-8 w-8 items-center justify-center rounded-md bg-white shadow-sm">
+        <img src={notionIcon} alt="" className="h-4 w-4 object-contain" aria-hidden="true" />
       </span>
     );
   }
@@ -68,10 +71,10 @@ function AccountLogo({ account }: { account: "github" | "figma" | "notion" | "do
 }
 
 const ACCOUNTS = [
-  { key: "github" as const, label: "GitHub", connected: true },
-  { key: "figma" as const, label: "Figma", connected: true },
-  { key: "notion" as const, label: "Notion", connected: false },
-  { key: "docs" as const, label: "Google docs", connected: false },
+  { key: "github" as const, logo: "github" as const, label: "GitHub" },
+  { key: "figma" as const, logo: "figma" as const, label: "Figma" },
+  { key: "notion" as const, logo: "notion" as const, label: "Notion" },
+  { key: "googleDocs" as const, logo: "docs" as const, label: "Google docs" },
 ];
 
 const SETTINGS = [
@@ -83,8 +86,11 @@ const SETTINGS = [
 export default function MyPage() {
   const navigate = useNavigate();
   const user = useAuthStore((state) => state.user);
+  const accounts = useIntegrationStore((state) => state.accounts);
   const avatar = AVATAR_PRESETS.find((preset) => preset.id === user?.avatarId) ?? AVATAR_PRESETS[0];
-  const avatarSrc = user?.avatarImageUrl ?? avatar.src;
+  const avatarSrc = getPersistentProfileImage(user?.avatarImageUrl) ?? avatar.src;
+  const displayRealName = user?.realName?.trim() || "이름 없음";
+  const displayNickname = user?.nickname?.trim() || "닉네임 없음";
 
   return (
     <div className="min-h-full bg-gray-25 pb-6">
@@ -102,7 +108,7 @@ export default function MyPage() {
         >
           <img
             src={avatarSrc}
-            alt={`${user?.nickname ?? "사용자"} 프로필`}
+            alt={`${displayNickname} 프로필`}
             className="h-14 w-14 rounded-full object-cover"
             onError={(event) => {
               event.currentTarget.onerror = null;
@@ -111,33 +117,47 @@ export default function MyPage() {
           />
           <span className="ml-4 min-w-0 flex-1">
             <strong className="block truncate text-title font-bold text-gray-900">
-              {user?.nickname ?? "사용자"}
+              {displayNickname}
             </strong>
             <span className="mt-0.5 block truncate text-body-sm text-gray-400">
-              {user?.realName ?? "실명 없음"}
+              {displayRealName}
             </span>
           </span>
           <ChevronRight size={20} className="text-gray-400" aria-hidden="true" />
         </button>
 
         <section className="mt-6" aria-labelledby="account-link-title">
-          <h2 id="account-link-title" className="text-title font-medium text-gray-500">계정 연동</h2>
-          <div className="mt-3 rounded-lg border border-gray-100 bg-white px-4 py-2 shadow-md">
-            {ACCOUNTS.map((account) => (
-              <div key={account.key} className="flex h-14 items-center gap-3">
-                <AccountLogo account={account.key} />
-                <span className="flex-1 text-body text-gray-900">{account.label}</span>
-                <span
-                  className={cn(
-                    "rounded-full px-3 py-1 text-caption",
-                    account.connected ? "bg-success/10 text-success" : "bg-gray-100 text-gray-500"
-                  )}
-                >
-                  {account.connected ? "연동" : "미연동"}
-                </span>
-              </div>
-            ))}
-          </div>
+          <Link
+            to="/my/accounts"
+            aria-label="계정 연동 관리"
+            className="block rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-300"
+          >
+            <div className="flex items-center justify-between">
+              <h2 id="account-link-title" className="text-title font-medium text-gray-500">
+                계정 연동
+              </h2>
+              <ChevronRight size={20} className="text-gray-400" aria-hidden="true" />
+            </div>
+            <div className="mt-3 rounded-lg border border-gray-100 bg-white px-4 py-2 shadow-md">
+              {ACCOUNTS.map((account) => {
+                const connected = accounts[account.key];
+                return (
+                  <span key={account.key} className="flex h-14 items-center gap-3">
+                    <AccountLogo account={account.logo} />
+                    <span className="flex-1 text-body text-gray-900">{account.label}</span>
+                    <span
+                      className={cn(
+                        "rounded-full px-3 py-1 text-caption",
+                        connected ? "bg-success/10 text-success" : "bg-error/10 text-error"
+                      )}
+                    >
+                      {connected ? "연동" : "미연동"}
+                    </span>
+                  </span>
+                );
+              })}
+            </div>
+          </Link>
         </section>
 
         <section className="mt-6" aria-labelledby="settings-title">

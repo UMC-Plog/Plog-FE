@@ -19,6 +19,7 @@ import { FindPasswordPage } from './pages/FindPasswordPage'
 import { ResetPasswordPage } from './pages/ResetPasswordPage'
 import { CreateProjectPage } from './pages/project/CreateProjectPage'
 import { ProfileEditPage } from './pages/my/ProfileEditPage'
+import { AccountConnectionsPage } from './pages/my/AccountConnectionsPage'
 import { ProjectSettingsPage } from './pages/project/ProjectSettingsPage'
 
 function App() {
@@ -44,6 +45,7 @@ function App() {
         </Route>
 
         <Route path="/my/profile" element={<ProfileEditPage />} />
+        <Route path="/my/accounts" element={<AccountConnectionsPage />} />
         <Route path="/project/new" element={<CreateProjectPage />} />
         <Route path="/project/:id/settings" element={<ProjectSettingsPage />} />
 
