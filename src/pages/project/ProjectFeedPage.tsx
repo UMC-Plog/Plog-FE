@@ -38,15 +38,19 @@ export default function ProjectFeedPage() {
       ) : (
         <div className="w-full space-y-2 px-4 py-4">
           {notices.map((notice) => (
-            <div
+            <button
               key={notice.id}
-              className="flex items-center gap-2 rounded-md bg-blue-50 px-3 py-2.5 text-body-sm text-blue-600"
+              type="button"
+              onClick={() =>
+                projectId && navigate(`/project/${projectId}/notices/${notice.id}`)
+              }
+              className="flex w-full items-center gap-2 rounded-md bg-blue-50 px-3 py-2.5 text-left text-body-sm text-blue-600 hover:bg-blue-100"
             >
               <Volume2 className="h-4 w-4 shrink-0" aria-hidden />
               <p className="min-w-0 truncate">
                 <span className="font-semibold">[공지]</span> {notice.title}
               </p>
-            </div>
+            </button>
           ))}
         </div>
       )}

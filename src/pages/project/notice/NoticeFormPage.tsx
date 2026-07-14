@@ -11,25 +11,53 @@ import { useNoticeStore } from '../../../store/noticeStore'
 
 const TEMP_PROJECT_NAME = '테스트 프로젝트'
 
-export default function NoticeEditorPage() {
-  const { id: projectId } = useParams<{ id: string }>()
+export default function NoticeFormPage() {
+  const { id: projectId, noticeId } = useParams<{ id: string; noticeId: string }>()
   const navigate = useNavigate()
   const user = useAuthStore((state) => state.user)
+  const notices = useNoticeStore((state) => state.notices)
   const createNotice = useNoticeStore((state) => state.createNotice)
-  const [title, setTitle] = useState('')
-  const [content, setContent] = useState('')
+  const updateNotice = useNoticeStore((state) => state.updateNotice)
+  const existingNotice = notices.find(
+    (notice) => notice.id === noticeId && notice.projectId === projectId
+  )
+  const isEditMode = Boolean(noticeId)
+  const [title, setTitle] = useState(existingNotice?.title ?? '')
+  const [content, setContent] = useState(existingNotice?.content ?? '')
 
-  const avatarPreset = AVATAR_PRESETS.find((avatar) => avatar.id === user?.avatarId)
-  const avatarSrc = user?.avatarImageUrl ?? avatarPreset?.src
-  const authorName = user?.nickname || user?.realName || '사용자'
-  const canSubmit = Boolean(projectId && user && title.trim() && content.trim())
+  const author = existingNotice?.author ?? user
+  const avatarPreset = AVATAR_PRESETS.find((avatar) => avatar.id === author?.avatarId)
+  const avatarSrc = author?.avatarImageUrl ?? avatarPreset?.src
+  const authorName = existingNotice?.author.nickname || user?.nickname || user?.realName || '사용자'
+  const canSubmit = Boolean(
+    projectId &&
+      title.trim() &&
+      content.trim() &&
+      (isEditMode ? existingNotice : user)
+  )
 
   const handleCancel = () => {
-    if (projectId) navigate(`/project/${projectId}/feed`)
+    if (!projectId) return
+    if (isEditMode && noticeId && existingNotice) {
+      navigate(`/project/${projectId}/notices/${noticeId}`)
+      return
+    }
+    navigate(`/project/${projectId}/feed`)
   }
 
   const handleSubmit = () => {
-    if (!canSubmit || !projectId || !user) return
+    if (!canSubmit || !projectId) return
+
+    if (isEditMode && noticeId) {
+      updateNotice(noticeId, {
+        title: title.trim(),
+        content: content.trim(),
+      })
+      navigate(`/project/${projectId}/notices/${noticeId}`, { replace: true })
+      return
+    }
+
+    if (!user) return
 
     createNotice({
       projectId,
@@ -43,6 +71,32 @@ export default function NoticeEditorPage() {
       },
     })
     navigate(`/project/${projectId}/feed`)
+  }
+
+  if (isEditMode && !existingNotice) {
+    return (
+      <Layout>
+        <header className="grid h-12 grid-cols-3 items-center border-b border-gray-200 bg-white px-3">
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            fullWidth={false}
+            onClick={handleCancel}
+            className="justify-self-start px-0 text-gray-500"
+          >
+            취소
+          </Button>
+          <h1 className="text-center text-body font-semibold text-gray-900">공지 작성</h1>
+        </header>
+        <main className="flex flex-1 flex-col items-center justify-center px-8 text-center">
+          <p className="text-title font-bold text-gray-700">공지를 찾을 수 없어요</p>
+          <Button type="button" size="sm" fullWidth={false} onClick={handleCancel} className="mt-6">
+            돌아가기
+          </Button>
+        </main>
+      </Layout>
+    )
   }
 
   return (
