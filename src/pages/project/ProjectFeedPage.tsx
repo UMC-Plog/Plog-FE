@@ -74,7 +74,15 @@ export default function ProjectFeedPage() {
           </div>
           {posts.length > 0 && (
             <div className="mt-4 space-y-4">
-              {posts.map((post) => <PostFeedItem key={post.id} post={post} />)}
+              {posts.map((post) => (
+                <PostFeedItem
+                  key={post.id}
+                  post={post}
+                  onClick={() =>
+                    projectId && navigate(`/project/${projectId}/posts/${post.id}`)
+                  }
+                />
+              ))}
             </div>
           )}
         </div>

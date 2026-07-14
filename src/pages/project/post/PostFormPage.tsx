@@ -12,28 +12,52 @@ import { usePostStore } from '../../../store/postStore'
 import type { PostAttachment } from '../../../types/post'
 
 export default function PostFormPage() {
-  const { id: projectId } = useParams<{ id: string }>()
+  const { id: projectId, postId } = useParams<{ id: string; postId: string }>()
   const navigate = useNavigate()
   const user = useAuthStore((state) => state.user)
+  const posts = usePostStore((state) => state.posts)
   const createPost = usePostStore((state) => state.createPost)
+  const updatePost = usePostStore((state) => state.updatePost)
+  const existingPost = posts.find(
+    (post) => post.id === postId && post.projectId === projectId
+  )
+  const isEditMode = Boolean(postId)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const imageInputRef = useRef<HTMLInputElement>(null)
   const submittingRef = useRef(false)
-  const [title, setTitle] = useState('')
-  const [content, setContent] = useState('')
-  const [attachments, setAttachments] = useState<PostAttachment[]>([])
+  const [title, setTitle] = useState(existingPost?.title ?? '')
+  const [content, setContent] = useState(existingPost?.content ?? '')
+  const [attachments, setAttachments] = useState<PostAttachment[]>(
+    existingPost?.attachments ?? []
+  )
   const [isLinkInputOpen, setIsLinkInputOpen] = useState(false)
   const [linkUrl, setLinkUrl] = useState('')
   const [linkError, setLinkError] = useState<string>()
   const [isSubmitting, setIsSubmitting] = useState(false)
 
-  const avatarPreset = AVATAR_PRESETS.find((avatar) => avatar.id === user?.avatarId)
-  const avatarSrc = user?.avatarImageUrl ?? avatarPreset?.src
-  const authorName = user?.nickname || user?.realName || '사용자'
-  const canSubmit = Boolean(projectId && user && title.trim() && content.trim() && !isSubmitting)
+  const author = existingPost?.author ?? user
+  const avatarPreset = AVATAR_PRESETS.find((avatar) => avatar.id === author?.avatarId)
+  const avatarSrc = author?.avatarImageUrl ?? avatarPreset?.src
+  const authorName = existingPost?.author.nickname || user?.nickname || user?.realName || '사용자'
+  const canSubmit = Boolean(
+    projectId &&
+      title.trim() &&
+      content.trim() &&
+      !isSubmitting &&
+      (isEditMode ? existingPost : user)
+  )
 
   const goToFeed = () => {
     if (projectId) navigate(`/project/${projectId}/feed`)
+  }
+
+  const handleCancel = () => {
+    if (!projectId) return
+    if (isEditMode && postId && existingPost) {
+      navigate(`/project/${projectId}/posts/${postId}`)
+      return
+    }
+    goToFeed()
   }
 
   const addFiles = (files: FileList | null, type: 'file' | 'image') => {
@@ -70,9 +94,21 @@ export default function PostFormPage() {
   }
 
   const handleSubmit = () => {
-    if (!canSubmit || !projectId || !user || submittingRef.current) return
+    if (!canSubmit || !projectId || submittingRef.current) return
     submittingRef.current = true
     setIsSubmitting(true)
+
+    if (isEditMode && postId) {
+      updatePost(projectId, postId, {
+        title: title.trim(),
+        content: content.trim(),
+        attachments,
+      })
+      navigate(`/project/${projectId}/posts/${postId}`, { replace: true })
+      return
+    }
+
+    if (!user) return
 
     createPost({
       projectId,
@@ -89,10 +125,29 @@ export default function PostFormPage() {
     goToFeed()
   }
 
+  if (isEditMode && !existingPost) {
+    return (
+      <Layout>
+        <header className="grid h-12 grid-cols-3 items-center border-b border-gray-200 bg-white px-3">
+          <Button type="button" variant="ghost" size="sm" fullWidth={false} onClick={handleCancel} className="justify-self-start px-0 text-gray-500">
+            취소
+          </Button>
+          <h1 className="text-center text-body font-semibold text-gray-900">게시글 작성</h1>
+        </header>
+        <main className="flex flex-1 flex-col items-center justify-center px-8 text-center">
+          <p className="text-title font-bold text-gray-700">게시글을 찾을 수 없어요</p>
+          <Button type="button" size="sm" fullWidth={false} onClick={goToFeed} className="mt-6">
+            피드로 돌아가기
+          </Button>
+        </main>
+      </Layout>
+    )
+  }
+
   return (
     <Layout>
       <header className="grid h-12 grid-cols-3 items-center border-b border-gray-200 bg-white px-3">
-        <Button type="button" variant="ghost" size="sm" fullWidth={false} onClick={goToFeed} className="justify-self-start px-0 text-gray-500">
+        <Button type="button" variant="ghost" size="sm" fullWidth={false} onClick={handleCancel} className="justify-self-start px-0 text-gray-500">
           취소
         </Button>
         <h1 className="text-center text-body font-semibold text-gray-900">게시글 작성</h1>

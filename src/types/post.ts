@@ -26,9 +26,20 @@ export interface Post {
   updatedAt: string
   likeCount: number
   commentCount: number
+  likedUserIds: string[]
+}
+
+export interface PostComment {
+  id: string
+  postId: string
+  author: PostAuthor
+  content: string
+  createdAt: string
 }
 
 export type CreatePostInput = Pick<
   Post,
   'projectId' | 'title' | 'content' | 'author' | 'attachments'
 >
+
+export type CreateCommentInput = Pick<PostComment, 'postId' | 'author' | 'content'>

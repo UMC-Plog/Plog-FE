@@ -40,7 +40,7 @@ export function ConfirmDialog({
             size="md"
             fullWidth={false}
             onClick={onCancel}
-            className="flex-1 bg-gray-100 hover:bg-gray-200"
+            className="flex-1 bg-gray-100 text-gray-400 hover:bg-gray-200"
           >
             {cancelText}
           </Button>
@@ -49,7 +49,7 @@ export function ConfirmDialog({
             size="md"
             fullWidth={false}
             onClick={onConfirm}
-            className="flex-1"
+            className="flex-1 text-white"
           >
             {confirmText}
           </Button>

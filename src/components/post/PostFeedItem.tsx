@@ -4,6 +4,7 @@ import type { Post } from '../../types/post'
 
 interface PostFeedItemProps {
   post: Post
+  onClick: () => void
 }
 
 function formatPostTime(createdAt: string) {
@@ -23,14 +24,18 @@ function formatFileSize(size?: number) {
   return `${(size / 1024 / 1024).toFixed(1)}MB`
 }
 
-export function PostFeedItem({ post }: PostFeedItemProps) {
+export function PostFeedItem({ post, onClick }: PostFeedItemProps) {
   const avatarPreset = AVATAR_PRESETS.find((avatar) => avatar.id === post.author.avatarId)
   const avatarSrc = post.author.avatarImageUrl ?? avatarPreset?.src
   const attachment = post.attachments[0]
   const AttachmentIcon = attachment?.type === 'link' ? Link : attachment?.type === 'image' ? Image : FileText
 
   return (
-    <article className="rounded-lg bg-white p-4 shadow-md">
+    <button
+      type="button"
+      onClick={onClick}
+      className="w-full rounded-lg bg-white p-4 text-left shadow-md"
+    >
       <div className="flex items-center gap-3">
         <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-gray-100">
           {avatarSrc ? (
@@ -74,6 +79,6 @@ export function PostFeedItem({ post }: PostFeedItemProps) {
           {post.commentCount}
         </span>
       </div>
-    </article>
+    </button>
   )
 }
