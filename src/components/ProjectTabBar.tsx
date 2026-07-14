@@ -1,4 +1,5 @@
 import { NavLink, Outlet } from 'react-router-dom'
+import { TopNavBar } from './TopNavBar'
 
 // Figma 프로젝트 상세 상단 탭 기준: 피드 / 채팅 / 업무 / 리포트
 const tabs = [
@@ -8,22 +9,33 @@ const tabs = [
   { to: 'report', label: '리포트' },
 ]
 
+const projectTitle = '테스트 프로젝트'
+
 export default function ProjectTabBar() {
   return (
     <div className="flex flex-col min-h-svh">
+      <TopNavBar title={projectTitle} />
+
       <nav className="border-b border-gray-200 bg-white">
-        <ul className="flex justify-around py-2">
+        <ul className="flex">
           {tabs.map((tab) => (
-            <li key={tab.to}>
+            <li key={tab.to} className="flex-1">
               <NavLink
                 to={tab.to}
                 className={({ isActive }) =>
-                  `flex flex-col items-center gap-1 text-caption px-3 py-1 ${
+                  `relative flex h-10 items-center justify-center text-caption ${
                     isActive ? 'text-primary' : 'text-gray-400'
                   }`
                 }
               >
-                {tab.label}
+                {({ isActive }) => (
+                  <>
+                    {tab.label}
+                    {isActive && (
+                      <span className="absolute inset-x-0 bottom-0 h-0.5 bg-primary" aria-hidden />
+                    )}
+                  </>
+                )}
               </NavLink>
             </li>
           ))}
