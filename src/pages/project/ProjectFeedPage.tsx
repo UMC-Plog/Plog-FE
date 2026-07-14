@@ -1,19 +1,55 @@
 import { Plus, SquarePen, Volume2, X } from 'lucide-react'
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
+import { useNavigate, useParams } from 'react-router-dom'
 import { Button } from '../../components/Button'
 import { EmptyState } from '../../components/EmptyState'
+import { useNoticeStore } from '../../store/noticeStore'
 
 export default function ProjectFeedPage() {
+  const { id: projectId } = useParams<{ id: string }>()
+  const navigate = useNavigate()
   const [isWriteMenuOpen, setIsWriteMenuOpen] = useState(false)
+  const allNotices = useNoticeStore((state) => state.notices)
+
+  const notices = useMemo(
+    () =>
+      projectId
+        ? allNotices
+            .filter((notice) => notice.projectId === projectId)
+            .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+        : [],
+    [allNotices, projectId]
+  )
 
   const closeWriteMenu = () => setIsWriteMenuOpen(false)
 
+  const handleCreateNotice = () => {
+    closeWriteMenu()
+    if (projectId) navigate(`/project/${projectId}/notices/new`)
+  }
+
   return (
     <div className="relative flex min-h-[calc(100svh-theme(spacing.12)-theme(spacing.10))] overflow-hidden whitespace-pre-line bg-gray-25">
-      <EmptyState
-        title="아직 게시글이 없어요"
-        description={'첫 게시물이나 공지를 작성해\n팀원들과 진행 상황을 공유해보세요'}
-      />
+      {notices.length === 0 ? (
+        <EmptyState
+          title="아직 게시글이 없어요"
+          description={'첫 게시물이나 공지를 작성해\n팀원들과 진행 상황을 공유해보세요'}
+        />
+      ) : (
+        <div className="w-full space-y-2 px-4 py-4">
+          {notices.map((notice) => (
+            <div
+              key={notice.id}
+              className="flex items-center gap-2 rounded-md bg-blue-50 px-3 py-2.5 text-body-sm text-blue-600"
+            >
+              <Volume2 className="h-4 w-4 shrink-0" aria-hidden />
+              <p className="min-w-0 truncate">
+                <span className="font-semibold">[공지]</span> {notice.title}
+              </p>
+            </div>
+          ))}
+        </div>
+      )}
 
       {isWriteMenuOpen && (
         <button
@@ -39,7 +75,7 @@ export default function ProjectFeedPage() {
           </button>
           <button
             type="button"
-            onClick={closeWriteMenu}
+            onClick={handleCreateNotice}
             className="flex w-full items-center gap-2 border-t border-gray-100 px-4 py-3 text-left text-body-sm text-gray-700 hover:bg-gray-50"
           >
             <Volume2 className="h-5 w-5 text-primary" aria-hidden />

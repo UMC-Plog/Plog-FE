@@ -10,6 +10,7 @@ import ProjectFeedPage from './pages/project/ProjectFeedPage'
 import ProjectChatPage from './pages/project/ProjectChatPage'
 import ProjectTaskPage from './pages/project/ProjectTaskPage'
 import ProjectReportPage from './pages/project/ProjectReportPage'
+import NoticeEditorPage from './pages/project/notice/NoticeEditorPage'
 import { SplashPage } from './pages/SplashPage'
 import { SignupPage } from './pages/SignupPage'
 import { SignupSocialConsentPage } from './pages/SignupSocialConsentPage'
@@ -48,6 +49,8 @@ function App() {
           <Route path="tasks" element={<ProjectTaskPage />} />
           <Route path="report" element={<ProjectReportPage />} />
         </Route>
+
+        <Route path="/project/:id/notices/new" element={<NoticeEditorPage />} />
 
         <Route path="*" element={<Navigate to="/home" replace />} />
       </Routes>
