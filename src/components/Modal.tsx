@@ -5,10 +5,11 @@ interface ModalProps {
   open: boolean;
   onClose?: () => void;
   children: ReactNode;
+  ariaLabelledby?: string;
 }
 
 /** Plog 전역 공통 Modal — 중앙 정렬 팝업 (업무카드 상세, 삭제확인 등) */
-export function Modal({ open, onClose, children }: ModalProps) {
+export function Modal({ open, onClose, children, ariaLabelledby }: ModalProps) {
   useEffect(() => {
     if (!open) return;
     const onKeyDown = (e: KeyboardEvent) => {
@@ -28,6 +29,7 @@ export function Modal({ open, onClose, children }: ModalProps) {
       <div
         role="dialog"
         aria-modal="true"
+        aria-labelledby={ariaLabelledby}
         className="w-full max-w-sm rounded-xl bg-white p-6 shadow-xl animate-in"
         onClick={(e) => e.stopPropagation()}
       >
@@ -39,7 +41,7 @@ export function Modal({ open, onClose, children }: ModalProps) {
 }
 
 /** Plog 전역 공통 BottomSheet — 하단에서 올라오는 시트 (액션 목록, 필터 등) */
-export function BottomSheet({ open, onClose, children }: ModalProps) {
+export function BottomSheet({ open, onClose, children, ariaLabelledby }: ModalProps) {
   useEffect(() => {
     if (!open) return;
     const onKeyDown = (e: KeyboardEvent) => {
@@ -59,6 +61,7 @@ export function BottomSheet({ open, onClose, children }: ModalProps) {
       <div
         role="dialog"
         aria-modal="true"
+        aria-labelledby={ariaLabelledby}
         className="w-full max-w-mobile rounded-t-xl bg-white p-6 pb-8 shadow-xl animate-in slide-in-from-bottom"
         onClick={(e) => e.stopPropagation()}
       >
