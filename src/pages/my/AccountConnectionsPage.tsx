@@ -46,7 +46,7 @@ export function AccountConnectionsPage() {
   const handleDisconnect = () => {
     if (!pendingService) return;
     disconnect(pendingService.provider);
-    setFeedback(`${pendingService.name} 계정 연동을 해지했어요.`);
+    setFeedback(`${pendingService.name} 계정 연동을 해제했어요.`);
     setPendingDisconnect(null);
   };
 
@@ -59,7 +59,9 @@ export function AccountConnectionsPage() {
       />
 
       <main className="px-4 pt-6">
-        <p className="px-3 text-body-sm text-gray-400">연동할 서비스를 선택해 주세요</p>
+        <p className="px-2 text-caption font-normal text-gray-400">
+          연동된 툴의 활동 데이터가 기여도 분석에 자동 반영됩니다
+        </p>
         <ul className="mt-3 overflow-hidden rounded-lg border border-gray-100 bg-white shadow-md">
           {SERVICES.map((service) => (
             <AccountConnectionItem
@@ -101,16 +103,16 @@ export function AccountConnectionsPage() {
             />
           ) : null
         }
-        title={`${pendingService?.name ?? "GitHub"} 연동을 해지할까요?`}
+        title={`${pendingService?.name ?? "GitHub"} 연동을 해제할까요?`}
         description={
           <>
-            해지하면 커밋/PR 활동 데이터 수집이 중단되며
+            해제하면 커밋/PR 활동 데이터 수집이 중단되며
             <br />
             기여도 분석 정확도가 낮아질 수 있어요
           </>
         }
         cancelText="취소"
-        confirmText="연동 해지"
+        confirmText="연동 해제"
         destructive
         onCancel={() => setPendingDisconnect(null)}
         onConfirm={handleDisconnect}

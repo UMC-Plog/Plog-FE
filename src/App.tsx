@@ -20,6 +20,8 @@ import { ResetPasswordPage } from './pages/ResetPasswordPage'
 import { CreateProjectPage } from './pages/project/CreateProjectPage'
 import { ProfileEditPage } from './pages/my/ProfileEditPage'
 import { AccountConnectionsPage } from './pages/my/AccountConnectionsPage'
+import { NotificationSettingsPage } from './pages/my/NotificationSettingsPage'
+import { WithdrawPage } from './pages/my/WithdrawPage'
 import { ProjectSettingsPage } from './pages/project/ProjectSettingsPage'
 
 function App() {
@@ -46,6 +48,8 @@ function App() {
 
         <Route path="/my/profile" element={<ProfileEditPage />} />
         <Route path="/my/accounts" element={<AccountConnectionsPage />} />
+        <Route path="/my/notifications" element={<NotificationSettingsPage />} />
+        <Route path="/my/withdraw" element={<WithdrawPage />} />
         <Route path="/project/new" element={<CreateProjectPage />} />
         <Route path="/project/:id/settings" element={<ProjectSettingsPage />} />
 

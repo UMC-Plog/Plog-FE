@@ -1,11 +1,14 @@
-import { ChevronRight, FileText } from "lucide-react";
+import { ChevronRight, FileText, LogOut } from "lucide-react";
+import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import notionIcon from "../assets/integrations/notion.png";
 import { AVATAR_PRESETS } from "../components/AvatarPicker";
+import { ConfirmDialog } from "../components/ConfirmDialog";
 import { getPersistentProfileImage } from "../lib/profileImage";
 import { cn } from "../lib/utils";
 import { useAuthStore } from "../store/authStore";
 import { useIntegrationStore } from "../store/integrationStore";
+import { useNotificationStore } from "../store/notificationStore";
 
 function PlogMark() {
   return (
@@ -77,16 +80,13 @@ const ACCOUNTS = [
   { key: "googleDocs" as const, logo: "docs" as const, label: "Google docs" },
 ];
 
-const SETTINGS = [
-  { label: "알림 설정", danger: false },
-  { label: "로그아웃", danger: false },
-  { label: "회원 탈퇴", danger: true },
-];
-
 export default function MyPage() {
   const navigate = useNavigate();
   const user = useAuthStore((state) => state.user);
+  const logout = useAuthStore((state) => state.logout);
   const accounts = useIntegrationStore((state) => state.accounts);
+  const notificationsEnabled = useNotificationStore((state) => state.notificationsEnabled);
+  const [logoutDialogOpen, setLogoutDialogOpen] = useState(false);
   const avatar = AVATAR_PRESETS.find((preset) => preset.id === user?.avatarId) ?? AVATAR_PRESETS[0];
   const avatarSrc = getPersistentProfileImage(user?.avatarImageUrl) ?? avatar.src;
   const displayRealName = user?.realName?.trim() || "이름 없음";
@@ -162,22 +162,52 @@ export default function MyPage() {
 
         <section className="mt-6" aria-labelledby="settings-title">
           <h2 id="settings-title" className="text-title font-medium text-gray-500">설정</h2>
-          <div className="mt-3 rounded-lg border border-gray-100 bg-white px-4 py-1 shadow-md">
-            {SETTINGS.map((setting) => (
-              <div
-                key={setting.label}
-                aria-disabled="true"
-                className="flex h-12 w-full items-center text-left"
-              >
-                <span className={cn("flex-1 text-body", setting.danger ? "text-error" : "text-gray-700")}>
-                  {setting.label}
-                </span>
-                <span className="text-caption font-normal text-gray-400">준비 중</span>
-              </div>
-            ))}
+          <div className="mt-3 overflow-hidden rounded-lg border border-gray-100 bg-white px-4 py-1 shadow-md">
+            <Link
+              to="/my/notifications"
+              aria-label={`알림 설정, 현재 ${notificationsEnabled ? "켜짐" : "꺼짐"}`}
+              className="flex h-12 w-full items-center text-left text-gray-700 transition-colors hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-300"
+            >
+              <span className="flex-1 text-body">알림 설정</span>
+              <ChevronRight size={20} className="text-gray-400" aria-hidden="true" />
+            </Link>
+            <button
+              type="button"
+              onClick={() => setLogoutDialogOpen(true)}
+              className="flex h-12 w-full items-center text-left text-gray-700 transition-colors hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-300"
+            >
+              <span className="flex-1 text-body">로그아웃</span>
+              <ChevronRight size={20} className="text-gray-400" aria-hidden="true" />
+            </button>
+            <Link
+              to="/my/withdraw"
+              className="flex h-12 w-full items-center text-left text-error transition-colors hover:bg-error/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-300"
+            >
+              <span className="flex-1 text-body">회원 탈퇴</span>
+              <ChevronRight size={20} className="text-gray-400" aria-hidden="true" />
+            </Link>
           </div>
         </section>
       </div>
+
+      <ConfirmDialog
+        open={logoutDialogOpen}
+        icon={
+          <span className="flex h-[54px] w-[54px] items-center justify-center rounded-full bg-gray-100 text-gray-400">
+            <LogOut size={26} strokeWidth={1.8} aria-hidden="true" />
+          </span>
+        }
+        title="로그아웃 하시겠어요?"
+        description="다시 로그인하면 모든 데이터는 유지돼요"
+        cancelText="취소"
+        confirmText="로그아웃"
+        destructive
+        onCancel={() => setLogoutDialogOpen(false)}
+        onConfirm={() => {
+          logout();
+          navigate("/login", { replace: true });
+        }}
+      />
     </div>
   );
 }

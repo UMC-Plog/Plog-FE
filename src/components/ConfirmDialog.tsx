@@ -31,8 +31,8 @@ export function ConfirmDialog({
 
   return (
     <Modal open={open} onClose={onCancel} ariaLabelledby={titleId}>
-      <div className="flex flex-col items-center text-center">
-        {icon && <div className="mb-3">{icon}</div>}
+      <div className="flex flex-col items-center py-3 text-center">
+        {icon && <div className="mb-5">{icon}</div>}
         <h2 id={titleId} className="text-title font-bold text-gray-900">{title}</h2>
         {description && <p className="mt-1.5 text-body-sm text-gray-500">{description}</p>}
 
@@ -43,7 +43,7 @@ export function ConfirmDialog({
             size="md"
             fullWidth={false}
             onClick={onCancel}
-            className="flex-1 bg-gray-100 hover:bg-gray-200"
+            className="h-14 flex-1 bg-gray-100 hover:bg-gray-200"
           >
             {cancelText}
           </Button>
@@ -53,7 +53,7 @@ export function ConfirmDialog({
             size="md"
             fullWidth={false}
             onClick={onConfirm}
-            className="flex-1"
+            className="h-14 flex-1"
           >
             {confirmText}
           </Button>
