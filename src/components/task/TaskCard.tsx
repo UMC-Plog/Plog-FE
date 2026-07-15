@@ -37,7 +37,13 @@ export function TaskCard({ task, onClick }: TaskCardProps) {
         <h3 className="min-w-0 flex-1 break-words text-body-sm font-semibold text-gray-900">
           {task.title}
         </h3>
-        <span className={cn(TASK_BADGE_BASE_CLASS, 'shrink-0', category.className)}>
+        <span
+          className={cn(
+            TASK_BADGE_BASE_CLASS,
+            'shrink-0 whitespace-nowrap px-2 py-0.5 text-caption',
+            category.className
+          )}
+        >
           {category.label}
         </span>
       </div>

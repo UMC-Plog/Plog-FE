@@ -1,4 +1,4 @@
-import { ArrowRight, Ellipsis, FileText, Heart, Image, Link, MessageSquare, UserRound } from 'lucide-react'
+import { ArrowRight, ArrowUpRight, Ellipsis, FileText, Heart, Image, Link, MessageSquare, UserRound } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { AVATAR_PRESETS } from '../../../components/AvatarPicker'
@@ -178,12 +178,23 @@ export default function PostDetailPage() {
                     <AttachmentIcon className="h-5 w-5 shrink-0 text-primary" aria-hidden />
                     <span className="min-w-0 flex-1 truncate text-body-sm text-blue-600">{attachment.name}</span>
                     {formatFileSize(attachment.size) && <span className="shrink-0 text-caption font-normal text-gray-400">{formatFileSize(attachment.size)}</span>}
+                    {attachment.type === 'link' && safeLink && (
+                      <a
+                        href={safeLink}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        aria-label={`${attachment.name} 링크 열기`}
+                        onClick={(event) => event.stopPropagation()}
+                        className="flex shrink-0 cursor-pointer items-center gap-1 rounded-sm px-1.5 py-1 text-caption text-primary hover:bg-primary-50 hover:text-primary-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-300"
+                      >
+                        열기
+                        <ArrowUpRight className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                      </a>
+                    )}
                   </>
                 )
 
-                return safeLink ? (
-                  <a key={attachment.id} href={safeLink} target="_blank" rel="noreferrer" className="flex items-center gap-3 rounded-md bg-gray-50 px-3 py-3">{content}</a>
-                ) : (
+                return (
                   <div key={attachment.id} className="flex items-center gap-3 rounded-md bg-gray-50 px-3 py-3">{content}</div>
                 )
               })}

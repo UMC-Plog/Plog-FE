@@ -1,5 +1,7 @@
 import { FileText, Heart, Image, Link, MessageSquare, UserRound } from 'lucide-react'
 import { AVATAR_PRESETS } from '../AvatarPicker'
+import { useAuthStore } from '../../store/authStore'
+import { usePostStore } from '../../store/postStore'
 import type { Post } from '../../types/post'
 
 interface PostFeedItemProps {
@@ -25,16 +27,26 @@ function formatFileSize(size?: number) {
 }
 
 export function PostFeedItem({ post, onClick }: PostFeedItemProps) {
+  const user = useAuthStore((state) => state.user)
+  const togglePostLike = usePostStore((state) => state.togglePostLike)
   const avatarPreset = AVATAR_PRESETS.find((avatar) => avatar.id === post.author.avatarId)
   const avatarSrc = post.author.avatarImageUrl ?? avatarPreset?.src
   const attachment = post.attachments[0]
   const AttachmentIcon = attachment?.type === 'link' ? Link : attachment?.type === 'image' ? Image : FileText
+  const isLiked = Boolean(user && post.likedUserIds?.includes(user.id))
 
   return (
-    <button
-      type="button"
+    <article
+      role="link"
+      tabIndex={0}
       onClick={onClick}
-      className="w-full rounded-lg bg-white p-4 text-left shadow-md"
+      onKeyDown={(event) => {
+        if (event.target === event.currentTarget && (event.key === 'Enter' || event.key === ' ')) {
+          event.preventDefault()
+          onClick()
+        }
+      }}
+      className="w-full cursor-pointer rounded-lg bg-white p-4 text-left shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-300"
     >
       <div className="flex items-center gap-3">
         <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-gray-100">
@@ -70,15 +82,28 @@ export function PostFeedItem({ post, onClick }: PostFeedItemProps) {
       )}
 
       <div className="mt-4 flex items-center gap-4 text-caption font-normal text-gray-400">
-        <span className="flex items-center gap-1">
-          <Heart className="h-4 w-4" aria-hidden />
+        <button
+          type="button"
+          disabled={!user}
+          aria-label={isLiked ? '게시글 좋아요 취소' : '게시글 좋아요'}
+          aria-pressed={isLiked}
+          onClick={(event) => {
+            event.stopPropagation()
+            if (user) togglePostLike(post.projectId, post.id, user.id)
+          }}
+          onKeyDown={(event) => event.stopPropagation()}
+          className={`flex cursor-pointer items-center gap-1 rounded-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-300 disabled:cursor-not-allowed ${
+            isLiked ? 'text-error hover:text-error/80' : 'text-gray-400 hover:text-error'
+          }`}
+        >
+          <Heart className={`h-4 w-4 ${isLiked ? 'fill-current' : ''}`} aria-hidden />
           {post.likeCount}
-        </span>
+        </button>
         <span className="flex items-center gap-1">
           <MessageSquare className="h-4 w-4" aria-hidden />
           {post.commentCount}
         </span>
       </div>
-    </button>
+    </article>
   )
 }
