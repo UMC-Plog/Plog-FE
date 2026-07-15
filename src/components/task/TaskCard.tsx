@@ -1,20 +1,13 @@
 import { CalendarDays, Paperclip, UserRound } from 'lucide-react'
 import { AVATAR_PRESETS } from '../AvatarPicker'
 import { cn } from '../../lib/utils'
-import type { Task, TaskCategory } from '../../types/task'
+import type { Task } from '../../types/task'
 import { isTaskDueSoon, isTaskOverdue, parseTaskDate } from '../../utils/taskDate'
+import { TASK_BADGE_BASE_CLASS, TASK_CATEGORY_CONFIG } from './taskCategoryConfig'
 
 interface TaskCardProps {
   task: Task
   onClick?: (task: Task) => void
-}
-
-const categoryConfig: Record<TaskCategory, { label: string; className: string }> = {
-  document: { label: '문서', className: 'bg-navy-50 text-navy-600' },
-  design: { label: '디자인', className: 'bg-aqua-50 text-aqua-600' },
-  planning: { label: '기획', className: 'bg-warning/10 text-warning' },
-  development: { label: '개발', className: 'bg-primary-50 text-primary' },
-  test: { label: '테스트/수정', className: 'bg-success/10 text-success' },
 }
 
 function formatDueDate(value: string) {
@@ -23,7 +16,7 @@ function formatDueDate(value: string) {
 }
 
 export function TaskCard({ task, onClick }: TaskCardProps) {
-  const category = categoryConfig[task.category]
+  const category = TASK_CATEGORY_CONFIG[task.category]
   const overdue = isTaskOverdue(task)
   const dueSoon = isTaskDueSoon(task)
   const avatarPreset = AVATAR_PRESETS.find((avatar) => avatar.id === task.assignee.avatarId)
@@ -44,7 +37,7 @@ export function TaskCard({ task, onClick }: TaskCardProps) {
         <h3 className="min-w-0 flex-1 break-words text-body-sm font-semibold text-gray-900">
           {task.title}
         </h3>
-        <span className={cn('shrink-0 rounded-full px-2 py-1 text-caption', category.className)}>
+        <span className={cn(TASK_BADGE_BASE_CLASS, 'shrink-0', category.className)}>
           {category.label}
         </span>
       </div>

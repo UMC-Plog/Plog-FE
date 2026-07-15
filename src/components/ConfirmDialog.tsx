@@ -5,6 +5,7 @@ import { Modal } from "./Modal";
 interface ConfirmDialogProps {
   open: boolean;
   icon?: ReactNode;
+  highlight?: ReactNode;
   title: string;
   description?: string;
   confirmText?: string;
@@ -19,6 +20,7 @@ interface ConfirmDialogProps {
 export function ConfirmDialog({
   open,
   icon,
+  highlight,
   title,
   description,
   confirmText = "확인",
@@ -32,7 +34,12 @@ export function ConfirmDialog({
       <div className="flex flex-col items-center text-center">
         {icon && <div className="mb-3">{icon}</div>}
         <h2 className="text-title font-bold text-gray-900">{title}</h2>
-        {description && <p className="mt-1.5 text-body-sm text-gray-500">{description}</p>}
+        {highlight && <div className="mt-3 w-full">{highlight}</div>}
+        {description && (
+          <p className={`${highlight ? "mt-2" : "mt-1.5"} text-body-sm text-gray-500`}>
+            {description}
+          </p>
+        )}
 
         <div className="mt-5 flex w-full gap-2.5">
           <Button

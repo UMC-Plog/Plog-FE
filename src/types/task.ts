@@ -14,6 +14,14 @@ export interface TaskAssignee {
   avatarImageUrl?: string
 }
 
+export interface TaskAttachment {
+  id: string
+  type: 'file' | 'link'
+  name: string
+  url?: string
+  size?: string
+}
+
 export interface Task {
   id: string
   projectId: string
@@ -21,9 +29,20 @@ export interface Task {
   description?: string
   status: TaskStatus
   category: TaskCategory
+  attachments: TaskAttachment[]
   attachmentCount: number
   dueDate: string
   assignee: TaskAssignee
   createdAt: string
   updatedAt: string
 }
+
+export type CreateTaskInput = Pick<
+  Task,
+  'projectId' | 'title' | 'description' | 'status' | 'category' | 'attachments' | 'dueDate' | 'assignee'
+>
+
+export type UpdateTaskInput = Pick<
+  Task,
+  'title' | 'description' | 'status' | 'category' | 'attachments' | 'dueDate' | 'assignee'
+>

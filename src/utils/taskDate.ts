@@ -24,3 +24,9 @@ export function isTaskDueSoon(task: Task, days = 3) {
   const difference = dueDate.getTime() - today.getTime()
   return difference >= 0 && difference <= days * DAY_IN_MS
 }
+
+export function getTaskDaysRemaining(task: Task) {
+  const today = getLocalToday()
+  const dueDate = parseTaskDate(task.dueDate)
+  return Math.round((dueDate.getTime() - today.getTime()) / DAY_IN_MS)
+}

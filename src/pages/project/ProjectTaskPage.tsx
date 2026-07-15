@@ -3,6 +3,9 @@ import { Plus } from 'lucide-react'
 import { useParams } from 'react-router-dom'
 import { Button } from '../../components/Button'
 import { KanbanColumn } from '../../components/task/KanbanColumn'
+import { TaskCardDetailModal } from '../../components/task/TaskCardDetailModal'
+import { TaskCardFormModal } from '../../components/task/TaskCardFormModal'
+import { ConfirmDialog } from '../../components/ConfirmDialog'
 import { ProgressBar } from '../../components/ProgressBar'
 import { cn } from '../../lib/utils'
 import { useAuthStore } from '../../store/authStore'
@@ -20,49 +23,25 @@ const FILTERS: Array<{ value: TaskFilter; label: string }> = [
   { value: 'dueSoon', label: '마감임박' },
 ]
 
-function toDateInputValue(date: Date) {
-  const year = date.getFullYear()
-  const month = String(date.getMonth() + 1).padStart(2, '0')
-  const day = String(date.getDate()).padStart(2, '0')
-  return `${year}-${month}-${day}`
-}
-
-function addDays(days: number) {
-  const date = new Date()
-  date.setDate(date.getDate() + days)
-  return toDateInputValue(date)
-}
-
-function createPreviewTasks(projectId: string): Task[] {
-  const now = new Date().toISOString()
-  const assignees = {
-    banana: { id: 'preview-banana', nickname: '바나나', avatarId: 'otter' },
-    ggum: { id: 'preview-ggum', nickname: '곰곰', avatarId: 'ghost' },
-  }
-
-  return [
-    { id: 'preview-1', projectId, title: '발표자료 초안', status: 'todo', category: 'document', attachmentCount: 1, dueDate: addDays(2), assignee: assignees.ggum, createdAt: now, updatedAt: now },
-    { id: 'preview-2', projectId, title: 'UI 컴포넌트 설계', status: 'todo', category: 'design', attachmentCount: 1, dueDate: addDays(3), assignee: assignees.banana, createdAt: now, updatedAt: now },
-    { id: 'preview-3', projectId, title: '요구사항 정리', status: 'inProgress', category: 'planning', attachmentCount: 2, dueDate: addDays(-1), assignee: assignees.banana, createdAt: now, updatedAt: now },
-    { id: 'preview-4', projectId, title: '로그인 화면 개발', status: 'inProgress', category: 'development', attachmentCount: 2, dueDate: addDays(4), assignee: assignees.ggum, createdAt: now, updatedAt: now },
-    { id: 'preview-5', projectId, title: 'DB 스키마 설계', status: 'inProgress', category: 'development', attachmentCount: 2, dueDate: addDays(1), assignee: assignees.banana, createdAt: now, updatedAt: now },
-    { id: 'preview-6', projectId, title: '기획 문서 작성', status: 'done', category: 'planning', attachmentCount: 2, dueDate: addDays(-2), assignee: assignees.banana, createdAt: now, updatedAt: now },
-    { id: 'preview-7', projectId, title: '테스트 케이스', status: 'done', category: 'test', attachmentCount: 2, dueDate: addDays(-3), assignee: assignees.banana, createdAt: now, updatedAt: now },
-    { id: 'preview-8', projectId, title: 'API 명세 검토', status: 'todo', category: 'document', attachmentCount: 0, dueDate: addDays(7), assignee: assignees.ggum, createdAt: now, updatedAt: now },
-  ]
-}
-
 export default function ProjectTaskPage() {
   const { id: projectId = '' } = useParams()
   const user = useAuthStore((state) => state.user)
   const storedTasks = useTaskStore((state) => state.tasks)
+  const completeTask = useTaskStore((state) => state.completeTask)
+  const deleteTask = useTaskStore((state) => state.deleteTask)
   const [filter, setFilter] = useState<TaskFilter>('all')
+  const [isFormOpen, setIsFormOpen] = useState(false)
+  const [formMode, setFormMode] = useState<'create' | 'edit'>('create')
+  const [editingTask, setEditingTask] = useState<Task | null>(null)
+  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null)
+  const [isDetailOpen, setIsDetailOpen] = useState(false)
+  const [isDeleteOpen, setIsDeleteOpen] = useState(false)
 
-  const previewTasks = useMemo(() => createPreviewTasks(projectId), [projectId])
-  const projectTasks = useMemo(() => {
-    const tasks = storedTasks.filter((task) => task.projectId === projectId)
-    return tasks.length > 0 ? tasks : previewTasks
-  }, [previewTasks, projectId, storedTasks])
+  const projectTasks = useMemo(
+    () => storedTasks.filter((task) => task.projectId === projectId),
+    [projectId, storedTasks]
+  )
+  const selectedTask = projectTasks.find((task) => task.id === selectedTaskId) ?? null
 
   const filteredTasks = useMemo(() => {
     if (filter === 'mine') {
@@ -111,7 +90,18 @@ export default function ProjectTaskPage() {
           ))}
         </div>
 
-        <Button type="button" size="sm" fullWidth={false} icon={<Plus className="h-4 w-4" aria-hidden />} className="shrink-0 text-white">
+        <Button
+          type="button"
+          size="sm"
+          fullWidth={false}
+          icon={<Plus className="h-4 w-4" aria-hidden />}
+          className="shrink-0 text-white"
+          onClick={() => {
+            setFormMode('create')
+            setEditingTask(null)
+            setIsFormOpen(true)
+          }}
+        >
           업무 등록
         </Button>
       </div>
@@ -123,10 +113,66 @@ export default function ProjectTaskPage() {
               key={status}
               status={status}
               tasks={filteredTasks.filter((task) => task.status === status)}
+              onTaskClick={(task) => {
+                setSelectedTaskId(task.id)
+                setIsDetailOpen(true)
+              }}
             />
           ))}
         </div>
       </div>
+
+      <TaskCardFormModal
+        open={isFormOpen}
+        mode={formMode}
+        task={editingTask}
+        projectId={projectId}
+        onClose={() => setIsFormOpen(false)}
+        onSaved={(task) => {
+          if (formMode === 'edit') {
+            setSelectedTaskId(task.id)
+            setIsDetailOpen(true)
+          }
+        }}
+      />
+
+      <TaskCardDetailModal
+        open={isDetailOpen}
+        task={selectedTask}
+        onClose={() => setIsDetailOpen(false)}
+        onEdit={(task) => {
+          setEditingTask(task)
+          setFormMode('edit')
+          setIsDetailOpen(false)
+          setIsFormOpen(true)
+        }}
+        onDelete={() => setIsDeleteOpen(true)}
+        onComplete={(task) => {
+          completeTask(projectId, task.id)
+          setIsDetailOpen(false)
+        }}
+      />
+
+      <ConfirmDialog
+        open={isDeleteOpen}
+        title="업무카드를 삭제하시겠어요?"
+        highlight={selectedTask ? (
+          <div className="w-full rounded-md bg-gray-100 px-4 py-3 text-center text-body-sm font-semibold text-gray-700">
+            “{selectedTask.title}”
+          </div>
+        ) : undefined}
+        description="삭제된 업무카드는 복구할 수 없어요"
+        confirmText="삭제하기"
+        cancelText="취소"
+        destructive
+        onCancel={() => setIsDeleteOpen(false)}
+        onConfirm={() => {
+          if (selectedTask) deleteTask(projectId, selectedTask.id)
+          setIsDeleteOpen(false)
+          setIsDetailOpen(false)
+          setSelectedTaskId(null)
+        }}
+      />
     </div>
   )
 }
