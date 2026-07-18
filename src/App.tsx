@@ -21,6 +21,10 @@ import { SignupEmailStepPage } from './pages/SignupEmailStepPage'
 import { ProfileSetupPage } from './pages/ProfileSetupPage'
 import { FindPasswordPage } from './pages/FindPasswordPage'
 import { ResetPasswordPage } from './pages/ResetPasswordPage'
+import { CreateProjectPage } from './pages/project/CreateProjectPage'
+import { ProfileEditPage } from './pages/my/ProfileEditPage'
+import { AccountConnectionsPage } from './pages/my/AccountConnectionsPage'
+import { ProjectSettingsPage } from './pages/project/ProjectSettingsPage'
 
 function App() {
   return (
@@ -43,6 +47,11 @@ function App() {
           <Route path="/chat" element={<ChatPage />} />
           <Route path="/my" element={<MyPage />} />
         </Route>
+
+        <Route path="/my/profile" element={<ProfileEditPage />} />
+        <Route path="/my/accounts" element={<AccountConnectionsPage />} />
+        <Route path="/project/new" element={<CreateProjectPage />} />
+        <Route path="/project/:id/settings" element={<ProjectSettingsPage />} />
 
         {/* 프로젝트 상세: 피드/채팅/업무/리포트 상단 탭 */}
         <Route path="/project/:id" element={<ProjectTabBar />}>
