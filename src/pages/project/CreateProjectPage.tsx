@@ -2,15 +2,16 @@ import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import {
   ArrowLeft,
   ChevronDown,
-  Copy,
   FileText,
   Folder,
+  Link2,
   MessageSquare,
   Settings,
   UserRound,
   X,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import notionIcon from "../../assets/integrations/notion.png";
 import { Button } from "../../components/Button";
 import { Input } from "../../components/Input";
 import { BottomSheet, Modal } from "../../components/Modal";
@@ -19,6 +20,7 @@ import { cn } from "../../lib/utils";
 import { useAuthStore } from "../../store/authStore";
 import { useProjectStore } from "../../store/projectStore";
 import type { Project, ProjectType } from "../../types/project";
+import HomePage from "../HomePage";
 
 type CreationStep = "info" | "tools";
 type ToolKey = "github" | "figma" | "notion";
@@ -97,15 +99,32 @@ function SelectField({
 }
 
 function ProjectCreationBackdrop() {
+  const bottomTabs = [
+    { label: "프로젝트", icon: Folder },
+    { label: "리포트", icon: FileText },
+    { label: "채팅", icon: MessageSquare },
+    { label: "마이", icon: UserRound },
+  ];
+
   return (
     <div className="min-h-svh bg-gray-25" aria-hidden="true">
-      <header className="flex h-16 items-center gap-3 border-b border-gray-100 px-6 shadow-sm">
-        <Folder size={24} className="text-blue-500" />
-        <strong className="text-title font-bold text-gray-900">프로젝트</strong>
-      </header>
-      <div className="px-5 pt-5">
-        <div className="h-8 w-44 rounded-full bg-gray-100" />
-        <div className="mt-4 h-44 rounded-lg border border-gray-100 bg-white shadow-md" />
+      <HomePage viewModeOverride="list" />
+      <div className="fixed bottom-0 left-1/2 grid h-20 w-full max-w-mobile -translate-x-1/2 grid-cols-4 border-t border-gray-200 bg-white">
+        {bottomTabs.map((tab, index) => {
+          const Icon = tab.icon;
+          return (
+            <span
+              key={tab.label}
+              className={cn(
+                "flex flex-col items-center justify-center gap-1 text-caption font-normal",
+                index === 0 ? "text-blue-500" : "text-gray-400"
+              )}
+            >
+              <Icon size={22} aria-hidden="true" />
+              {tab.label}
+            </span>
+          );
+        })}
       </div>
     </div>
   );
@@ -137,8 +156,8 @@ function ToolLogo({ tool }: { tool: (typeof TOOL_OPTIONS)[number] }) {
   }
 
   return (
-    <span className="flex h-11 w-11 items-center justify-center rounded-md bg-white text-title font-extrabold text-gray-900">
-      N
+    <span className="flex h-11 w-11 items-center justify-center rounded-md bg-white">
+      <img src={notionIcon} alt="" className="h-7 w-7 object-contain" aria-hidden="true" />
     </span>
   );
 }
@@ -329,7 +348,7 @@ export function CreateProjectPage() {
       {createdProject ? (
         <CreatedProjectBackdrop projectName={createdProject.name} />
       ) : (
-        <div className="pointer-events-none select-none" aria-hidden="true">
+        <div className="pointer-events-none select-none" aria-hidden="true" inert>
           <ProjectCreationBackdrop />
         </div>
       )}
@@ -464,7 +483,7 @@ export function CreateProjectPage() {
               onClick={handleCopyLink}
               className="mt-4 flex h-14 w-full items-center justify-center gap-2 rounded-lg border border-blue-500 text-body font-semibold text-blue-500"
             >
-              <Copy size={17} aria-hidden="true" />
+              <Link2 size={17} aria-hidden="true" />
               <span aria-live="polite">{copied ? "복사 완료" : "초대 링크 복사"}</span>
             </button>
           </div>

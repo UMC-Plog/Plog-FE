@@ -1,4 +1,4 @@
-import { Code2, Pencil, Settings } from "lucide-react";
+import { Code2, Pencil } from "lucide-react";
 import { Link } from "react-router-dom";
 import { getProjectDeadline } from "../../lib/projectDate";
 import { cn } from "../../lib/utils";
@@ -60,24 +60,24 @@ export function ProjectCard({ project, viewMode }: ProjectCardProps) {
   return (
     <article
       className={cn(
-        "relative h-44 rounded-lg border border-gray-100 bg-white shadow-md",
+        "h-[172px] rounded-[16px] border border-gray-100 bg-white shadow-md",
         "transition-transform active:scale-[0.99]"
       )}
     >
       <Link
         to={`/project/${project.id}/feed`}
         aria-label={`${project.name} 프로젝트 열기`}
-        className="flex h-full flex-col rounded-lg px-5 pb-5 pt-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-300"
+        className="flex h-full flex-col rounded-[16px] px-5 pb-5 pt-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-300"
       >
-        <div className="flex items-start justify-between gap-2 pr-10">
-          <span className={cn("inline-flex items-center gap-1 rounded-md px-2 py-1 text-caption", projectType.className)}>
+        <div className="flex items-start justify-between gap-2">
+          <span className={cn("inline-flex h-[22px] items-center gap-1 rounded-sm px-2 text-caption", projectType.className)}>
             <TypeIcon size={13} aria-hidden="true" />
             {projectType.label}
           </span>
           {!isGrid && (
             <span
               className={cn(
-                "rounded-md px-3 py-1 text-caption",
+                "inline-flex h-6 items-center rounded-[8px] px-3 text-caption",
                 deadline.tone === "success" && "bg-success/10 text-success",
                 deadline.tone === "urgent" && "bg-error/10 text-error",
                 deadline.tone === "default" && "bg-blue-50 text-blue-600"
@@ -125,14 +125,6 @@ export function ProjectCard({ project, viewMode }: ProjectCardProps) {
             <span className="font-semibold text-navy-700">{clampedProgress}%</span>
           </div>
         </div>
-      </Link>
-
-      <Link
-        to={`/project/${project.id}/settings`}
-        aria-label={`${project.name} 프로젝트 설정`}
-        className="absolute right-3 top-3 z-10 flex h-8 w-8 items-center justify-center rounded-full text-gray-400 hover:bg-gray-50 hover:text-gray-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-300"
-      >
-        <Settings size={18} aria-hidden="true" />
       </Link>
     </article>
   );

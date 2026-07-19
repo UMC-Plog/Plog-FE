@@ -10,7 +10,7 @@ interface ProjectStatusFilterProps {
 
 const FILTERS: Array<{ value: ProjectStatusFilterValue; label: string }> = [
   { value: "ALL", label: "전체" },
-  { value: "IN_PROGRESS", label: "진행 중" },
+  { value: "IN_PROGRESS", label: "진행중" },
   { value: "COMPLETED", label: "완료" },
 ];
 

@@ -47,19 +47,27 @@ function getInitialViewMode(): ProjectViewMode {
   }
 }
 
-export default function HomePage() {
+interface HomePageProps {
+  viewModeOverride?: ProjectViewMode;
+}
+
+export default function HomePage({ viewModeOverride }: HomePageProps = {}) {
   const navigate = useNavigate();
   const projects = useProjectStore((state) => state.projects);
   const [statusFilter, setStatusFilter] = useState<ProjectStatusFilterValue>("ALL");
   const [viewMode, setViewMode] = useState<ProjectViewMode>(getInitialViewMode);
 
   useEffect(() => {
+    if (viewModeOverride) return;
+
     try {
       window.localStorage.setItem(VIEW_MODE_STORAGE_KEY, viewMode);
     } catch {
       // 저장소 접근이 제한된 환경에서는 현재 세션의 보기 방식만 유지합니다.
     }
-  }, [viewMode]);
+  }, [viewMode, viewModeOverride]);
+
+  const activeViewMode = viewModeOverride ?? viewMode;
 
   const filteredProjects = useMemo(
     () =>
@@ -86,20 +94,25 @@ export default function HomePage() {
         </button>
       </header>
 
-      <div className="mt-4 flex items-center justify-between gap-3 px-5">
+      <div className="mt-4 flex items-center justify-between gap-3 px-[22px]">
         <ProjectStatusFilter value={statusFilter} onChange={setStatusFilter} />
-        <ProjectViewToggle value={viewMode} onChange={setViewMode} />
+        <ProjectViewToggle
+          value={activeViewMode}
+          onChange={viewModeOverride ? () => undefined : setViewMode}
+        />
       </div>
 
       {filteredProjects.length > 0 ? (
         <div
           className={cn(
-            "mt-4 px-5",
-            viewMode === "grid" ? "grid grid-cols-2 gap-1.5" : "space-y-4"
+            "mt-[18px] px-[22px]",
+            activeViewMode === "grid"
+              ? "grid grid-cols-2 gap-x-[5px] gap-y-4"
+              : "space-y-[18px]"
           )}
         >
           {filteredProjects.map((project) => (
-            <ProjectCard key={project.id} project={project} viewMode={viewMode} />
+            <ProjectCard key={project.id} project={project} viewMode={activeViewMode} />
           ))}
         </div>
       ) : (

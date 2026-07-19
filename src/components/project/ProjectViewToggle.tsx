@@ -15,7 +15,7 @@ const VIEW_OPTIONS = [
 export function ProjectViewToggle({ value, onChange }: ProjectViewToggleProps) {
   return (
     <div
-      className="flex h-8 rounded-full border border-gray-200 bg-white p-0.5"
+      className="flex h-8 w-[72px] rounded-full border border-gray-200 bg-white p-0.5"
       role="group"
       aria-label="프로젝트 보기 방식"
     >
@@ -31,11 +31,18 @@ export function ProjectViewToggle({ value, onChange }: ProjectViewToggleProps) {
             aria-pressed={selected}
             onClick={() => onChange(option.value)}
             className={cn(
-              "flex h-7 w-7 items-center justify-center rounded-full transition-colors",
-              selected ? "bg-blue-100 text-blue-500" : "text-gray-400 hover:text-gray-600"
+              "flex h-7 flex-1 items-center justify-center transition-colors",
+              selected ? "text-blue-500" : "text-gray-400 hover:text-gray-600"
             )}
           >
-            <Icon size={17} aria-hidden="true" />
+            <span
+              className={cn(
+                "flex h-5 w-[29px] items-center justify-center rounded-full",
+                selected && "bg-blue-100"
+              )}
+            >
+              <Icon size={17} aria-hidden="true" />
+            </span>
           </button>
         );
       })}

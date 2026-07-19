@@ -22,7 +22,6 @@ import { ProfileEditPage } from './pages/my/ProfileEditPage'
 import { AccountConnectionsPage } from './pages/my/AccountConnectionsPage'
 import { NotificationSettingsPage } from './pages/my/NotificationSettingsPage'
 import { WithdrawPage } from './pages/my/WithdrawPage'
-import { ProjectSettingsPage } from './pages/project/ProjectSettingsPage'
 
 function App() {
   return (
@@ -51,7 +50,6 @@ function App() {
         <Route path="/my/notifications" element={<NotificationSettingsPage />} />
         <Route path="/my/withdraw" element={<WithdrawPage />} />
         <Route path="/project/new" element={<CreateProjectPage />} />
-        <Route path="/project/:id/settings" element={<ProjectSettingsPage />} />
 
         {/* 프로젝트 상세: 피드/채팅/업무/리포트 상단 탭 */}
         <Route path="/project/:id" element={<ProjectTabBar />}>

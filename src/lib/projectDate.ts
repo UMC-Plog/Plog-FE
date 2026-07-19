@@ -34,7 +34,7 @@ export function getProjectDeadline(project: Project) {
 
   if (days === 0) {
     return {
-      label: "D-DAY",
+      label: "D-Day",
       tone: "success" as const,
     };
   }
