@@ -23,14 +23,14 @@ export function Modal({ open, onClose, children, ariaLabelledby }: ModalProps) {
 
   return createPortal(
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/40 px-6"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/40 px-5"
       onClick={onClose}
     >
       <div
         role="dialog"
         aria-modal="true"
         aria-labelledby={ariaLabelledby}
-        className="w-full max-w-sm rounded-xl bg-white p-6 shadow-xl animate-in"
+        className="w-full max-w-sm rounded-[24px] bg-white p-6 shadow-xl animate-in"
         onClick={(e) => e.stopPropagation()}
       >
         {children}
@@ -62,7 +62,7 @@ export function BottomSheet({ open, onClose, children, ariaLabelledby }: ModalPr
         role="dialog"
         aria-modal="true"
         aria-labelledby={ariaLabelledby}
-        className="w-full max-w-mobile rounded-t-xl bg-white p-6 pb-8 shadow-xl animate-in slide-in-from-bottom"
+        className="w-full max-w-mobile rounded-t-[24px] bg-white p-6 pb-8 shadow-xl animate-in slide-in-from-bottom"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mx-auto mb-4 h-1 w-10 rounded-full bg-gray-200" />

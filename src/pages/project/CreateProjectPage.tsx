@@ -11,6 +11,8 @@ import {
   X,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import figmaIcon from "../../assets/integrations/figma.svg";
+import githubIcon from "../../assets/integrations/github.svg";
 import notionIcon from "../../assets/integrations/notion.png";
 import { Button } from "../../components/Button";
 import { Input } from "../../components/Input";
@@ -133,25 +135,13 @@ function ProjectCreationBackdrop() {
 function ToolLogo({ tool }: { tool: (typeof TOOL_OPTIONS)[number] }) {
   if (tool.key === "github") {
     return (
-      <span className="flex h-11 w-11 items-center justify-center rounded-md bg-gray-900 text-white">
-        <svg width="23" height="23" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-          <path d="M12 2a10 10 0 0 0-3.16 19.49c.5.09.68-.22.68-.48v-1.87c-2.78.6-3.37-1.18-3.37-1.18-.45-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.61.07-.61 1 .07 1.53 1.03 1.53 1.03.9 1.53 2.35 1.09 2.92.83.09-.65.35-1.09.64-1.34-2.22-.25-4.55-1.11-4.55-4.94 0-1.09.39-1.98 1.03-2.68-.1-.25-.45-1.27.1-2.64 0 0 .84-.27 2.75 1.02A9.6 9.6 0 0 1 12 6.82a9.6 9.6 0 0 1 2.5.34c1.91-1.29 2.75-1.02 2.75-1.02.55 1.37.2 2.39.1 2.64.64.7 1.03 1.59 1.03 2.68 0 3.84-2.34 4.68-4.57 4.93.36.31.68.92.68 1.85v2.77c0 .27.18.58.69.48A10 10 0 0 0 12 2Z" />
-        </svg>
-      </span>
+      <img src={githubIcon} alt="" className="h-11 w-11 shrink-0" aria-hidden="true" />
     );
   }
 
   if (tool.key === "figma") {
     return (
-      <span className="flex h-11 w-11 items-center justify-center rounded-md bg-white">
-        <svg width="20" height="28" viewBox="0 0 20 28" fill="none" aria-hidden="true">
-          <circle cx="14" cy="14" r="4" fill="#1ABCFE" />
-          <path d="M2 6a4 4 0 0 1 4-4h4v8H6a4 4 0 0 1-4-4Z" fill="#F24E1E" />
-          <path d="M10 2h4a4 4 0 1 1 0 8h-4V2Z" fill="#FF7262" />
-          <path d="M2 14a4 4 0 0 1 4-4h4v8H6a4 4 0 0 1-4-4Z" fill="#A259FF" />
-          <path d="M2 22a4 4 0 0 1 4-4h4v4a4 4 0 1 1-8 0Z" fill="#0ACF83" />
-        </svg>
-      </span>
+      <img src={figmaIcon} alt="" className="h-11 w-11 shrink-0" aria-hidden="true" />
     );
   }
 
@@ -355,7 +345,7 @@ export function CreateProjectPage() {
 
       <BottomSheet open={!createdProject} onClose={() => navigate("/home")}>
         {step === "info" ? (
-          <form className="flex min-h-[556px] flex-col" onSubmit={handleInfoSubmit} noValidate>
+          <form className="flex min-h-[512px] flex-col pb-4" onSubmit={handleInfoSubmit} noValidate>
             <ProjectCreationProgress step={step} />
 
             <div className="mt-6 space-y-4">
@@ -403,7 +393,7 @@ export function CreateProjectPage() {
             </div>
 
             <div className="mt-auto pt-6">
-              <Button type="submit" size="lg" disabled={!infoValid}>다음</Button>
+              <Button type="submit" size="lg" className="!text-white">다음</Button>
               <button
                 type="button"
                 onClick={() => navigate("/home")}
@@ -414,13 +404,13 @@ export function CreateProjectPage() {
             </div>
           </form>
         ) : (
-          <div className="flex min-h-[556px] flex-col">
+          <div className="flex min-h-[512px] flex-col pb-4">
             <ProjectCreationProgress step={step} />
             <p className="mt-6 text-body-sm text-gray-400">
-              외부 툴을 연동하면 활동 데이터를 자동으로 수집할 수 있어요
+              워크스페이스의 소유자의 연동이 필요합니다
             </p>
 
-            <div className="mt-5 space-y-3">
+            <div className="mt-4 space-y-3">
               {TOOL_OPTIONS.map((tool) => {
                 const connected = connectedTools[tool.key];
                 return (
@@ -429,7 +419,7 @@ export function CreateProjectPage() {
                     type="button"
                     aria-pressed={connected}
                     onClick={() => setConnectedTools((current) => ({ ...current, [tool.key]: !connected }))}
-                    className="flex h-20 w-full items-center gap-4 rounded-lg bg-gray-50 px-4 text-left"
+                    className="flex h-[76px] w-full items-center gap-4 rounded-lg bg-gray-50 px-4 text-left"
                   >
                     <ToolLogo tool={tool} />
                     <span className="min-w-0 flex-1">
@@ -450,7 +440,9 @@ export function CreateProjectPage() {
             </div>
 
             <div className="mt-auto pt-6">
-              <Button type="button" size="lg" onClick={handleCreate}>프로젝트 시작하기</Button>
+              <Button type="button" size="lg" onClick={handleCreate} className="!text-white">
+                프로젝트 시작하기
+              </Button>
             </div>
           </div>
         )}
@@ -474,7 +466,7 @@ export function CreateProjectPage() {
               </button>
             </div>
 
-            <div className="mt-4 flex min-h-64 items-center justify-center rounded-lg bg-gray-25 p-5">
+            <div className="mt-4 flex h-72 items-center justify-center rounded-lg bg-gray-25 p-5">
               <QrPlaceholder />
             </div>
 

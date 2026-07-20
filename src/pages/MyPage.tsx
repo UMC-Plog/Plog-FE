@@ -1,13 +1,10 @@
-import { ChevronRight, FileText, LogOut } from "lucide-react";
+import { ChevronRight, LogOut } from "lucide-react";
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import notionIcon from "../assets/integrations/notion.png";
 import { AVATAR_PRESETS } from "../components/AvatarPicker";
 import { ConfirmDialog } from "../components/ConfirmDialog";
 import { getPersistentProfileImage } from "../lib/profileImage";
-import { cn } from "../lib/utils";
 import { useAuthStore } from "../store/authStore";
-import { useIntegrationStore } from "../store/integrationStore";
 import { useNotificationStore } from "../store/notificationStore";
 
 function PlogMark() {
@@ -33,58 +30,10 @@ function PlogMark() {
   );
 }
 
-function AccountLogo({ account }: { account: "github" | "figma" | "notion" | "docs" }) {
-  if (account === "github") {
-    return (
-      <span className="flex h-8 w-8 items-center justify-center rounded-md bg-gray-900 text-white">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-          <path d="M12 2a10 10 0 0 0-3.16 19.49c.5.09.68-.22.68-.48v-1.87c-2.78.6-3.37-1.18-3.37-1.18-.45-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.61.07-.61 1 .07 1.53 1.03 1.53 1.03.9 1.53 2.35 1.09 2.92.83.09-.65.35-1.09.64-1.34-2.22-.25-4.55-1.11-4.55-4.94 0-1.09.39-1.98 1.03-2.68-.1-.25-.45-1.27.1-2.64 0 0 .84-.27 2.75 1.02A9.6 9.6 0 0 1 12 6.82a9.6 9.6 0 0 1 2.5.34c1.91-1.29 2.75-1.02 2.75-1.02.55 1.37.2 2.39.1 2.64.64.7 1.03 1.59 1.03 2.68 0 3.84-2.34 4.68-4.57 4.93.36.31.68.92.68 1.85v2.77c0 .27.18.58.69.48A10 10 0 0 0 12 2Z" />
-        </svg>
-      </span>
-    );
-  }
-
-  if (account === "figma") {
-    return (
-      <span className="flex h-8 w-8 items-center justify-center rounded-md bg-white shadow-sm">
-        <svg width="14" height="20" viewBox="0 0 20 28" fill="none" aria-hidden="true">
-          <circle cx="14" cy="14" r="4" fill="#1ABCFE" />
-          <path d="M2 6a4 4 0 0 1 4-4h4v8H6a4 4 0 0 1-4-4Z" fill="#F24E1E" />
-          <path d="M10 2h4a4 4 0 1 1 0 8h-4V2Z" fill="#FF7262" />
-          <path d="M2 14a4 4 0 0 1 4-4h4v8H6a4 4 0 0 1-4-4Z" fill="#A259FF" />
-          <path d="M2 22a4 4 0 0 1 4-4h4v4a4 4 0 1 1-8 0Z" fill="#0ACF83" />
-        </svg>
-      </span>
-    );
-  }
-
-  if (account === "notion") {
-    return (
-      <span className="flex h-8 w-8 items-center justify-center rounded-md bg-white shadow-sm">
-        <img src={notionIcon} alt="" className="h-4 w-4 object-contain" aria-hidden="true" />
-      </span>
-    );
-  }
-
-  return (
-    <span className="flex h-8 w-8 items-center justify-center rounded-md bg-white text-blue-500 shadow-sm">
-      <FileText size={18} aria-hidden="true" />
-    </span>
-  );
-}
-
-const ACCOUNTS = [
-  { key: "github" as const, logo: "github" as const, label: "GitHub" },
-  { key: "figma" as const, logo: "figma" as const, label: "Figma" },
-  { key: "notion" as const, logo: "notion" as const, label: "Notion" },
-  { key: "googleDocs" as const, logo: "docs" as const, label: "Google docs" },
-];
-
 export default function MyPage() {
   const navigate = useNavigate();
   const user = useAuthStore((state) => state.user);
   const logout = useAuthStore((state) => state.logout);
-  const accounts = useIntegrationStore((state) => state.accounts);
   const notificationsEnabled = useNotificationStore((state) => state.notificationsEnabled);
   const [logoutDialogOpen, setLogoutDialogOpen] = useState(false);
   const avatar = AVATAR_PRESETS.find((preset) => preset.id === user?.avatarId) ?? AVATAR_PRESETS[0];
@@ -109,14 +58,14 @@ export default function MyPage() {
           <img
             src={avatarSrc}
             alt={`${displayNickname} 프로필`}
-            className="h-14 w-14 rounded-full object-cover"
+            className="h-[60px] w-[60px] rounded-full object-cover"
             onError={(event) => {
               event.currentTarget.onerror = null;
               event.currentTarget.src = avatar.src;
             }}
           />
           <span className="ml-4 min-w-0 flex-1">
-            <strong className="block truncate text-title font-bold text-gray-900">
+            <strong className="block truncate text-body font-medium text-gray-900">
               {displayNickname}
             </strong>
             <span className="mt-0.5 block truncate text-body-sm text-gray-400">
@@ -126,43 +75,9 @@ export default function MyPage() {
           <ChevronRight size={20} className="text-gray-400" aria-hidden="true" />
         </button>
 
-        <section className="mt-6" aria-labelledby="account-link-title">
-          <Link
-            to="/my/accounts"
-            aria-label="계정 연동 관리"
-            className="block rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-300"
-          >
-            <div className="flex items-center justify-between">
-              <h2 id="account-link-title" className="text-title font-medium text-gray-500">
-                계정 연동
-              </h2>
-              <ChevronRight size={20} className="text-gray-400" aria-hidden="true" />
-            </div>
-            <div className="mt-3 rounded-lg border border-gray-100 bg-white px-4 py-2 shadow-md">
-              {ACCOUNTS.map((account) => {
-                const connected = accounts[account.key];
-                return (
-                  <span key={account.key} className="flex h-14 items-center gap-3">
-                    <AccountLogo account={account.logo} />
-                    <span className="flex-1 text-body text-gray-900">{account.label}</span>
-                    <span
-                      className={cn(
-                        "rounded-full px-3 py-1 text-caption",
-                        connected ? "bg-success/10 text-success" : "bg-error/10 text-error"
-                      )}
-                    >
-                      {connected ? "연동" : "미연동"}
-                    </span>
-                  </span>
-                );
-              })}
-            </div>
-          </Link>
-        </section>
-
-        <section className="mt-6" aria-labelledby="settings-title">
+        <section className="mt-9" aria-labelledby="settings-title">
           <h2 id="settings-title" className="text-title font-medium text-gray-500">설정</h2>
-          <div className="mt-3 overflow-hidden rounded-lg border border-gray-100 bg-white px-4 py-1 shadow-md">
+          <div className="mt-2 overflow-hidden rounded-lg border border-gray-100 bg-white px-4 shadow-md">
             <Link
               to="/my/notifications"
               aria-label={`알림 설정, 현재 ${notificationsEnabled ? "켜짐" : "꺼짐"}`}
