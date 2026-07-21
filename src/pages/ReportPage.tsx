@@ -56,7 +56,7 @@ export default function ReportPage() {
       {/* 헤더 - Figma: h-56px, bg-gray-25, border-b gray-100 */}
       <header className="bg-gray-25 border-b border-gray-100 h-14 px-6 flex items-center">
         <div className="flex items-center gap-2">
-          <PlogIcon className="size-8" />
+          <PlogIcon />
           <h1 className="text-title text-gray-900">리포트</h1>
         </div>
       </header>
@@ -98,7 +98,7 @@ export default function ReportPage() {
               className="bg-white border border-gray-100 rounded-2xl shadow-md flex items-center px-5 py-4"
             >
               {/* 왼쪽: 프로젝트명 / 생성일 / 상태뱃지 - Figma: left-21px, gap-5px */}
-              <div className="flex-1 min-w-0 flex flex-col gap-1.5 pl-1">
+              <div className="flex min-w-0 flex-1 flex-col items-start gap-1 pl-1">
                 {/* Figma: 16px Bold, #161A20 */}
                 <p className="text-body font-bold text-gray-900 truncate">
                   {item.projectName}
@@ -119,7 +119,7 @@ export default function ReportPage() {
                   if (item.pdfUrl) window.open(item.pdfUrl);
                 }}
                 className={cn(
-                  'shrink-0 flex items-center gap-1.5 h-10 px-4 rounded-md text-body-sm font-semibold transition-colors',
+                  'shrink-0 flex items-center gap-1.5 h-10 px-4 rounded-md text-body-sm transition-colors',
                   item.status === 'done'
                     ? 'bg-primary text-gray-25 hover:bg-primary-600 active:bg-primary-700'
                     : 'bg-gray-100 text-gray-400 cursor-not-allowed',

@@ -1,6 +1,6 @@
-import { NavLink, Outlet } from 'react-router-dom'
+import { NavLink, Outlet, useNavigate, useParams } from 'react-router-dom'
 import { TopNavBar } from './TopNavBar'
-import { TEMP_PROJECT_NAME } from '../lib/project'
+import { useProjectStore } from '../store/projectStore'
 
 // Figma 프로젝트 상세 상단 탭 기준: 피드 / 채팅 / 업무 / 리포트
 const tabs = [
@@ -11,9 +11,19 @@ const tabs = [
 ]
 
 export default function ProjectTabBar() {
+  const navigate = useNavigate()
+  const { id: projectId } = useParams<{ id: string }>()
+  const project = useProjectStore((state) =>
+    state.projects.find((item) => item.id === projectId)
+  )
+
   return (
     <div className="flex flex-col min-h-svh">
-      <TopNavBar title={TEMP_PROJECT_NAME} />
+      <TopNavBar
+        title={project?.name ?? '프로젝트'}
+        onBack={() => navigate('/home')}
+        onSettingsClick={() => projectId && navigate(`/project/${projectId}/settings`)}
+      />
 
       <nav className="border-b border-gray-200 bg-white">
         <ul className="flex">

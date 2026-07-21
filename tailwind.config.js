@@ -90,6 +90,7 @@ export default {
         body: ["15px", { lineHeight: "1.5", fontWeight: "400" }],
         "body-sm": ["14px", { lineHeight: "1.5", fontWeight: "400" }],
         caption: ["12px", { lineHeight: "1.4", fontWeight: "600" }],
+        "chat-time": ["11px", { lineHeight: "normal", fontWeight: "400" }],
       },
       spacing: {
         // space-N 은 Tailwind 기본 스케일과 겹치지 않도록 값 그대로 노출
@@ -111,12 +112,20 @@ export default {
         lg: "14px",
         xl: "20px",
         full: "999px",
+        // 2026.07 리포트 화면 Figma 스펙 추가분 — 기존 sm/md/lg/xl 스케일과 별개로 존재하는 값
+        11: "11px",
+        12: "12px",
+        16: "16px",
+        18: "18px",
       },
       boxShadow: {
         sm: "0 1px 2px rgba(22, 26, 32, 0.06)", // 인풋
         md: "0 4px 10px rgba(22, 26, 32, 0.08)", // 카드
         lg: "0 10px 24px rgba(22, 26, 32, 0.12)", // 팝오버/드롭다운
         xl: "0 20px 40px rgba(22, 26, 32, 0.16)", // 모달
+        // 2026.07 리포트 화면 Figma 스펙 추가분
+        card: "0px 4px 12px rgba(16, 24, 40, 0.05)", // 리포트 카드 테두리 그림자
+        cta: "0px 10px 14px rgba(25, 28, 32, 0.28)", // 그라데이션 CTA 카드 그림자
       },
       backgroundImage: {
         "plog-gradient": "linear-gradient(95deg, #2186FB 0%, #06BCC4 52%, #173E8A 100%)",

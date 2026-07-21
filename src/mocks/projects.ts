@@ -1,10 +1,10 @@
-import frogImg from "../assets/개구리.png";
-import ghostImg from "../assets/고스트.png";
-import otterImg from "../assets/수달.png";
-import pandaImg from "../assets/판다.png";
-import penguinImg from "../assets/펭귄.png";
-import smileImg from "../assets/스마일.png";
-import tigerImg from "../assets/호랑이.png";
+import frogImg from "../assets/frog.png";
+import ghostImg from "../assets/ghost.png";
+import otterImg from "../assets/otter.png";
+import pandaImg from "../assets/panda.png";
+import penguinImg from "../assets/penguin.png";
+import smileImg from "../assets/smile.png";
+import tigerImg from "../assets/tiger.png";
 import { getDateAfterDays } from "../lib/projectDate";
 import type { Project } from "../types/project";
 

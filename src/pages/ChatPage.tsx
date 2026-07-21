@@ -5,6 +5,7 @@ import ChatListItem, { type ChatParticipant } from '../components/ChatListItem';
 import { PlogIcon } from '../components/PlogIcon';
 import { AVATAR_PRESETS } from '../components/AvatarPicker';
 import { cn } from '../lib/utils';
+import { useChatStore } from '../store/chatStore';
 
 interface ChatRoom {
   id: string;
@@ -23,7 +24,7 @@ const av = (id: string): string =>
 // Figma 예시 데이터 기준 — avatarUrl을 실제 이미지로 연결
 const MOCK_CHATS: ChatRoom[] = [
   {
-    id: '1',
+    id: 'project-test',
     projectName: '테스트 프로젝트',
     participants: [
       { id: 'u1', name: '곰곰', avatarUrl: av('otter') },
@@ -37,8 +38,8 @@ const MOCK_CHATS: ChatRoom[] = [
     unreadCount: 3,
   },
   {
-    id: '2',
-    projectName: 'Q2 마케팅 캠페인',
+    id: 'project-marketing-campaign',
+    projectName: '마케팅 캠페인',
     participants: [
       { id: 'u1', name: '곰곰', avatarUrl: av('otter') },
       { id: 'u3', name: '호랑이', avatarUrl: av('tiger') },
@@ -50,8 +51,8 @@ const MOCK_CHATS: ChatRoom[] = [
     unreadCount: 0,
   },
   {
-    id: '3',
-    projectName: '백엔드 API 고도화',
+    id: 'project-capstone-design',
+    projectName: '캡스톤 디자인 2팀',
     participants: [
       { id: 'u1', name: '곰곰', avatarUrl: av('otter') },
       { id: 'u2', name: '다람쥐', avatarUrl: av('penguin') },
@@ -62,55 +63,41 @@ const MOCK_CHATS: ChatRoom[] = [
     time: '어제',
     unreadCount: 0,
   },
-  {
-    id: '4',
-    projectName: '데이터 분석 대시보드',
-    participants: [
-      { id: 'u1', name: '곰곰', avatarUrl: av('otter') },
-      { id: 'u2', name: '다람쥐', avatarUrl: av('penguin') },
-      { id: 'u3', name: '호랑이', avatarUrl: av('tiger') },
-      { id: 'u7', name: '나', avatarUrl: av('panda') },
-    ],
-    lastSenderName: '나',
-    lastMessage: '차트 업데이트 완료했어요~',
-    time: '2일 전',
-    unreadCount: 0,
-  },
-  {
-    id: '5',
-    projectName: '신입 온보딩 시스템',
-    participants: [
-      { id: 'u1', name: '곰곰', avatarUrl: av('otter') },
-      { id: 'u3', name: '호랑이', avatarUrl: av('tiger') },
-      { id: 'u8', name: '제이크', avatarUrl: av('ghost') },
-    ],
-    lastSenderName: '제이크',
-    lastMessage: '문서 정리 완료했습니다.',
-    time: '3일 전',
-    unreadCount: 0,
-  },
 ];
 
 export default function ChatPage() {
   const [keyword, setKeyword] = useState('');
   const navigate = useNavigate();
+  const messagesByProject = useChatStore((state) => state.messagesByProject);
+
+  const chats = useMemo(() => MOCK_CHATS.map((chat) => {
+    const messages = messagesByProject[chat.id] ?? [];
+    const latest = messages[messages.length - 1];
+    if (!latest) return chat;
+    return {
+      ...chat,
+      lastSenderName: latest.isMine ? '나' : latest.sender.name,
+      lastMessage: latest.type === 'text' ? latest.text : latest.fileName,
+      time: new Intl.DateTimeFormat('ko-KR', { hour: '2-digit', minute: '2-digit', hour12: false }).format(new Date(latest.sentAt)),
+    };
+  }), [messagesByProject]);
 
   const filtered = useMemo(() => {
     const q = keyword.trim().toLowerCase();
-    if (!q) return MOCK_CHATS;
-    return MOCK_CHATS.filter(
+    if (!q) return chats;
+    return chats.filter(
       (c) =>
         c.projectName.toLowerCase().includes(q) ||
         c.lastMessage.toLowerCase().includes(q),
     );
-  }, [keyword]);
+  }, [chats, keyword]);
 
   return (
     <div className="flex flex-col min-h-full bg-gray-25">
       {/* 헤더 - Figma: h-56px, bg-gray-25, border-b gray-100 */}
       <header className="bg-gray-25 border-b border-gray-100 h-14 px-6 flex items-center">
         <div className="flex items-center gap-2">
-          <PlogIcon className="size-8" />
+          <PlogIcon />
           <h1 className="text-title text-gray-900">채팅</h1>
         </div>
       </header>
