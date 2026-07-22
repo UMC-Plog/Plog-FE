@@ -1,11 +1,10 @@
-import { ChevronRight, FileText } from "lucide-react";
-import { Link, useNavigate } from "react-router-dom";
-import notionIcon from "../assets/integrations/notion.png";
+import { useState } from "react";
+import { ChevronRight, LogOut } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { AVATAR_PRESETS } from "../components/AvatarPicker";
 import { getPersistentProfileImage } from "../lib/profileImage";
 import { cn } from "../lib/utils";
 import { useAuthStore } from "../store/authStore";
-import { useIntegrationStore } from "../store/integrationStore";
 
 function PlogMark() {
   return (
@@ -30,73 +29,21 @@ function PlogMark() {
   );
 }
 
-function AccountLogo({ account }: { account: "github" | "figma" | "notion" | "docs" }) {
-  if (account === "github") {
-    return (
-      <span className="flex h-8 w-8 items-center justify-center rounded-md bg-gray-900 text-white">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-          <path d="M12 2a10 10 0 0 0-3.16 19.49c.5.09.68-.22.68-.48v-1.87c-2.78.6-3.37-1.18-3.37-1.18-.45-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.61.07-.61 1 .07 1.53 1.03 1.53 1.03.9 1.53 2.35 1.09 2.92.83.09-.65.35-1.09.64-1.34-2.22-.25-4.55-1.11-4.55-4.94 0-1.09.39-1.98 1.03-2.68-.1-.25-.45-1.27.1-2.64 0 0 .84-.27 2.75 1.02A9.6 9.6 0 0 1 12 6.82a9.6 9.6 0 0 1 2.5.34c1.91-1.29 2.75-1.02 2.75-1.02.55 1.37.2 2.39.1 2.64.64.7 1.03 1.59 1.03 2.68 0 3.84-2.34 4.68-4.57 4.93.36.31.68.92.68 1.85v2.77c0 .27.18.58.69.48A10 10 0 0 0 12 2Z" />
-        </svg>
-      </span>
-    );
-  }
-
-  if (account === "figma") {
-    return (
-      <span className="flex h-8 w-8 items-center justify-center rounded-md bg-white shadow-sm">
-        <svg width="14" height="20" viewBox="0 0 20 28" fill="none" aria-hidden="true">
-          <circle cx="14" cy="14" r="4" fill="#1ABCFE" />
-          <path d="M2 6a4 4 0 0 1 4-4h4v8H6a4 4 0 0 1-4-4Z" fill="#F24E1E" />
-          <path d="M10 2h4a4 4 0 1 1 0 8h-4V2Z" fill="#FF7262" />
-          <path d="M2 14a4 4 0 0 1 4-4h4v8H6a4 4 0 0 1-4-4Z" fill="#A259FF" />
-          <path d="M2 22a4 4 0 0 1 4-4h4v4a4 4 0 1 1-8 0Z" fill="#0ACF83" />
-        </svg>
-      </span>
-    );
-  }
-
-  if (account === "notion") {
-    return (
-      <span className="flex h-8 w-8 items-center justify-center rounded-md bg-white shadow-sm">
-        <img src={notionIcon} alt="" className="h-4 w-4 object-contain" aria-hidden="true" />
-      </span>
-    );
-  }
-
-  return (
-    <span className="flex h-8 w-8 items-center justify-center rounded-md bg-white text-blue-500 shadow-sm">
-      <FileText size={18} aria-hidden="true" />
-    </span>
-  );
-}
-
-const ACCOUNTS = [
-  { key: "github" as const, logo: "github" as const, label: "GitHub" },
-  { key: "figma" as const, logo: "figma" as const, label: "Figma" },
-  { key: "notion" as const, logo: "notion" as const, label: "Notion" },
-  { key: "googleDocs" as const, logo: "docs" as const, label: "Google docs" },
-];
-
-const SETTINGS = [
-  { label: "알림 설정", danger: false },
-  { label: "로그아웃", danger: false },
-  { label: "회원 탈퇴", danger: true },
-];
-
 export default function MyPage() {
   const navigate = useNavigate();
   const user = useAuthStore((state) => state.user);
-  const accounts = useIntegrationStore((state) => state.accounts);
+  const logout = useAuthStore((state) => state.logout);
+  const [logoutOpen, setLogoutOpen] = useState(false);
   const avatar = AVATAR_PRESETS.find((preset) => preset.id === user?.avatarId) ?? AVATAR_PRESETS[0];
   const avatarSrc = getPersistentProfileImage(user?.avatarImageUrl) ?? avatar.src;
   const displayRealName = user?.realName?.trim() || "이름 없음";
   const displayNickname = user?.nickname?.trim() || "닉네임 없음";
 
   return (
-    <div className="min-h-full bg-gray-25 pb-6">
-      <header className="flex h-16 items-center gap-3 border-b border-gray-100 bg-gray-25 px-6 shadow-sm">
+    <div className="min-h-full bg-gray-25">
+      <header className="flex h-[58px] items-center gap-[18px] border-b border-gray-100 bg-gray-25 px-7 shadow-sm">
         <PlogMark />
-        <h1 className="text-title font-bold text-gray-900">마이페이지</h1>
+        <h1 className="text-[18px] font-bold leading-[25px] text-gray-900">마이페이지</h1>
       </header>
 
       <div className="px-4 pt-6">
@@ -104,80 +51,97 @@ export default function MyPage() {
           type="button"
           onClick={() => navigate("/my/profile")}
           aria-label="프로필 수정"
-          className="flex h-20 w-full items-center rounded-lg border border-gray-100 bg-white px-4 text-left shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-300"
+          className="flex h-[78px] w-full items-center rounded-16 border border-gray-100 bg-white/10 px-4 text-left shadow-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-300"
         >
           <img
             src={avatarSrc}
             alt={`${displayNickname} 프로필`}
-            className="h-14 w-14 rounded-full object-cover"
+            className="h-[60px] w-[60px] shrink-0 rounded-full object-cover"
             onError={(event) => {
               event.currentTarget.onerror = null;
               event.currentTarget.src = avatar.src;
             }}
           />
           <span className="ml-4 min-w-0 flex-1">
-            <strong className="block truncate text-title font-bold text-gray-900">
+            <strong className="block truncate text-[16px] font-normal leading-[22px] text-gray-900">
               {displayNickname}
             </strong>
-            <span className="mt-0.5 block truncate text-body-sm text-gray-400">
+            <span className="mt-0.5 block truncate text-[12px] font-normal leading-[17px] text-gray-400">
               {displayRealName}
             </span>
           </span>
-          <ChevronRight size={20} className="text-gray-400" aria-hidden="true" />
+          <ChevronRight size={20} strokeWidth={1.7} className="text-gray-400" aria-hidden="true" />
         </button>
 
-        <section className="mt-6" aria-labelledby="account-link-title">
-          <Link
-            to="/my/accounts"
-            aria-label="계정 연동 관리"
-            className="block rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-300"
-          >
-            <div className="flex items-center justify-between">
-              <h2 id="account-link-title" className="text-title font-medium text-gray-500">
-                계정 연동
-              </h2>
-              <ChevronRight size={20} className="text-gray-400" aria-hidden="true" />
-            </div>
-            <div className="mt-3 rounded-lg border border-gray-100 bg-white px-4 py-2 shadow-md">
-              {ACCOUNTS.map((account) => {
-                const connected = accounts[account.key];
-                return (
-                  <span key={account.key} className="flex h-14 items-center gap-3">
-                    <AccountLogo account={account.logo} />
-                    <span className="flex-1 text-body text-gray-900">{account.label}</span>
-                    <span
-                      className={cn(
-                        "rounded-full px-3 py-1 text-caption",
-                        connected ? "bg-success/10 text-success" : "bg-error/10 text-error"
-                      )}
-                    >
-                      {connected ? "연동" : "미연동"}
-                    </span>
-                  </span>
-                );
-              })}
-            </div>
-          </Link>
-        </section>
-
-        <section className="mt-6" aria-labelledby="settings-title">
-          <h2 id="settings-title" className="text-title font-medium text-gray-500">설정</h2>
-          <div className="mt-3 rounded-lg border border-gray-100 bg-white px-4 py-1 shadow-md">
-            {SETTINGS.map((setting) => (
-              <div
+        <section className="mt-9" aria-labelledby="settings-title">
+          <h2 id="settings-title" className="text-[18px] font-normal leading-[25px] text-gray-500">설정</h2>
+          <div className="mt-[10px] rounded-16 border border-gray-100 bg-white/10 px-[18px] shadow-card">
+            {[
+              { label: "알림 설정", danger: false, onClick: () => navigate("/my/notifications") },
+              { label: "로그아웃", danger: false, onClick: () => setLogoutOpen(true) },
+              { label: "회원 탈퇴", danger: true, onClick: () => navigate("/my/withdraw") },
+            ].map((setting) => (
+              <button
+                type="button"
                 key={setting.label}
-                aria-disabled="true"
-                className="flex h-12 w-full items-center text-left"
+                onClick={setting.onClick}
+                className="flex h-[49px] w-full items-center text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-300"
               >
-                <span className={cn("flex-1 text-body", setting.danger ? "text-error" : "text-gray-700")}>
+                <span className={cn("flex-1 text-[15px] font-normal leading-[21px]", setting.danger ? "text-error" : "text-gray-700")}>
                   {setting.label}
                 </span>
-                <span className="text-caption font-normal text-gray-400">준비 중</span>
-              </div>
+                <ChevronRight size={20} strokeWidth={1.7} className="text-gray-400" aria-hidden="true" />
+              </button>
             ))}
           </div>
         </section>
       </div>
+
+      {logoutOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/40 px-5"
+          onClick={() => setLogoutOpen(false)}
+        >
+          <section
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="logout-dialog-title"
+            className="w-full max-w-[362px] rounded-[24px] bg-white px-6 pb-6 pt-9 shadow-xl"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="flex flex-col items-center text-center">
+              <span className="flex h-[54px] w-[54px] items-center justify-center rounded-full bg-gray-100 text-gray-400">
+                <LogOut size={25} strokeWidth={2} className="rotate-180" aria-hidden="true" />
+              </span>
+              <h2 id="logout-dialog-title" className="mt-5 text-[18px] font-normal leading-[25px] text-gray-900">
+                로그아웃 하시겠어요?
+              </h2>
+              <p className="mt-2 text-[13px] font-normal leading-[18px] text-gray-400">
+                다시 로그인하면 모든 데이터는 유지돼요
+              </p>
+              <div className="mt-7 grid w-full grid-cols-2 gap-[10px]">
+                <button
+                  type="button"
+                  onClick={() => setLogoutOpen(false)}
+                  className="h-14 rounded-[14px] bg-gray-100 text-[16px] font-semibold text-gray-400"
+                >
+                  취소
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    logout();
+                    navigate("/login", { replace: true });
+                  }}
+                  className="h-14 rounded-[14px] bg-error text-[16px] font-semibold text-white"
+                >
+                  로그아웃
+                </button>
+              </div>
+            </div>
+          </section>
+        </div>
+      )}
     </div>
   );
 }
