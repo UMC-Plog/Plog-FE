@@ -120,7 +120,6 @@ export function LoginPage() {
         <div className="space-y-3 pb-8">
           <SocialLoginButton provider="google" onClick={() => handleSocial("google")} />
           <SocialLoginButton provider="kakao" onClick={() => handleSocial("kakao")} />
-          <SocialLoginButton provider="naver" onClick={() => handleSocial("naver")} />
         </div>
       </form>
 

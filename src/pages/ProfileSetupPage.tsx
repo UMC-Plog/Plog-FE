@@ -98,10 +98,11 @@ export function ProfileSetupPage() {
       </div>
 
       <div className="flex flex-1 flex-col px-5 pt-6">
-        <h1 className="text-h2 font-extrabold text-gray-900">프로필 설정</h1>
+        <h1 className="text-h2 font-semibold text-gray-900">프로필 설정</h1>
 
         <div className="mt-6">
           <AvatarPicker
+            size="lg"
             value={avatarId}
             customImageUrl={customImageUrl}
             onSelect={(id) => {
@@ -142,7 +143,7 @@ export function ProfileSetupPage() {
                 type="button"
                 onClick={handleCheckNickname}
                 disabled={!nicknameValid || nicknameChecking}
-                className="h-9 shrink-0 rounded-md bg-blue-500 px-3 text-body-sm font-semibold text-white disabled:bg-gray-200 disabled:text-gray-400"
+                className="h-9 shrink-0 rounded-md bg-blue-500 px-3 text-body-sm font-bold text-white disabled:bg-gray-100 disabled:text-gray-400"
               >
                 {nicknameChecking ? "확인 중" : "중복 확인"}
               </button>

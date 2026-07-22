@@ -3,7 +3,7 @@ import { persist } from "zustand/middleware";
 import type { AvatarPresetId } from "../components/AvatarPicker";
 import { getPersistentProfileImage } from "../lib/profileImage";
 
-export type SocialProvider = "google" | "kakao" | "naver";
+export type SocialProvider = "google" | "kakao";
 
 export interface AuthUser {
   id: string;

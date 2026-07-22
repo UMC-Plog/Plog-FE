@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Eye, EyeOff } from "lucide-react";
+import { Eye, EyeOff, Headphones } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { AuthHeader } from "../components/AuthHeader";
 import { PasswordStrengthBar } from "../components/PasswordStrengthBar";
@@ -36,8 +36,8 @@ export function ResetPasswordPage() {
       </div>
 
       <div className="flex flex-1 flex-col px-5 pt-4">
-        <h1 className="text-h2 font-extrabold text-gray-900">비밀번호 재설정</h1>
-        <p className="mt-1.5 text-body text-gray-500">가입한 이메일로 비밀번호 재설정해요.</p>
+        <h1 className="text-h2 font-semibold text-gray-900">비밀번호 재설정</h1>
+        <p className="mt-1.5 text-body text-gray-400">가입한 이메일로 비밀번호를 재설정해요</p>
 
         <div className="mt-6 space-y-4">
           <div>
@@ -81,17 +81,30 @@ export function ResetPasswordPage() {
           />
         </div>
 
-        <div className="mt-auto space-y-4 pb-8 pt-8">
+        <div className="mt-auto pb-8 pt-8">
           <Button size="lg" disabled={!canSubmit} onClick={handleSubmit}>
             완료
           </Button>
-          <button
-            type="button"
-            onClick={() => navigate("/login")}
-            className="w-full text-center text-body-sm text-gray-400 hover:text-gray-600"
-          >
-            로그인으로 돌아가기
-          </button>
+
+          <div className="my-3 h-px w-full bg-gray-100" />
+
+          <div className="flex items-center justify-between">
+            <button
+              type="button"
+              onClick={() => navigate("/login")}
+              className="text-body-sm text-gray-400 hover:text-gray-600"
+            >
+              로그인으로 돌아가기
+            </button>
+            <button
+              type="button"
+              onClick={() => navigate("/login")}
+              className="flex items-center gap-1.5 text-body-sm text-gray-400 hover:text-gray-600"
+            >
+              <Headphones size={16} strokeWidth={1.7} aria-hidden />
+              고객센터 문의하기
+            </button>
+          </div>
         </div>
       </div>
 
