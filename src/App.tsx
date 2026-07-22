@@ -25,6 +25,10 @@ import { CreateProjectPage } from './pages/project/CreateProjectPage'
 import { ProfileEditPage } from './pages/my/ProfileEditPage'
 import { AccountConnectionsPage } from './pages/my/AccountConnectionsPage'
 import { ProjectSettingsPage } from './pages/project/ProjectSettingsPage'
+import PeerEvalListPage from './pages/project/PeerEvalListPage'
+import PeerEvalStarPage from './pages/project/PeerEvalStarPage'
+import PeerEvalKeywordPage from './pages/project/PeerEvalKeywordPage'
+import SelfFeedbackPage from './pages/project/SelfFeedbackPage'
 
 function App() {
   return (
@@ -52,6 +56,12 @@ function App() {
         <Route path="/my/accounts" element={<AccountConnectionsPage />} />
         <Route path="/project/new" element={<CreateProjectPage />} />
         <Route path="/project/:id/settings" element={<ProjectSettingsPage />} />
+
+        {/* Peer 평가 플로우 — ProjectTabBar 밖 독립 화면 */}
+        <Route path="/project/:id/peer-eval" element={<PeerEvalListPage />} />
+        <Route path="/project/:id/peer-eval/self" element={<SelfFeedbackPage />} />
+        <Route path="/project/:id/peer-eval/:memberId/star" element={<PeerEvalStarPage />} />
+        <Route path="/project/:id/peer-eval/:memberId/keyword" element={<PeerEvalKeywordPage />} />
 
         {/* 프로젝트 상세: 피드/채팅/업무/리포트 상단 탭 */}
         <Route path="/project/:id" element={<ProjectTabBar />}>

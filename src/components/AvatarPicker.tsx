@@ -1,14 +1,14 @@
 import { useRef } from "react";
 import { Camera } from "lucide-react";
 import { cn } from "../lib/utils";
-import otterImg from "../assets/수달.png";
-import penguinImg from "../assets/펭귄.png";
-import frogImg from "../assets/개구리.png";
-import koalaImg from "../assets/코알라.png";
-import pandaImg from "../assets/판다.png";
-import smileImg from "../assets/스마일.png";
-import ghostImg from "../assets/고스트.png";
-import tigerImg from "../assets/호랑이.png";
+import otterImg from "../assets/otter.png";
+import penguinImg from "../assets/penguin.png";
+import frogImg from "../assets/frog.png";
+import koalaImg from "../assets/koala.png";
+import pandaImg from "../assets/panda.png";
+import smileImg from "../assets/smile.png";
+import ghostImg from "../assets/ghost.png";
+import tigerImg from "../assets/tiger.png";
 
 export const AVATAR_PRESETS = [
   { id: "otter", label: "수달", src: otterImg },
