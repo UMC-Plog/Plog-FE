@@ -5,7 +5,7 @@ import githubIcon from "../../assets/integrations/github.svg";
 import githubUnlinkIcon from "../../assets/integrations/github-unlink.svg";
 import googleDocsIcon from "../../assets/integrations/google-docs.svg";
 import googleSlidesIcon from "../../assets/integrations/google-slides.svg";
-import notionIcon from "../../assets/integrations/Notion.png";
+import notionIcon from "../../assets/integrations/notion.png";
 import { AuthHeader } from "../../components/AuthHeader";
 import { ConfirmDialog } from "../../components/ConfirmDialog";
 import { AccountConnectionItem } from "../../components/my/AccountConnectionItem";

@@ -1,6 +1,6 @@
 import { ChevronRight, FileText } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
-import notionIcon from "../assets/integrations/Notion.png";
+import notionIcon from "../assets/integrations/notion.png";
 import { AVATAR_PRESETS } from "../components/AvatarPicker";
 import { getPersistentProfileImage } from "../lib/profileImage";
 import { cn } from "../lib/utils";
