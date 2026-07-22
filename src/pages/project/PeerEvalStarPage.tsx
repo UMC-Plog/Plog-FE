@@ -23,9 +23,9 @@ function ChevronLeft() {
 
 function StarIcon({ filled }: { filled: boolean }) {
   return (
-    <svg width="32" height="32" viewBox="0 0 32 32" fill="none" aria-hidden>
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden>
       <path
-        d="M16 3L19.708 11.382L28.944 12.292L22.28 18.382L24.18 27.472L16 22.82L7.82 27.472L9.72 18.382L3.056 12.292L12.292 11.382L16 3Z"
+        d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z"
         fill={filled ? '#2186FB' : 'none'}
         stroke={filled ? '#2186FB' : '#DDE2E9'}
         strokeWidth="1.5"
@@ -92,18 +92,24 @@ export default function PeerEvalStarPage() {
   const [ratings, setRatings] = useState<Record<string, number>>(
     Object.fromEntries(CATEGORIES.map((c) => [c.id, savedScores?.[c.id] ?? 4])),
   );
+  const [hasInteracted, setHasInteracted] = useState(false);
+
   // 평가자가 모든 항목에 동일 점수를 주는 것을 막기 위한 실시간 가이드(Nudge).
-  // 값이 전부 같으면(평균편차 0) 배너를 띄우고 [다음]을 막다가, 하나라도 값을 바꾸면 풀어준다.
+  // 상호작용 후 전 항목이 동일값이면 배너를 띄우고 [다음]을 막는다.
   const allSame = useMemo(() => {
     const values = Object.values(ratings);
     return values.every((v) => v === values[0]);
   }, [ratings]);
 
-  const setRating = (categoryId: string, value: number) =>
+  const showNudge = hasInteracted && allSame;
+
+  const setRating = (categoryId: string, value: number) => {
+    setHasInteracted(true);
     setRatings((prev) => ({ ...prev, [categoryId]: value }));
+  };
 
   const handleNext = () => {
-    if (allSame || !id || !memberId) return;
+    if (showNudge || !id || !memberId) return;
     saveMemberScores(id, memberId, ratings);
     navigate(`/project/${id}/peer-eval/${memberId}/keyword`);
   };
@@ -119,48 +125,53 @@ export default function PeerEvalStarPage() {
       </header>
 
       <div className="flex-1 px-5 pt-6 pb-28 flex flex-col gap-5">
-        {/* 대상 팀원 */}
+        {/* 대상 팀원 — 아바타 + 이름만 표시 */}
         <div className="flex items-center gap-3">
           {member.avatarUrl ? (
             <img src={member.avatarUrl} alt={member.name} className="size-10 rounded-full object-cover shrink-0" />
           ) : (
             <div className="size-10 rounded-full bg-gray-100 shrink-0" />
           )}
-          <div>
-            <p className="text-body-sm text-gray-400">평가 대상</p>
-            <p className="text-title font-semibold text-gray-900">{member.name}</p>
-          </div>
+          <p className="text-title font-semibold text-gray-900">{member.name}</p>
         </div>
 
-        {/* 안내 박스 */}
-        <div className="bg-primary-50 rounded-xl px-4 py-3 flex items-start gap-3">
-          <InfoIcon />
-          <div className="text-caption text-primary leading-5">
-            <p className="font-semibold">팀원마다 강점이 다를 수 있어요</p>
-            <p>신중하게 평가해 주세요</p>
-          </div>
-        </div>
+        {/* 안내 문구 */}
+        <p className="text-caption text-gray-400">
+          <span className="text-primary">필수</span>{'   각 항목에 대하여 점수를 부여해 주세요'}
+        </p>
 
-        {/* 카테고리별 별점 */}
-        <div className="flex flex-col gap-4">
-          {CATEGORIES.map((cat) => (
+        {/* 카테고리별 별점 — 구분선 행 */}
+        <div className="flex flex-col bg-white rounded-2xl overflow-hidden border border-gray-100 shadow-md">
+          {CATEGORIES.map((cat, i) => (
             <div
               key={cat.id}
-              className="bg-white border border-gray-100 rounded-2xl shadow-md px-5 py-4 flex flex-col gap-3"
+              className={cn(
+                'flex items-center justify-between px-5 h-[72px]',
+                i < CATEGORIES.length - 1 && 'border-b border-gray-200',
+              )}
             >
               <div>
                 <p className="text-title text-gray-900">{cat.label}</p>
-                <p className="text-caption text-gray-400 mt-0.5">{cat.sub}</p>
+                <p className="text-caption text-gray-400">{cat.sub}</p>
               </div>
               <StarRow value={ratings[cat.id]} onChange={(v) => setRating(cat.id, v)} />
             </div>
           ))}
         </div>
+
+        {/* 안내 박스 — 하단 배치 */}
+        <div className="bg-primary-50 rounded-xl px-4 py-3 flex items-start gap-3">
+          <InfoIcon />
+          <div className="text-caption text-primary leading-5">
+            <p className="font-medium">팀원마다 강점이 다를 수 있어요</p>
+            <p className="font-medium">신중하게 평가해 주세요</p>
+          </div>
+        </div>
       </div>
 
       {/* 하단 CTA */}
       <div className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-mobile bg-white px-5 pt-3 pb-8">
-        {allSame && (
+        {showNudge && (
           <div className="mb-3 bg-primary-50 rounded-xl px-4 py-3 flex items-start gap-3">
             <InfoIcon />
             <p className="text-caption text-primary leading-5">
@@ -170,11 +181,11 @@ export default function PeerEvalStarPage() {
         )}
         <button
           type="button"
-          disabled={allSame}
+          disabled={showNudge}
           onClick={handleNext}
           className={cn(
             'w-full h-14 rounded-lg text-body font-bold transition-colors',
-            allSame
+            showNudge
               ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
               : 'bg-primary text-gray-25 hover:bg-primary-600',
           )}

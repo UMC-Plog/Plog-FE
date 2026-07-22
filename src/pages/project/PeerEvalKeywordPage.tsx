@@ -70,18 +70,15 @@ export default function PeerEvalKeywordPage() {
           ) : (
             <div className="size-10 rounded-full bg-gray-100 shrink-0" />
           )}
-          <div>
-            <p className="text-body-sm text-gray-400">평가 대상</p>
-            <p className="text-title font-semibold text-gray-900">{member.name}</p>
-          </div>
+          <p className="text-title font-semibold text-gray-900">{member.name}</p>
         </div>
 
         {/* 핵심 키워드 */}
         <div className="flex flex-col gap-3">
-          <p className="text-title text-gray-900">
-            핵심 키워드 <span className="text-primary">필수</span>
+          <p className="text-body text-gray-900">핵심 키워드</p>
+          <p className="text-caption text-gray-400">
+            <span className="text-primary">필수</span>{'   해당하는 키워드를 선택하세요'}
           </p>
-          <p className="text-caption text-gray-400">이 팀원을 잘 나타내는 키워드를 선택하세요</p>
           <div className="flex flex-wrap gap-2">
             {ALL_KEYWORDS.map((kw) => (
               <button
@@ -103,17 +100,15 @@ export default function PeerEvalKeywordPage() {
 
         {/* AI 분석용 상세 피드백 */}
         <div className="flex flex-col gap-3">
-          <p className="text-title text-gray-900">
-            AI 분석용 상세 피드백 <span className="text-primary">필수</span>
-          </p>
+          <p className="text-body text-gray-900">AI 분석용 상세 피드백</p>
           <p className="text-caption text-gray-400">
-            구체적인 사례나 경험을 바탕으로 작성해 주세요. AI가 기여도 분석에 활용합니다.
+            <span className="text-primary">필수</span>{'   활동 로그 기반으로 구체적으로 작성할수록 리포트 품질이 높아집니다'}
           </p>
           <textarea
             value={feedback}
             onChange={(e) => setFeedback(e.target.value)}
             placeholder="예) 매주 일정 조율을 주도했고, 팀원 간 의견 충돌 시 중재 역할을 했어요."
-            className="border border-gray-200 rounded-lg px-5 py-5 h-72 resize-none text-body text-gray-900 placeholder:text-gray-400 bg-white focus:outline-none focus:border-primary transition-colors"
+            className="border border-gray-200 rounded-lg px-5 py-[19px] h-[280px] resize-none text-body text-gray-900 placeholder:text-gray-400 bg-white focus:outline-none focus:border-primary transition-colors"
           />
         </div>
       </div>
