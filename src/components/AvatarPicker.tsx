@@ -1,5 +1,5 @@
 import { useRef } from "react";
-import { Camera } from "lucide-react";
+import { Camera, User } from "lucide-react";
 import { cn } from "../lib/utils";
 import otterImg from "../assets/otter.png";
 import penguinImg from "../assets/penguin.png";
@@ -45,7 +45,7 @@ export function AvatarPicker({
 
   return (
     <div className="w-full">
-      {showLabel && <p className="mb-3 text-body-sm font-medium text-gray-700">프로필 선택</p>}
+      {showLabel && <p className="mb-3 text-body font-normal text-gray-900">프로필 선택</p>}
 
       {/* 대표 미리보기 */}
       <div className="mb-5 flex justify-center">
@@ -54,7 +54,7 @@ export function AvatarPicker({
             className={cn(
               "flex items-center justify-center overflow-hidden rounded-full",
               size === "lg" ? "h-28 w-28" : "h-24 w-24",
-              customImageUrl || selected ? "" : "bg-gray-100"
+              customImageUrl || selected ? "" : "bg-blue-100"
             )}
           >
             {customImageUrl ? (
@@ -70,7 +70,7 @@ export function AvatarPicker({
                 className="h-full w-full object-cover"
               />
             ) : (
-              <span className="text-gray-300 text-4xl">👤</span>
+              <User className="h-1/2 w-1/2 text-gray-25" strokeWidth={1.5} fill="currentColor" aria-hidden />
             )}
           </div>
           {onUpload && (

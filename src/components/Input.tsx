@@ -60,7 +60,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
         {label && (
           <label
             htmlFor={inputId}
-            className="mb-1.5 block text-body-sm font-medium text-gray-700"
+            className="mb-1.5 block text-body font-normal text-gray-900"
           >
             {label}
           </label>
@@ -80,9 +80,9 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
               setFocused(false);
               props.onBlur?.(e);
             }}
-            style={suffix ? { paddingRight: suffixWidth + 22 } : undefined}
+            style={suffix ? { paddingRight: suffixWidth + 26 } : undefined}
             className={cn(
-              "h-12 w-full rounded-md border bg-white px-3.5 text-body text-gray-900",
+              "h-14 w-full rounded-lg border bg-white px-[18px] text-body text-gray-900",
               "placeholder:text-gray-400 transition-colors duration-150",
               "focus:outline-none",
               locked
@@ -101,7 +101,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
           {suffix && (
             <div
               ref={suffixRef}
-              className="absolute right-3.5 top-1/2 flex -translate-y-1/2 items-center"
+              className="absolute right-[18px] top-1/2 flex -translate-y-1/2 items-center"
             >
               {suffix}
             </div>
