@@ -164,6 +164,12 @@ export default function ProjectChatPage() {
   const messages = useChatStore((state) => state.messagesByProject[projectId] ?? []);
   const sendText = useChatStore((state) => state.sendText);
   const sendFile = useChatStore((state) => state.sendFile);
+  const markAsRead = useChatStore((state) => state.markAsRead);
+
+  useEffect(() => {
+    if (!projectId) return;
+    markAsRead(projectId);
+  }, [projectId, markAsRead, messages.length]);
 
   useEffect(() => {
     if (!showPopup) return;

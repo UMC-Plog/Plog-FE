@@ -69,18 +69,24 @@ export default function ChatPage() {
   const [keyword, setKeyword] = useState('');
   const navigate = useNavigate();
   const messagesByProject = useChatStore((state) => state.messagesByProject);
+  const lastReadAtByProject = useChatStore((state) => state.lastReadAtByProject);
 
   const chats = useMemo(() => MOCK_CHATS.map((chat) => {
     const messages = messagesByProject[chat.id] ?? [];
     const latest = messages[messages.length - 1];
     if (!latest) return chat;
+    const lastReadAt = lastReadAtByProject[chat.id];
+    const unreadCount = messages.filter(
+      (message) => !message.isMine && (!lastReadAt || new Date(message.sentAt) > new Date(lastReadAt)),
+    ).length;
     return {
       ...chat,
       lastSenderName: latest.isMine ? '나' : latest.sender.name,
       lastMessage: latest.type === 'text' ? latest.text : latest.fileName,
       time: new Intl.DateTimeFormat('ko-KR', { hour: '2-digit', minute: '2-digit', hour12: false }).format(new Date(latest.sentAt)),
+      unreadCount,
     };
-  }), [messagesByProject]);
+  }), [messagesByProject, lastReadAtByProject]);
 
   const filtered = useMemo(() => {
     const q = keyword.trim().toLowerCase();

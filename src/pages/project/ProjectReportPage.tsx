@@ -19,10 +19,11 @@ interface ReportItem {
   locked?: boolean
 }
 
-const MOCK_REPORTS: ReportItem[] = [
-  { id: 'r1', tier: 'basic', title: '테스트 프로젝트 기여도 분석 리포트', createdAt: '2026.01.23' },
-  { id: 'r2', tier: 'premium', title: '개인 기여도 리포트', createdAt: '2026.01.23', locked: true },
-]
+const formatReportDate = (iso: string | null) => {
+  if (!iso) return ''
+  const date = new Date(iso)
+  return `${date.getFullYear()}.${String(date.getMonth() + 1).padStart(2, '0')}.${String(date.getDate()).padStart(2, '0')}`
+}
 
 export default function ProjectReportPage() {
   const { id: projectId } = useParams<{ id: string }>()
@@ -60,7 +61,14 @@ export default function ProjectReportPage() {
     navigate(`/project/${projectId}/peer-eval`)
   }
 
-  const reports = status === 'submitted' ? MOCK_REPORTS : []
+  const submittedAt = formatReportDate(peerEvalState?.submittedAt ?? null)
+  const reports: ReportItem[] =
+    status === 'submitted'
+      ? [
+          { id: 'r1', tier: 'basic', title: '테스트 프로젝트 기여도 분석 리포트', createdAt: submittedAt },
+          { id: 'r2', tier: 'premium', title: '개인 기여도 리포트', createdAt: submittedAt, locked: true },
+        ]
+      : []
   const hasReports = reports.length > 0
 
   return (
@@ -87,33 +95,30 @@ export default function ProjectReportPage() {
         </div>
       )}
 
-      {(status === 'unlocked' || status === 'submitted') && (
+      {status === 'unlocked' && (
         <button
           type="button"
-          aria-label={status === 'submitted' ? 'Peer 평가 제출 완료' : 'Peer 평가 시작'}
+          aria-label="Peer 평가 시작"
           onClick={handleStartEvaluation}
-          disabled={status === 'submitted'}
-          className="flex w-full items-center gap-3.5 rounded-18 bg-gradient-to-r from-primary-500 to-aqua-500 px-5 py-[22px] text-left shadow-cta disabled:cursor-default"
+          className="flex w-full items-center gap-3.5 rounded-18 bg-gradient-to-r from-primary-500 to-aqua-500 px-5 py-[22px] text-left shadow-cta"
         >
           <div className="flex flex-1 flex-col gap-2">
             <div className="flex items-center gap-2">
               <p className="text-body-sm font-bold tracking-[-0.4px] text-gray-25">
-                {status === 'submitted' ? 'Peer 평가 제출이 완료되었습니다' : 'Peer 평가를 시작하세요'}
+                Peer 평가를 시작하세요
               </p>
-              {status === 'unlocked' && deadline && (
+              {deadline && (
                 <span className="flex h-[18px] w-10 items-center justify-center rounded-full bg-primary-100 text-[10px] font-bold text-navy-700">
                   {deadline.label}
                 </span>
               )}
             </div>
-            {status === 'unlocked' && (
-              <p className="text-caption font-medium text-gray-25">
-                AI 리포트 생성을 위해 평가가 필요해요
-              </p>
-            )}
+            <p className="text-caption font-medium text-gray-25">
+              AI 리포트 생성을 위해 평가가 필요해요
+            </p>
           </div>
           <span className="flex h-[46px] shrink-0 items-center rounded-12 bg-gray-25 px-[18px] text-title font-bold text-navy-700">
-            {status === 'submitted' ? '평가 완료' : '평가 시작'}
+            평가 시작
           </span>
         </button>
       )}
@@ -159,7 +164,7 @@ export default function ProjectReportPage() {
         <div className="mt-[72px] flex flex-col items-center gap-4">
           <p className="text-title font-medium text-gray-500">아직 리포트가 없어요</p>
           <p className="whitespace-pre-line text-center text-body-sm text-gray-400">
-            {'Peer 평가를 완료하면 \n기여도 리포트가자동으로 생성됩니다'}
+            {'Peer 평가를 완료하면 \n기여도 리포트가 자동으로 생성됩니다'}
           </p>
         </div>
       )}
