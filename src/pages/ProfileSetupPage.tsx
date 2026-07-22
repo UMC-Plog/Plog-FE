@@ -1,42 +1,92 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { AvatarPicker, type AvatarPresetId } from "../components/AvatarPicker";
 import { ProgressBar } from "../components/ProgressBar";
 import { Button } from "../components/Button";
 import { Input } from "../components/Input";
+import { readProfileImage } from "../lib/profileImage";
+import { mockCheckNickname } from "../mocks/nickname";
 import { useAuthStore } from "../store/authStore";
-
-// TODO: 실제 API 연동 시 서버 중복확인 엔드포인트로 교체
-const TAKEN_NICKNAMES = ["무니", "곰곰", "포도"];
 
 export function ProfileSetupPage() {
   const navigate = useNavigate();
   const completeSignup = useAuthStore((s) => s.completeSignup);
+  const setSignupField = useAuthStore((s) => s.setSignupField);
 
   const [avatarId, setAvatarId] = useState<AvatarPresetId | null>(null);
   const [customImageUrl, setCustomImageUrl] = useState<string | null>(null);
+  const [imageError, setImageError] = useState("");
+  const [imageReading, setImageReading] = useState(false);
   const [nickname, setNickname] = useState("");
   const [checkedNickname, setCheckedNickname] = useState<string | null>(null);
   const [nicknameAvailable, setNicknameAvailable] = useState<boolean | null>(null);
+  const [nicknameChecking, setNicknameChecking] = useState(false);
+  const latestNicknameRef = useRef(nickname);
+  const nicknameRequestRef = useRef(0);
+  const imageRequestRef = useRef(0);
 
-  const handleUpload = (file: File) => {
-    const url = URL.createObjectURL(file);
-    setCustomImageUrl(url);
-    setAvatarId(null);
+  const normalizedNickname = nickname.trim();
+  const nicknameValid = normalizedNickname.length >= 2 && normalizedNickname.length <= 6;
+
+  const handleUpload = async (file: File) => {
+    const requestId = ++imageRequestRef.current;
+    setImageReading(true);
+    setImageError("");
+
+    try {
+      const imageUrl = await readProfileImage(file);
+      if (requestId !== imageRequestRef.current) return;
+
+      setCustomImageUrl(imageUrl);
+      setAvatarId(null);
+    } catch (error) {
+      if (requestId !== imageRequestRef.current) return;
+      setImageError(error instanceof Error ? error.message : "이미지를 불러오지 못했어요.");
+    } finally {
+      if (requestId === imageRequestRef.current) {
+        setImageReading(false);
+      }
+    }
   };
 
-  const handleCheckNickname = () => {
-    if (!nickname.trim()) return;
-    const available = !TAKEN_NICKNAMES.includes(nickname.trim());
-    setNicknameAvailable(available);
-    setCheckedNickname(nickname.trim());
+  const handleCheckNickname = async () => {
+    const targetNickname = normalizedNickname;
+    if (!nicknameValid || nicknameChecking) return;
+
+    const requestId = ++nicknameRequestRef.current;
+    setNicknameChecking(true);
+    try {
+      const available = await mockCheckNickname(targetNickname);
+      if (
+        requestId !== nicknameRequestRef.current ||
+        latestNicknameRef.current.trim() !== targetNickname
+      ) {
+        return;
+      }
+
+      setNicknameAvailable(available);
+      setCheckedNickname(targetNickname);
+    } finally {
+      if (requestId === nicknameRequestRef.current) {
+        setNicknameChecking(false);
+      }
+    }
   };
 
-  const nicknameVerified = nicknameAvailable === true && checkedNickname === nickname.trim();
-  const canSubmit = (avatarId !== null || customImageUrl !== null) && nicknameVerified;
+  const nicknameVerified =
+    nicknameAvailable === true && checkedNickname === normalizedNickname;
+  const canSubmit =
+    (avatarId !== null || customImageUrl !== null) &&
+    nicknameVerified &&
+    !imageReading;
 
   const handleSubmit = () => {
     if (!canSubmit) return;
+
+    setSignupField("avatarId", avatarId);
+    setSignupField("avatarImageUrl", customImageUrl);
+    setSignupField("nickname", normalizedNickname);
+    setSignupField("isNicknameAvailable", true);
     completeSignup();
     navigate("/home");
   };
@@ -57,9 +107,13 @@ export function ProfileSetupPage() {
             onSelect={(id) => {
               setAvatarId(id);
               setCustomImageUrl(null);
+              setImageError("");
             }}
             onUpload={handleUpload}
           />
+          <p className="mt-2 min-h-5 text-body-sm text-error" aria-live="polite">
+            {imageError}
+          </p>
         </div>
 
         <div className="mt-6">
@@ -69,10 +123,16 @@ export function ProfileSetupPage() {
             value={nickname}
             onChange={(e) => {
               setNickname(e.target.value);
+              latestNicknameRef.current = e.target.value;
+              nicknameRequestRef.current += 1;
+              setNicknameChecking(false);
               setNicknameAvailable(null);
+              setCheckedNickname(null);
             }}
             errorText={
-              nicknameAvailable === false && checkedNickname === nickname.trim()
+              nickname.length > 0 && !nicknameValid
+                ? "닉네임은 2~6자로 입력해 주세요"
+                : nicknameAvailable === false && checkedNickname === normalizedNickname
                 ? "사용 불가능한 닉네임이에요"
                 : undefined
             }
@@ -81,10 +141,10 @@ export function ProfileSetupPage() {
               <button
                 type="button"
                 onClick={handleCheckNickname}
-                disabled={!nickname.trim()}
+                disabled={!nicknameValid || nicknameChecking}
                 className="h-9 shrink-0 rounded-md bg-blue-500 px-3 text-body-sm font-semibold text-white disabled:bg-gray-200 disabled:text-gray-400"
               >
-                중복 확인
+                {nicknameChecking ? "확인 중" : "중복 확인"}
               </button>
             }
           />

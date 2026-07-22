@@ -10,6 +10,10 @@ import ProjectFeedPage from './pages/project/ProjectFeedPage'
 import ProjectChatPage from './pages/project/ProjectChatPage'
 import ProjectTaskPage from './pages/project/ProjectTaskPage'
 import ProjectReportPage from './pages/project/ProjectReportPage'
+import NoticeFormPage from './pages/project/notice/NoticeFormPage'
+import NoticeDetailPage from './pages/project/notice/NoticeDetailPage'
+import PostFormPage from './pages/project/post/PostFormPage'
+import PostDetailPage from './pages/project/post/PostDetailPage'
 import { SplashPage } from './pages/SplashPage'
 import { SignupPage } from './pages/SignupPage'
 import { SignupSocialConsentPage } from './pages/SignupSocialConsentPage'
@@ -17,6 +21,14 @@ import { SignupEmailStepPage } from './pages/SignupEmailStepPage'
 import { ProfileSetupPage } from './pages/ProfileSetupPage'
 import { FindPasswordPage } from './pages/FindPasswordPage'
 import { ResetPasswordPage } from './pages/ResetPasswordPage'
+import { CreateProjectPage } from './pages/project/CreateProjectPage'
+import { ProfileEditPage } from './pages/my/ProfileEditPage'
+import { AccountConnectionsPage } from './pages/my/AccountConnectionsPage'
+import { ProjectSettingsPage } from './pages/project/ProjectSettingsPage'
+import PeerEvalListPage from './pages/project/PeerEvalListPage'
+import PeerEvalStarPage from './pages/project/PeerEvalStarPage'
+import PeerEvalKeywordPage from './pages/project/PeerEvalKeywordPage'
+import SelfFeedbackPage from './pages/project/SelfFeedbackPage'
 
 function App() {
   return (
@@ -40,6 +52,17 @@ function App() {
           <Route path="/my" element={<MyPage />} />
         </Route>
 
+        <Route path="/my/profile" element={<ProfileEditPage />} />
+        <Route path="/my/accounts" element={<AccountConnectionsPage />} />
+        <Route path="/project/new" element={<CreateProjectPage />} />
+        <Route path="/project/:id/settings" element={<ProjectSettingsPage />} />
+
+        {/* Peer 평가 플로우 — ProjectTabBar 밖 독립 화면 */}
+        <Route path="/project/:id/peer-eval" element={<PeerEvalListPage />} />
+        <Route path="/project/:id/peer-eval/self" element={<SelfFeedbackPage />} />
+        <Route path="/project/:id/peer-eval/:memberId/star" element={<PeerEvalStarPage />} />
+        <Route path="/project/:id/peer-eval/:memberId/keyword" element={<PeerEvalKeywordPage />} />
+
         {/* 프로젝트 상세: 피드/채팅/업무/리포트 상단 탭 */}
         <Route path="/project/:id" element={<ProjectTabBar />}>
           <Route index element={<Navigate to="feed" replace />} />
@@ -48,6 +71,13 @@ function App() {
           <Route path="tasks" element={<ProjectTaskPage />} />
           <Route path="report" element={<ProjectReportPage />} />
         </Route>
+
+        <Route path="/project/:id/notices/new" element={<NoticeFormPage />} />
+        <Route path="/project/:id/notices/:noticeId" element={<NoticeDetailPage />} />
+        <Route path="/project/:id/notices/:noticeId/edit" element={<NoticeFormPage />} />
+        <Route path="/project/:id/posts/new" element={<PostFormPage />} />
+        <Route path="/project/:id/posts/:postId" element={<PostDetailPage />} />
+        <Route path="/project/:id/posts/:postId/edit" element={<PostFormPage />} />
 
         <Route path="*" element={<Navigate to="/home" replace />} />
       </Routes>

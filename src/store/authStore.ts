@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import type { AvatarPresetId } from "../components/AvatarPicker";
+import { getPersistentProfileImage } from "../lib/profileImage";
 
 export type SocialProvider = "google" | "kakao" | "naver";
 
@@ -8,6 +9,12 @@ export interface AuthUser {
   id: string;
   email: string;
   realName: string;
+  nickname: string;
+  avatarId: AvatarPresetId | null;
+  avatarImageUrl: string | null;
+}
+
+export interface ProfileUpdate {
   nickname: string;
   avatarId: AvatarPresetId | null;
   avatarImageUrl: string | null;
@@ -60,6 +67,7 @@ interface AuthState {
   // auth actions
   login: (user: AuthUser) => void;
   logout: () => void;
+  updateProfile: (profile: ProfileUpdate) => void;
 
   // signup draft actions (다단계 진행 중 데이터 유지)
   setSignupMethod: (method: SignupDraft["method"]) => void;
@@ -77,6 +85,17 @@ export const useAuthStore = create<AuthState>()(
 
       login: (user) => set({ user }),
       logout: () => set({ user: null }),
+      updateProfile: (profile) =>
+        set((state) => ({
+          user: state.user
+            ? {
+                ...state.user,
+                nickname: profile.nickname.trim(),
+                avatarId: profile.avatarId,
+                avatarImageUrl: getPersistentProfileImage(profile.avatarImageUrl),
+              }
+            : null,
+        })),
 
       setSignupMethod: (method) =>
         set((state) => ({ signupDraft: { ...state.signupDraft, method } })),
@@ -96,10 +115,10 @@ export const useAuthStore = create<AuthState>()(
         const newUser: AuthUser = {
           id: crypto.randomUUID(),
           email: draft.email,
-          realName: draft.realName,
-          nickname: draft.nickname,
+          realName: draft.realName.trim(),
+          nickname: draft.nickname.trim(),
           avatarId: draft.avatarId,
-          avatarImageUrl: draft.avatarImageUrl,
+          avatarImageUrl: getPersistentProfileImage(draft.avatarImageUrl),
         };
         set({ user: newUser });
         get().resetSignupDraft();
@@ -109,6 +128,21 @@ export const useAuthStore = create<AuthState>()(
     {
       name: "plog-auth-storage",
       partialize: (state) => ({ user: state.user }), // signupDraft는 새로고침 시 굳이 유지 안 함
+      merge: (persistedState, currentState) => {
+        const persisted = (persistedState ?? {}) as Partial<AuthState>;
+        const persistedUser = persisted.user;
+
+        return {
+          ...currentState,
+          ...persisted,
+          user: persistedUser
+            ? {
+                ...persistedUser,
+                avatarImageUrl: getPersistentProfileImage(persistedUser.avatarImageUrl),
+              }
+            : null,
+        };
+      },
     }
   )
 );
