@@ -1,4 +1,5 @@
 import { CalendarDays, FileText, Info, Link, TriangleAlert, UserRound } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
 import { AVATAR_PRESETS } from '../AvatarPicker'
 import { BottomSheet } from '../Modal'
 import { Button } from '../Button'
@@ -18,7 +19,7 @@ interface TaskCardDetailModalProps {
   onClose: () => void
   onEdit: (task: Task) => void
   onDelete: (task: Task) => void
-  onComplete: (task: Task) => void
+  onStatusChange: (task: Task, status: TaskStatus) => void
 }
 
 const statusLabels: Record<TaskStatus, string> = {
@@ -38,8 +39,16 @@ export function TaskCardDetailModal({
   onClose,
   onEdit,
   onDelete,
-  onComplete,
+  onStatusChange,
 }: TaskCardDetailModalProps) {
+  const statusChangeLockRef = useRef(false)
+  const [isStatusChanging, setIsStatusChanging] = useState(false)
+
+  useEffect(() => {
+    statusChangeLockRef.current = false
+    setIsStatusChanging(false)
+  }, [task?.status])
+
   if (!task) return null
 
   const overdue = isTaskOverdue(task)
@@ -49,6 +58,25 @@ export function TaskCardDetailModal({
   const avatarSrc = task.assignee.avatarImageUrl ?? avatarPreset?.src
   const attachments = task.attachments ?? []
   const category = TASK_CATEGORY_CONFIG[task.category]
+  const nextStatus =
+    task.status === 'todo'
+      ? 'inProgress'
+      : task.status === 'inProgress'
+        ? 'done'
+        : null
+  const statusActionLabel =
+    task.status === 'todo'
+      ? '진행 중'
+      : task.status === 'inProgress'
+        ? '완료 처리'
+        : '완료됨'
+
+  const handleStatusChange = () => {
+    if (!nextStatus || statusChangeLockRef.current) return
+    statusChangeLockRef.current = true
+    setIsStatusChanging(true)
+    onStatusChange(task, nextStatus)
+  }
 
   return (
     <BottomSheet open={open} onClose={onClose}>
@@ -166,11 +194,11 @@ export function TaskCardDetailModal({
           <Button
             type="button"
             fullWidth={false}
-            disabled={task.status === 'done'}
-            onClick={() => onComplete(task)}
+            disabled={!nextStatus || isStatusChanging}
+            onClick={handleStatusChange}
             className="flex-[2] text-white"
           >
-            {task.status === 'done' ? '완료됨' : '완료 처리'}
+            {statusActionLabel}
           </Button>
         </div>
       </div>

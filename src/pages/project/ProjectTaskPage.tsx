@@ -27,7 +27,7 @@ export default function ProjectTaskPage() {
   const { id: projectId = '' } = useParams()
   const user = useAuthStore((state) => state.user)
   const storedTasks = useTaskStore((state) => state.tasks)
-  const completeTask = useTaskStore((state) => state.completeTask)
+  const updateTaskStatus = useTaskStore((state) => state.updateTaskStatus)
   const deleteTask = useTaskStore((state) => state.deleteTask)
   const [filter, setFilter] = useState<TaskFilter>('all')
   const [isFormOpen, setIsFormOpen] = useState(false)
@@ -147,9 +147,9 @@ export default function ProjectTaskPage() {
           setIsFormOpen(true)
         }}
         onDelete={() => setIsDeleteOpen(true)}
-        onComplete={(task) => {
-          completeTask(projectId, task.id)
-          setIsDetailOpen(false)
+        onStatusChange={(task, status) => {
+          updateTaskStatus(projectId, task.id, status)
+          if (status === 'done') setIsDetailOpen(false)
         }}
       />
 

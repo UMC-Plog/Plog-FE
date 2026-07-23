@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import type { CreateTaskInput, Task, UpdateTaskInput } from '../types/task'
+import type { CreateTaskInput, Task, TaskStatus, UpdateTaskInput } from '../types/task'
 
 interface TaskState {
   tasks: Task[]
@@ -9,7 +9,7 @@ interface TaskState {
   getTaskById: (projectId: string, taskId: string) => Task | undefined
   updateTask: (projectId: string, taskId: string, updates: UpdateTaskInput) => Task | undefined
   deleteTask: (projectId: string, taskId: string) => void
-  completeTask: (projectId: string, taskId: string) => void
+  updateTaskStatus: (projectId: string, taskId: string, status: TaskStatus) => void
 }
 
 export const useTaskStore = create<TaskState>()(
@@ -66,11 +66,13 @@ export const useTaskStore = create<TaskState>()(
           ),
         })),
 
-      completeTask: (projectId, taskId) =>
+      updateTaskStatus: (projectId, taskId, status) =>
         set((state) => ({
           tasks: state.tasks.map((task) =>
-            task.projectId === projectId && task.id === taskId
-              ? { ...task, status: 'done', updatedAt: new Date().toISOString() }
+            task.projectId === projectId &&
+            task.id === taskId &&
+            task.status !== status
+              ? { ...task, status, updatedAt: new Date().toISOString() }
               : task
           ),
         })),
