@@ -21,6 +21,9 @@ export function FindPasswordPage() {
   const handleSendCode = () => {
     if (!emailValid) return;
     setSent(true);
+    setCode("");
+    setCodeError(false);
+    setVerified(false);
     // TODO: 실제 인증코드 발송 API 연동
   };
 
