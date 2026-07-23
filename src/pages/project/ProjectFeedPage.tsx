@@ -14,13 +14,13 @@ export default function ProjectFeedPage() {
   const allNotices = useNoticeStore((state) => state.notices)
   const allPosts = usePostStore((state) => state.posts)
 
-  const notices = useMemo(
+  const latestNotice = useMemo(
     () =>
       projectId
         ? allNotices
             .filter((notice) => notice.projectId === projectId)
-            .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
-        : [],
+            .sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0]
+        : undefined,
     [allNotices, projectId]
   )
 
@@ -48,30 +48,27 @@ export default function ProjectFeedPage() {
 
   return (
     <div className="relative flex min-h-[calc(100svh-theme(spacing.12)-theme(spacing.10))] overflow-hidden whitespace-pre-line bg-gray-25">
-      {notices.length === 0 && posts.length === 0 ? (
+      {!latestNotice && posts.length === 0 ? (
         <EmptyState
           title="아직 게시글이 없어요"
           description={'첫 게시물이나 공지를 작성해\n팀원들과 진행 상황을 공유해보세요'}
         />
       ) : (
         <div className="w-full px-4 py-4">
-          <div className="space-y-2">
-            {notices.map((notice) => (
+          {latestNotice && (
             <button
-              key={notice.id}
               type="button"
               onClick={() =>
-                projectId && navigate(`/project/${projectId}/notices/${notice.id}`)
+                projectId && navigate(`/project/${projectId}/notices`)
               }
               className="flex w-full items-center gap-2 rounded-md bg-blue-50 px-3 py-2.5 text-left text-body-sm text-blue-600 hover:bg-blue-100"
             >
               <Volume2 className="h-4 w-4 shrink-0" aria-hidden />
               <p className="min-w-0 truncate">
-                <span className="font-semibold">[공지]</span> {notice.title}
+                <span className="font-semibold">[공지]</span> {latestNotice.title}
               </p>
             </button>
-            ))}
-          </div>
+          )}
           {posts.length > 0 && (
             <div className="mt-4 space-y-4">
               {posts.map((post) => (

@@ -37,8 +37,8 @@ export default function NoticeFormPage() {
 
   const handleCancel = () => {
     if (!projectId) return
-    if (isEditMode && noticeId && existingNotice) {
-      navigate(`/project/${projectId}/notices/${noticeId}`)
+    if (isEditMode && noticeId) {
+      navigate(`/project/${projectId}/notices`)
       return
     }
     navigate(`/project/${projectId}/feed`)
@@ -52,7 +52,7 @@ export default function NoticeFormPage() {
         title: title.trim(),
         content: content.trim(),
       })
-      navigate(`/project/${projectId}/notices/${noticeId}`, { replace: true })
+      navigate(`/project/${projectId}/notices`, { replace: true })
       return
     }
 
@@ -118,7 +118,7 @@ export default function NoticeFormPage() {
           fullWidth={false}
           disabled={!canSubmit}
           onClick={handleSubmit}
-          className="justify-self-end"
+          className="justify-self-end text-white"
         >
           게시
         </Button>
