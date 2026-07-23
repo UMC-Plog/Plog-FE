@@ -6,6 +6,10 @@ import { Button } from '../../../components/Button'
 import { Input } from '../../../components/Input'
 import { Layout } from '../../../components/Layout'
 import { TextArea } from '../../../components/TextArea'
+import {
+  isAttachmentSizeValid,
+  MAX_ATTACHMENT_SIZE_ERROR,
+} from '../../../lib/attachment'
 import { TEMP_PROJECT_NAME } from '../../../lib/project'
 import { useAuthStore } from '../../../store/authStore'
 import { usePostStore } from '../../../store/postStore'
@@ -33,6 +37,7 @@ export default function PostFormPage() {
   const [isLinkInputOpen, setIsLinkInputOpen] = useState(false)
   const [linkUrl, setLinkUrl] = useState('')
   const [linkError, setLinkError] = useState<string>()
+  const [attachmentError, setAttachmentError] = useState<string>()
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   const author = existingPost?.author ?? user
@@ -62,13 +67,22 @@ export default function PostFormPage() {
 
   const addFiles = (files: FileList | null, type: 'file' | 'image') => {
     if (!files) return
-    const nextAttachments = Array.from(files).map<PostAttachment>((file) => ({
+    const selectedFiles = Array.from(files)
+    const validFiles = selectedFiles.filter(isAttachmentSizeValid)
+    const nextAttachments = validFiles.map<PostAttachment>((file) => ({
       id: crypto.randomUUID(),
       name: file.name,
       type,
       size: file.size,
     }))
-    setAttachments((current) => [...current, ...nextAttachments])
+    if (nextAttachments.length > 0) {
+      setAttachments((current) => [...current, ...nextAttachments])
+    }
+    setAttachmentError(
+      validFiles.length === selectedFiles.length
+        ? undefined
+        : MAX_ATTACHMENT_SIZE_ERROR
+    )
   }
 
   const addLink = () => {
@@ -189,6 +203,10 @@ export default function PostFormPage() {
           <input ref={fileInputRef} type="file" multiple className="hidden" onChange={(event) => { addFiles(event.target.files, 'file'); event.target.value = '' }} />
           <input ref={imageInputRef} type="file" accept="image/*" multiple className="hidden" onChange={(event) => { addFiles(event.target.files, 'image'); event.target.value = '' }} />
         </div>
+
+        {attachmentError && (
+          <p className="mt-2 text-caption font-normal text-error">{attachmentError}</p>
+        )}
 
         {isLinkInputOpen && (
           <div className="mt-3 flex items-start gap-2">
