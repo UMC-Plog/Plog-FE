@@ -41,6 +41,9 @@ export function ProjectSettingsPage() {
   const navigate = useNavigate();
   const project = useProjectStore((state) => state.projects.find((item) => item.id === id));
   const updateProject = useProjectStore((state) => state.updateProject);
+  const markProjectSettingsAsSeen = useProjectStore(
+    (state) => state.markProjectSettingsAsSeen
+  );
 
   const [projectName, setProjectName] = useState(project?.name ?? "");
   const [projectType, setProjectType] = useState<ProjectType | "">(project?.type ?? "");
@@ -50,6 +53,10 @@ export function ProjectSettingsPage() {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const saveStartedRef = useRef(false);
+
+  useEffect(() => {
+    markProjectSettingsAsSeen(id);
+  }, [id, markProjectSettingsAsSeen]);
 
   useEffect(() => {
     if (!project) return;
