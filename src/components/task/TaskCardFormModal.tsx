@@ -3,8 +3,12 @@ import { FileText, Info, Link, Paperclip, X } from 'lucide-react'
 import { Button } from '../Button'
 import { Input } from '../Input'
 import { BottomSheet } from '../Modal'
+import {
+  isAttachmentSizeValid,
+  MAX_ATTACHMENT_SIZE_ERROR,
+} from '../../lib/attachment'
 import { cn } from '../../lib/utils'
-import { useAuthStore } from '../../store/authStore'
+import { useProjectStore } from '../../store/projectStore'
 import { useTaskStore } from '../../store/taskStore'
 import type {
   Task,
@@ -37,12 +41,6 @@ const CATEGORY_OPTIONS: Array<{ value: TaskCategory; label: string }> = [
   { value: 'test', label: '테스트/수정' },
 ]
 
-const PREVIEW_ASSIGNEES: TaskAssignee[] = [
-  { id: 'preview-banana', nickname: '바나나', avatarId: 'otter' },
-  { id: 'preview-ggum', nickname: '곰곰', avatarId: 'ghost' },
-]
-
-const MAX_FILE_SIZE = 50 * 1024 * 1024
 const ALLOWED_FILE_EXTENSIONS = ['pdf', 'pptx', 'docx', 'zip', 'jpg', 'jpeg', 'png', 'gif', 'webp']
 
 function formatFileSize(size: number) {
@@ -66,7 +64,9 @@ export function TaskCardFormModal({
   onClose,
   onSaved,
 }: TaskCardFormModalProps) {
-  const user = useAuthStore((state) => state.user)
+  const project = useProjectStore((state) =>
+    state.projects.find((item) => item.id === projectId)
+  )
   const createTask = useTaskStore((state) => state.createTask)
   const updateTask = useTaskStore((state) => state.updateTask)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -84,24 +84,26 @@ export function TaskCardFormModal({
   const [isLinkInputOpen, setIsLinkInputOpen] = useState(false)
   const [submitting, setSubmitting] = useState(false)
 
-  const assignees = useMemo(() => {
-    const currentUser: TaskAssignee[] = user
-      ? [{
-          id: user.id,
-          nickname: user.nickname,
-          avatarId: user.avatarId ?? undefined,
-          avatarImageUrl: user.avatarImageUrl ?? undefined,
-        }]
-      : []
-    return [...currentUser, ...PREVIEW_ASSIGNEES].filter(
-      (assignee, index, items) => items.findIndex((item) => item.id === assignee.id) === index
-    )
-  }, [user])
+  const assignees = useMemo<TaskAssignee[]>(
+    () =>
+      project?.members.map((member) => ({
+        id: member.id,
+        nickname: member.nickname,
+        avatarImageUrl: member.profileImageUrl,
+      })) ?? [],
+    [project]
+  )
 
   useEffect(() => {
     if (!open) return
     setTitle(mode === 'edit' && task ? task.title : '')
-    setAssigneeId(mode === 'edit' && task ? task.assignee.id : '')
+    setAssigneeId(
+      mode === 'edit' &&
+        task &&
+        assignees.some((assignee) => assignee.id === task.assignee.id)
+        ? task.assignee.id
+        : ''
+    )
     setStatus(mode === 'edit' && task ? task.status : 'todo')
     setCategory(mode === 'edit' && task ? task.category : 'planning')
     setDueDate(mode === 'edit' && task ? task.dueDate : '')
@@ -113,10 +115,9 @@ export function TaskCardFormModal({
     setIsAttachmentMenuOpen(false)
     setIsLinkInputOpen(false)
     setSubmitting(false)
-  }, [mode, open, task, user])
+  }, [assignees, mode, open, task])
 
   const selectedAssignee = assignees.find((assignee) => assignee.id === assigneeId)
-    ?? (task?.assignee.id === assigneeId ? task.assignee : undefined)
   const canSubmit = Boolean(
     title.trim() && selectedAssignee && status && category && dueDate && !submitting
   )
@@ -149,8 +150,8 @@ export function TaskCardFormModal({
         errors.push(`${file.name}: 지원하지 않는 형식이에요`)
         return
       }
-      if (file.size > MAX_FILE_SIZE) {
-        errors.push(`${file.name}: 50MB 이하 파일만 첨부할 수 있어요`)
+      if (!isAttachmentSizeValid(file)) {
+        errors.push(MAX_ATTACHMENT_SIZE_ERROR)
         return
       }
       validFiles.push(file)
@@ -229,10 +230,12 @@ export function TaskCardFormModal({
               {assignees.map((assignee) => (
                 <option key={assignee.id} value={assignee.id}>{assignee.nickname}</option>
               ))}
-              {task && !assignees.some((assignee) => assignee.id === task.assignee.id) && (
-                <option value={task.assignee.id}>{task.assignee.nickname}</option>
-              )}
             </select>
+            {assignees.length === 0 && (
+              <span className="mt-1.5 block text-caption font-normal text-gray-400">
+                등록된 팀원이 없어요
+              </span>
+            )}
           </label>
 
           <fieldset>
@@ -329,7 +332,9 @@ export function TaskCardFormModal({
               className="mt-2 flex min-h-20 w-full flex-col items-center justify-center rounded-md border border-gray-200 bg-white px-4 text-center hover:border-gray-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-300"
             >
               <span className="text-caption font-normal text-gray-400">파일 또는 링크 첨부 (선택)</span>
-              <span className="mt-1 text-caption font-normal text-gray-400">최소 50MB, PDF, PPTX, docx, zip, img</span>
+              <span className="mt-1 text-caption font-normal text-gray-400">
+                파일당 최대 50MB, PDF, PPTX, DOCX, ZIP, 이미지
+              </span>
             </button>
 
             {isAttachmentMenuOpen && (
