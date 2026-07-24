@@ -1,6 +1,6 @@
 import { cn } from "../lib/utils";
 
-export type SocialProvider = "google" | "kakao" | "naver";
+export type SocialProvider = "google" | "kakao";
 
 interface SocialLoginButtonProps {
   provider: SocialProvider;
@@ -44,15 +44,6 @@ const CONFIG: Record<
           fill="#191919"
           d="M9 1.5C4.58 1.5 1 4.3 1 7.75c0 2.2 1.46 4.13 3.66 5.24-.16.58-.58 2.1-.66 2.43-.1.4.15.4.31.29.13-.09 2.05-1.39 2.88-1.96.59.08 1.2.13 1.81.13 4.42 0 8-2.8 8-6.25S13.42 1.5 9 1.5z"
         />
-      </svg>
-    ),
-  },
-  naver: {
-    label: "네이버 로그인",
-    className: "bg-[#03C75A] text-white hover:bg-[#02b350]",
-    icon: (
-      <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden>
-        <path fill="#fff" d="M9.5 8.6 6.2 3.5H3.5v9h3V7.4l3.3 5.1h2.7v-9h-3v5.1z" />
       </svg>
     ),
   },

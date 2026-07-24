@@ -129,6 +129,8 @@ export default {
       },
       backgroundImage: {
         "plog-gradient": "linear-gradient(95deg, #2186FB 0%, #06BCC4 52%, #173E8A 100%)",
+        // 프로필설정 화면 Figma 실측값 (Blue → Aqua, plog-gradient와 다른 2단계 그라데이션)
+        "progress-gradient": "linear-gradient(90deg, #2186FB 0%, #07BCC5 99.82%)",
       },
       maxWidth: {
         mobile: "402px",

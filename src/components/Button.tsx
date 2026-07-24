@@ -14,20 +14,20 @@ export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 
 const variantClasses: Record<ButtonVariant, string> = {
   primary:
-    "bg-blue-500 text-white hover:bg-blue-600 active:bg-blue-700 disabled:bg-gray-200 disabled:text-gray-400",
+    "bg-blue-500 text-white hover:bg-blue-600 active:bg-blue-700 disabled:bg-gray-100 disabled:text-gray-400",
   outline:
     "bg-white text-blue-500 border border-blue-500 hover:bg-blue-50 active:bg-blue-100 disabled:border-gray-200 disabled:text-gray-400",
   ghost:
     "bg-transparent text-gray-600 hover:bg-gray-50 active:bg-gray-100 disabled:text-gray-300",
   // TODO: Figma에 danger hover/active variant가 추가되면 정확한 값으로 교체
   danger:
-    "bg-error text-white hover:bg-error/90 active:bg-error/80 disabled:bg-gray-200 disabled:text-gray-400",
+    "bg-error text-white hover:bg-error/90 active:bg-error/80 disabled:bg-gray-100 disabled:text-gray-400",
 };
 
 const sizeClasses: Record<ButtonSize, string> = {
   sm: "h-9 px-3 text-body-sm rounded-md gap-1.5",
   md: "h-12 px-4 text-body rounded-md gap-2",
-  lg: "h-14 px-5 text-title rounded-lg gap-2",
+  lg: "h-14 px-5 text-[16px] font-bold rounded-lg gap-2",
 };
 
 /**
