@@ -7,6 +7,7 @@ const emptyProjectState: PeerEvaluationProjectState = {
   selfFeedback: null,
   submitted: false,
   submittedAt: null,
+  partial: false,
 }
 
 interface PeerEvaluationState {
@@ -20,7 +21,7 @@ interface PeerEvaluationState {
     feedback: string
   ) => void
   completeSelfFeedback: (projectId: string, values: Record<string, string>) => void
-  submitFinal: (projectId: string) => void
+  submitFinal: (projectId: string, options?: { partial?: boolean }) => void
 }
 
 export const usePeerEvaluationStore = create<PeerEvaluationState>()(
@@ -90,7 +91,7 @@ export const usePeerEvaluationStore = create<PeerEvaluationState>()(
           }
         }),
 
-      submitFinal: (projectId) =>
+      submitFinal: (projectId, options) =>
         set((state) => {
           const project = state.byProject[projectId] ?? emptyProjectState
           return {
@@ -100,6 +101,7 @@ export const usePeerEvaluationStore = create<PeerEvaluationState>()(
                 ...project,
                 submitted: true,
                 submittedAt: new Date().toISOString(),
+                partial: options?.partial ?? false,
               },
             },
           }

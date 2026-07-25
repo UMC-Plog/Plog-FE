@@ -102,7 +102,7 @@ export default function SelfFeedbackPage() {
         <div className="flex flex-col gap-4">
           {FIELDS.map((field) => (
             <div key={field.id} className="flex flex-col gap-2">
-              <label htmlFor={field.id} className="text-body-sm font-semibold text-gray-700">
+              <label htmlFor={field.id} className="text-body text-gray-900">
                 {field.label}
               </label>
               <input

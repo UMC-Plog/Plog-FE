@@ -3,7 +3,9 @@ import { useParams } from 'react-router-dom';
 import { cn } from '../../lib/utils';
 import { AlertModal } from '../../components/Modal';
 import { useChatStore } from '../../store/chatStore';
+import { useProjectStore } from '../../store/projectStore';
 import type { ChatMessage } from '../../types/chat';
+import docFileIcon from '../../assets/doc-file-icon.png';
 
 type MessageItem = ChatMessage;
 
@@ -20,27 +22,28 @@ const formatFileSize = (bytes: number) =>
 
 // ── Inline SVG icons (lucide 금지) ──────────────────────────────────────────
 
-function DocIcon({ className }: { className?: string }) {
+function DocIcon() {
   return (
-    <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden className={className}>
-      <path d="M11.5 2H6C5.4 2 5 2.4 5 3v14c0 .6.4 1 1 1h8c.6 0 1-.4 1-1V7.5L11.5 2Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-      <path d="M11.5 2v5.5H15" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
+    <div className="w-[14px] h-[19px] shrink-0 overflow-hidden">
+      <img src={docFileIcon} alt="" className="size-full object-cover" aria-hidden />
+    </div>
   );
 }
 
 function DownloadIcon() {
   return (
-    <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden>
-      <path d="M7 1.5v7M4.5 6l2.5 2.5L9.5 6M2 11.5h10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden>
+      <path d="M14 10V12.6667C14 13.0203 13.8595 13.3594 13.6095 13.6095C13.3594 13.8595 13.0203 14 12.6667 14H3.33333C2.97971 14 2.64057 13.8595 2.39052 13.6095C2.14048 13.3594 2 13.0203 2 12.6667V10" stroke="currentColor" strokeWidth="1.33333" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M4.66667 6.66667L8 10L11.3333 6.66667" stroke="currentColor" strokeWidth="1.33333" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M8 10V2" stroke="currentColor" strokeWidth="1.33333" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
 }
 
 function PlusIcon() {
   return (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden>
-      <path d="M8 3v10M3 8h10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+    <svg width="32" height="32" viewBox="0 0 32 32" fill="none" aria-hidden>
+      <path d="M16 8V24M8 16H24" stroke="currentColor" strokeWidth="2.01667" strokeLinecap="round" />
     </svg>
   );
 }
@@ -84,23 +87,24 @@ function PaperclipIcon({ className }: { className?: string }) {
   );
 }
 
-// ── 멘션 파싱 (@단어 → text-primary) ────────────────────────────────────────
+// ── 멘션 파싱 (@닉네임이 실제 프로젝트 멤버와 일치할 때만 강조) ──────────────
 
-function renderText(text: string, isMine: boolean) {
-  return text.split(/(@\S+)/g).map((part, i) =>
-    part.startsWith('@') ? (
+function renderText(text: string, isMine: boolean, memberNicknames: Set<string>) {
+  return text.split(/(@\S+)/g).map((part, i) => {
+    const isRealMention = part.startsWith('@') && memberNicknames.has(part.slice(1));
+    return isRealMention ? (
       <span key={i} className={isMine ? 'text-primary-200' : 'text-primary'}>
         {part}
       </span>
     ) : (
       <span key={i}>{part}</span>
-    )
-  );
+    );
+  });
 }
 
 // ── 말풍선 컴포넌트 ──────────────────────────────────────────────────────────
 
-function OtherBubble({ msg, onDownload }: { msg: MessageItem; onDownload: (message: MessageItem) => void }) {
+function OtherBubble({ msg, onDownload, memberNicknames }: { msg: MessageItem; onDownload: (message: MessageItem) => void; memberNicknames: Set<string> }) {
   return (
     <div className="flex items-start gap-2">
       <img
@@ -113,11 +117,11 @@ function OtherBubble({ msg, onDownload }: { msg: MessageItem; onDownload: (messa
         <div className="flex items-end gap-2">
           {msg.type === 'text' ? (
             <div className="bg-white shadow-sm rounded-tl rounded-tr-2xl rounded-br-2xl rounded-bl-2xl px-3.5 py-3 text-body-sm text-gray-900 max-w-xs">
-              {renderText(msg.text, false)}
+              {renderText(msg.text, false, memberNicknames)}
             </div>
           ) : (
             <div className="bg-white shadow-sm rounded-tl rounded-tr-2xl rounded-br-2xl rounded-bl-2xl p-3 flex items-center gap-3 w-56">
-              <div className="size-9 bg-white border border-gray-100 rounded-md flex items-center justify-center text-gray-400 shrink-0">
+              <div className="size-9 bg-white border border-gray-100 p-px rounded-md flex items-center justify-center text-gray-400 shrink-0">
                 <DocIcon />
               </div>
               <div className="flex-1 min-w-0">
@@ -136,17 +140,17 @@ function OtherBubble({ msg, onDownload }: { msg: MessageItem; onDownload: (messa
   );
 }
 
-function MyBubble({ msg, onDownload }: { msg: MessageItem; onDownload: (message: MessageItem) => void }) {
+function MyBubble({ msg, onDownload, memberNicknames }: { msg: MessageItem; onDownload: (message: MessageItem) => void; memberNicknames: Set<string> }) {
   return (
     <div className="flex items-end justify-end gap-2">
       <time dateTime={msg.sentAt} className="shrink-0 text-chat-time text-gray-400">{formatTime(msg.sentAt)}</time>
       {msg.type === 'text' ? (
         <div className="bg-primary rounded-tl-2xl rounded-tr rounded-br-2xl rounded-bl-2xl px-3.5 py-3 text-body-sm text-gray-25 max-w-xs">
-          {renderText(msg.text, true)}
+          {renderText(msg.text, true, memberNicknames)}
         </div>
       ) : (
         <div className="bg-primary rounded-tl-2xl rounded-tr rounded-br-2xl rounded-bl-2xl p-3 flex items-center gap-3 w-56">
-          <div className="size-9 bg-white/20 rounded-md flex items-center justify-center text-gray-25 shrink-0">
+          <div className="size-9 bg-white border border-gray-100 p-px rounded-md flex items-center justify-center shrink-0">
             <DocIcon />
           </div>
           <div className="flex-1 min-w-0">
@@ -178,6 +182,8 @@ export default function ProjectChatPage() {
   const sendText = useChatStore((state) => state.sendText);
   const sendFile = useChatStore((state) => state.sendFile);
   const markAsRead = useChatStore((state) => state.markAsRead);
+  const project = useProjectStore((state) => state.projects.find((item) => item.id === projectId));
+  const memberNicknames = new Set((project?.members ?? []).map((member) => member.nickname));
 
   useEffect(() => {
     if (!projectId) return;
@@ -242,7 +248,7 @@ export default function ProjectChatPage() {
   };
 
   return (
-    <div className="bg-gray-25 min-h-full">
+    <div className="bg-gray-25 min-h-[calc(100svh-theme(spacing.12)-theme(spacing.10))]">
       {/* 메시지 목록 — 하단 입력창 높이만큼 pb 확보 */}
       <div className="px-4 pt-4 pb-28 flex flex-col gap-4">
         {messages.map((message, index) => {
@@ -255,8 +261,8 @@ export default function ProjectChatPage() {
                 </div>
               )}
               {message.isMine
-                ? <MyBubble msg={message} onDownload={handleDownload} />
-                : <OtherBubble msg={message} onDownload={handleDownload} />}
+                ? <MyBubble msg={message} onDownload={handleDownload} memberNicknames={memberNicknames} />
+                : <OtherBubble msg={message} onDownload={handleDownload} memberNicknames={memberNicknames} />}
             </Fragment>
           );
         })}
@@ -304,7 +310,10 @@ export default function ProjectChatPage() {
               ref={triggerRef}
               type="button"
               onClick={() => setShowPopup((v) => !v)}
-              className="size-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-500 hover:bg-gray-200 transition-colors"
+              className={cn(
+                'size-8 shrink-0 aspect-square flex items-center justify-center transition-colors',
+                showPopup ? 'text-primary' : 'text-gray-400',
+              )}
               aria-label="첨부파일"
             >
               <PlusIcon />

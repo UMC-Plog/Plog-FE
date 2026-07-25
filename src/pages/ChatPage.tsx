@@ -3,9 +3,9 @@ import { Search } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import ChatListItem, { type ChatParticipant } from '../components/ChatListItem';
 import { PlogIcon } from '../components/PlogIcon';
-import { AVATAR_PRESETS } from '../components/AvatarPicker';
 import { cn } from '../lib/utils';
 import { useChatStore } from '../store/chatStore';
+import { useProjectStore } from '../store/projectStore';
 
 interface ChatRoom {
   id: string;
@@ -17,76 +17,49 @@ interface ChatRoom {
   unreadCount: number;
 }
 
-// AVATAR_PRESETS에서 avatarUrl을 가져오는 헬퍼
-const av = (id: string): string =>
-  AVATAR_PRESETS.find((a) => a.id === id)?.src ?? '';
-
-// Figma 예시 데이터 기준 — avatarUrl을 실제 이미지로 연결
-const MOCK_CHATS: ChatRoom[] = [
-  {
-    id: 'project-test',
-    projectName: '테스트 프로젝트',
-    participants: [
-      { id: 'u1', name: '곰곰', avatarUrl: av('otter') },
-      { id: 'u2', name: '다람쥐', avatarUrl: av('penguin') },
-      { id: 'u3', name: '호랑이', avatarUrl: av('tiger') },
-      { id: 'u4', name: '여우', avatarUrl: av('frog') },
-    ],
-    lastSenderName: '곰곰',
-    lastMessage: 'API PR 리뷰 부탁드려요!',
-    time: '방금',
-    unreadCount: 3,
-  },
-  {
-    id: 'project-marketing-campaign',
-    projectName: '마케팅 캠페인',
-    participants: [
-      { id: 'u1', name: '곰곰', avatarUrl: av('otter') },
-      { id: 'u3', name: '호랑이', avatarUrl: av('tiger') },
-      { id: 'u5', name: '공룡', avatarUrl: av('koala') },
-    ],
-    lastSenderName: '공룡',
-    lastMessage: '내일 회의 10시로 변경 가능할까요?',
-    time: '1시간 전',
-    unreadCount: 0,
-  },
-  {
-    id: 'project-capstone-design',
-    projectName: '캡스톤 디자인 2팀',
-    participants: [
-      { id: 'u1', name: '곰곰', avatarUrl: av('otter') },
-      { id: 'u2', name: '다람쥐', avatarUrl: av('penguin') },
-      { id: 'u6', name: '체리', avatarUrl: av('smile') },
-    ],
-    lastSenderName: '체리',
-    lastMessage: '수고하셨습니다!',
-    time: '어제',
-    unreadCount: 0,
-  },
-];
-
 export default function ChatPage() {
   const [keyword, setKeyword] = useState('');
   const navigate = useNavigate();
+  const projects = useProjectStore((state) => state.projects);
   const messagesByProject = useChatStore((state) => state.messagesByProject);
   const lastReadAtByProject = useChatStore((state) => state.lastReadAtByProject);
 
-  const chats = useMemo(() => MOCK_CHATS.map((chat) => {
-    const messages = messagesByProject[chat.id] ?? [];
+  // 채팅방 목록은 실제 참여 중인 프로젝트 목록 기준으로 구성 (프로젝트 하나당 채팅방 하나)
+  const chats = useMemo<ChatRoom[]>(() => projects.map((project): ChatRoom => {
+    const participants: ChatParticipant[] = project.members.map((member) => ({
+      id: member.id,
+      name: member.nickname,
+      avatarUrl: member.profileImageUrl ?? '',
+    }));
+    const messages = messagesByProject[project.id] ?? [];
     const latest = messages[messages.length - 1];
-    if (!latest) return chat;
-    const lastReadAt = lastReadAtByProject[chat.id];
+    const lastReadAt = lastReadAtByProject[project.id];
     const unreadCount = messages.filter(
       (message) => !message.isMine && (!lastReadAt || new Date(message.sentAt) > new Date(lastReadAt)),
     ).length;
+
+    if (!latest) {
+      return {
+        id: project.id,
+        projectName: project.name,
+        participants,
+        lastSenderName: '',
+        lastMessage: '아직 메시지가 없어요',
+        time: '',
+        unreadCount: 0,
+      };
+    }
+
     return {
-      ...chat,
+      id: project.id,
+      projectName: project.name,
+      participants,
       lastSenderName: latest.isMine ? '나' : latest.sender.name,
       lastMessage: latest.type === 'text' ? latest.text : latest.fileName,
       time: new Intl.DateTimeFormat('ko-KR', { hour: '2-digit', minute: '2-digit', hour12: false }).format(new Date(latest.sentAt)),
       unreadCount,
     };
-  }), [messagesByProject, lastReadAtByProject]);
+  }), [projects, messagesByProject, lastReadAtByProject]);
 
   const filtered = useMemo(() => {
     const q = keyword.trim().toLowerCase();
@@ -131,7 +104,12 @@ export default function ChatPage() {
 
       {/* 채팅방 리스트 - Figma: divide-y gray-200, item h-81px, px-22px≈px-6, py-16px=py-4 */}
       <div className="flex-1 bg-white divide-y divide-gray-100">
-        {filtered.length === 0 ? (
+        {chats.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-16 text-center">
+            <p className="text-title text-gray-500">아직 채팅방이 없어요</p>
+            <p className="mt-1 text-body-sm text-gray-400">참여 중인 프로젝트가 생기면 여기에 표시돼요</p>
+          </div>
+        ) : filtered.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 text-center">
             <Search className="size-10 text-gray-300 mb-3" />
             <p className="text-title text-gray-500">검색 결과가 없어요</p>

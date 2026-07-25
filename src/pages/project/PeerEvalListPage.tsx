@@ -67,7 +67,7 @@ export default function PeerEvalListPage() {
   const user = useAuthStore((s) => s.user);
   const project = useProjectStore((s) => s.projects.find((p) => p.id === id));
   const projectState = usePeerEvaluationStore((s) =>
-    id ? s.getProjectState(id) : { evaluations: {}, selfFeedback: null, submitted: false, submittedAt: null }
+    id ? s.getProjectState(id) : { evaluations: {}, selfFeedback: null, submitted: false, submittedAt: null, partial: false }
   );
   const submitFinal = usePeerEvaluationStore((s) => s.submitFinal);
 

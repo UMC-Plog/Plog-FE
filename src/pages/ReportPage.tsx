@@ -2,6 +2,8 @@ import { useState, useMemo } from 'react';
 import { Search, Download } from 'lucide-react';
 import { PlogIcon } from '../components/PlogIcon';
 import { cn } from '../lib/utils';
+import { useProjectStore } from '../store/projectStore';
+import { usePeerEvaluationStore } from '../store/peerEvaluationStore';
 
 type ReportStatus = 'done' | 'pending';
 
@@ -13,14 +15,11 @@ interface ReportItem {
   pdfUrl?: string;
 }
 
-// Figma 예시 데이터 기준 (테스트 프로젝트, Q1 분석 대시보드, 내부 CMS 개편, 신입 온보딩 시스템)
-const MOCK_REPORTS: ReportItem[] = [
-  { id: '1', projectName: '테스트 프로젝트', createdAt: '2025.05.22', status: 'done', pdfUrl: '#' },
-  { id: '2', projectName: 'Q1 분석 대시보드', createdAt: '2025.03.10', status: 'pending' },
-  { id: '3', projectName: '내부 CMS 개편', createdAt: '2025.01.28', status: 'pending' },
-  { id: '4', projectName: '신입 온보딩 시스템', createdAt: '2024.12.05', status: 'pending' },
-  { id: '5', projectName: 'Plog 앱 개발', createdAt: '2026.06.15', status: 'done', pdfUrl: '#' },
-];
+const formatReportDate = (iso: string | null) => {
+  if (!iso) return ''
+  const date = new Date(iso)
+  return `${date.getFullYear()}.${String(date.getMonth() + 1).padStart(2, '0')}.${String(date.getDate()).padStart(2, '0')}`
+}
 
 // Figma: 완료 → bg #E9F8F0 / text #16A06B, 미생성 → bg #ECEFF3 / text #9AA4B2
 function StatusBadge({ status }: { status: ReportStatus }) {
@@ -40,16 +39,34 @@ function StatusBadge({ status }: { status: ReportStatus }) {
 
 export default function ReportPage() {
   const [keyword, setKeyword] = useState('');
+  const projects = useProjectStore((state) => state.projects);
+  const byProject = usePeerEvaluationStore((state) => state.byProject);
+
+  const reports = useMemo<ReportItem[]>(
+    () =>
+      projects.map((project) => {
+        const evalState = byProject[project.id];
+        const done = evalState?.submitted ?? false;
+        return {
+          id: project.id,
+          projectName: project.name,
+          createdAt: done ? formatReportDate(evalState?.submittedAt ?? null) : '',
+          status: done ? 'done' : 'pending',
+          pdfUrl: done ? '#' : undefined,
+        };
+      }),
+    [projects, byProject],
+  );
 
   const filtered = useMemo(() => {
     const q = keyword.trim().toLowerCase();
-    if (!q) return MOCK_REPORTS;
-    return MOCK_REPORTS.filter(
+    if (!q) return reports;
+    return reports.filter(
       (r) =>
         r.projectName.toLowerCase().includes(q) ||
         r.createdAt.includes(q),
     );
-  }, [keyword]);
+  }, [reports, keyword]);
 
   return (
     <div className="flex flex-col min-h-full bg-gray-25">
@@ -84,7 +101,12 @@ export default function ReportPage() {
 
       {/* 리스트 - Figma: px-22px≈px-6, gap-12px=gap-3, pt-14px≈pt-3 */}
       <div className="flex-1 px-6 pt-3 pb-6 flex flex-col gap-3">
-        {filtered.length === 0 ? (
+        {reports.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-16 text-center">
+            <p className="text-title text-gray-500">아직 리포트가 없어요</p>
+            <p className="mt-1 text-body-sm text-gray-400">참여 중인 프로젝트가 생기면 여기에 표시돼요</p>
+          </div>
+        ) : filtered.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 text-center">
             <Search className="size-10 text-gray-300 mb-3" />
             <p className="text-title text-gray-500">검색 결과가 없어요</p>
@@ -104,9 +126,11 @@ export default function ReportPage() {
                   {item.projectName}
                 </p>
                 {/* Figma: 12px Medium, #9AA4B2 */}
-                <p className="text-caption font-medium text-gray-400">
-                  생성일: {item.createdAt}
-                </p>
+                {item.status === 'done' && (
+                  <p className="text-caption font-medium text-gray-400">
+                    생성일: {item.createdAt}
+                  </p>
+                )}
                 <StatusBadge status={item.status} />
               </div>
 
