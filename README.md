@@ -41,13 +41,17 @@ Plog는 팀 프로젝트에서 결과물 뒤에 가려지는 개인의 기여(�
 
 ```
 src/
-├── api/          # API 호출 함수, axios/fetch 클라이언트
+├── api/          # API 호출 함수, fetch 클라이언트 (백엔드 연동 전 스캐폴딩)
 ├── assets/       # 이미지, 아이콘 등 정적 파일
 ├── components/   # 재사용 공통 컴포넌트 (Button, Input, BottomTabBar 등)
-├── hooks/        # 커스텀 훅
+├── lib/          # 날짜 계산 등 공용 유틸 함수
+├── mocks/        # Mock 데이터 (프로젝트, 닉네임 중복확인 등)
 ├── pages/        # 라우트 단위 화면 컴포넌트 (LoginPage, HomePage 등)
+│   ├── my/       # 마이페이지 하위 화면
+│   └── project/  # 프로젝트 상세 하위 화면 (피드/업무/공지/게시글/Peer평가 등)
 ├── store/        # Zustand 스토어
 ├── types/        # 공통 타입 정의
+├── utils/        # 기타 유틸 함수
 ├── App.tsx       # 라우터 정의
 └── main.tsx      # 엔트리 포인트
 ```
@@ -103,29 +107,72 @@ npm run preview
 
 Figma 기준 하단 탭 4개(프로젝트 / 리포트 / 채팅 / 마이) 구조입니다.
 
-| 화면 | 라우트 | 진입 경로 | 담당자 |
-| --- | --- | --- | --- |
-| 로그인 | `/login` | 최초 진입 | 성재 |
-| 홈 (프로젝트 리스트/갤러리) | `/` | 로그인 후 | 져니 |
-| 리포트 | `/report` | 하단 탭 | 맥스 |
-| 채팅 | `/chat` | 하단 탭 | 맥스 |
-| 마이 | `/my` | 하단 탭 | 져니 |
-| 프로젝트 상세 - 피드 | `/project/:id/feed` | 홈에서 프로젝트 카드 클릭 | 다민 |
-| 프로젝트 상세 - 채팅 | `/project/:id/chat` | 프로젝트 상세 상단 탭 | 맥스 |
-| 프로젝트 상세 - 업무(칸반) | `/project/:id/tasks` | 프로젝트 상세 상단 탭 | 다민 |
-| 프로젝트 상세 - 리포트(Peer 평가) | `/project/:id/report` | 프로젝트 상세 상단 탭 | 맥스 |
+### 인증/온보딩 (성재)
+
+| 화면 | 라우트 | 진입 경로 |
+| --- | --- | --- |
+| 스플래시 | `/` | 최초 진입 |
+| 로그인 | `/login` | 스플래시 이후 |
+| 회원가입 | `/signup` | 로그인에서 진입 |
+| 회원가입 - 소셜 동의 | `/signup/social-consent` | 소셜 회원가입 시 |
+| 회원가입 - 이메일 정보입력 | `/signup/email` | 이메일 회원가입 시 |
+| 프로필 설정 | `/signup/profile` | 회원가입 완료 후 |
+| 비밀번호 찾기 | `/find-password` | 로그인에서 진입 |
+| 비밀번호 재설정 | `/reset-password` | 비밀번호 찾기 인증 후 |
+
+### 홈 · 마이페이지 · 프로젝트 설정 (져니)
+
+| 화면 | 라우트 | 진입 경로 |
+| --- | --- | --- |
+| 홈 (프로젝트 리스트/갤러리) | `/home` | 로그인 후, 하단 탭 |
+| 마이페이지 | `/my` | 하단 탭 |
+| 프로필 수정 | `/my/profile` | 마이페이지에서 진입 |
+| 계정 연동 | `/my/accounts` | 마이페이지에서 진입 |
+| 알림 설정 | `/my/notifications` | 마이페이지에서 진입 |
+| 회원 탈퇴 | `/my/withdraw` | 마이페이지에서 진입 |
+| 프로젝트 생성 | `/project/new` | 홈에서 진입 |
+| 프로젝트 설정 | `/project/:id/settings` | 프로젝트 상세 상단에서 진입 |
+
+### 프로젝트 상세 - 피드 · 업무 (다민)
+
+| 화면 | 라우트 | 진입 경로 |
+| --- | --- | --- |
+| 피드 | `/project/:id/feed` | 프로젝트 상세 상단 탭 |
+| 업무 (칸반) | `/project/:id/tasks` | 프로젝트 상세 상단 탭 |
+| 공지 작성 | `/project/:id/notices/new` | 피드에서 진입 |
+| 공지 이력 | `/project/:id/notices` | 피드에서 진입 |
+| 공지 상세 | `/project/:id/notices/:noticeId` | 공지 이력/피드에서 진입 |
+| 공지 수정 | `/project/:id/notices/:noticeId/edit` | 공지 상세에서 진입 |
+| 게시글 작성 | `/project/:id/posts/new` | 피드에서 진입 |
+| 게시글 상세 | `/project/:id/posts/:postId` | 피드에서 진입 |
+| 게시글 수정 | `/project/:id/posts/:postId/edit` | 게시글 상세에서 진입 |
+
+### 프로젝트 상세 - 채팅 · 리포트 · Peer 평가 (맥스)
+
+| 화면 | 라우트 | 진입 경로 |
+| --- | --- | --- |
+| 채팅 (전역) | `/chat` | 하단 탭 |
+| 리포트 (전역) | `/report` | 하단 탭 |
+| 프로젝트 상세 - 채팅 | `/project/:id/chat` | 프로젝트 상세 상단 탭 |
+| 프로젝트 상세 - 리포트 | `/project/:id/report` | 프로젝트 상세 상단 탭 |
+| Peer 평가 - 목록 | `/project/:id/peer-eval` | 리포트에서 진입 |
+| Peer 평가 - 자기 피드백 | `/project/:id/peer-eval/self` | Peer 평가 목록에서 진입 |
+| Peer 평가 - 별점 | `/project/:id/peer-eval/:memberId/star` | Peer 평가 목록에서 진입 |
+| Peer 평가 - 키워드/피드백 | `/project/:id/peer-eval/:memberId/keyword` | 별점 화면 다음 |
+
+### 전체 플로우
 
 ```
-로그인 ──▶ 홈(프로젝트 리스트) ──▶ 프로젝트 상세 (/project/:id)
-              │                        │
-              │                        ├─▶ 피드 (/feed)
-              │                        ├─▶ 채팅 (/chat)
-              │                        ├─▶ 업무 (/tasks)
-              │                        └─▶ 리포트 (/report)
-              │
-              ├─▶ 리포트 (전역)
-              ├─▶ 채팅 (전역)
-              └─▶ 마이
+스플래시 ──▶ 로그인 ──▶ 홈(프로젝트 리스트) ──▶ 프로젝트 상세 (/project/:id)
+                              │                        │
+                              │                        ├─▶ 피드 (/feed) ──▶ 공지/게시글 CRUD
+                              │                        ├─▶ 채팅 (/chat)
+                              │                        ├─▶ 업무 (/tasks)
+                              │                        └─▶ 리포트 (/report) ──▶ Peer 평가 플로우
+                              │
+                              ├─▶ 리포트 (전역, /report)
+                              ├─▶ 채팅 (전역, /chat)
+                              └─▶ 마이 (/my) ──▶ 프로필 수정 / 계정 연동 / 알림 설정 / 회원 탈퇴
 ```
 
-> 프로젝트 상세 하위 화면(업무카드 등록/상세/수정/삭제, 공지 CRUD, 게시글 CRUD, Peer 평가 상세 플로우), 회원가입·프로필설정·비밀번호 찾기 등은 Figma 추가 확인 후 갱신 예정
+> 현재 전 화면 Mock Data(Zustand + localStorage) 기반으로 구현되어 있으며, 백엔드 API 연동은 별도 스코프로 예정되어 있습니다 (`src/api/client.ts` 참고).
