@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { AlertModal } from '../../components/Modal'
 import { cn } from '../../lib/utils'
-import { getProjectDeadline, isFutureDate } from '../../lib/projectDate'
+import { getDaysFromToday, getProjectDeadline, isFutureDate } from '../../lib/projectDate'
 import { useProjectStore } from '../../store/projectStore'
 import { usePeerEvaluationStore } from '../../store/peerEvaluationStore'
 
@@ -19,10 +19,11 @@ interface ReportItem {
   locked?: boolean
 }
 
-const MOCK_REPORTS: ReportItem[] = [
-  { id: 'r1', tier: 'basic', title: '테스트 프로젝트 기여도 분석 리포트', createdAt: '2026.01.23' },
-  { id: 'r2', tier: 'premium', title: '개인 기여도 리포트', createdAt: '2026.01.23', locked: true },
-]
+const formatReportDate = (iso: string | null) => {
+  if (!iso) return ''
+  const date = new Date(iso)
+  return `${date.getFullYear()}.${String(date.getMonth() + 1).padStart(2, '0')}.${String(date.getDate()).padStart(2, '0')}`
+}
 
 export default function ProjectReportPage() {
   const { id: projectId } = useParams<{ id: string }>()
@@ -34,6 +35,7 @@ export default function ProjectReportPage() {
   const peerEvalState = usePeerEvaluationStore((state) =>
     projectId ? state.getProjectState(projectId) : null
   )
+  const submitFinal = usePeerEvaluationStore((state) => state.submitFinal)
 
   // task API/store 연동 전에는 프로젝트 완료 상태와 마감일로 판정한다.
   // 추후 서버의 peerEvaluationAvailable 값을 이 조건 대신 사용하면 된다.
@@ -44,6 +46,19 @@ export default function ProjectReportPage() {
     : 'locked'
 
   const [showPublishedModal, setShowPublishedModal] = useState(false)
+
+  // Timeout 처리: 마감일로부터 7일이 지나도록 전원 제출이 안 됐어도,
+  // 한 명이라도 제출한 게 있으면 그 데이터만으로 리포트를 자동(부분) 발행한다.
+  useEffect(() => {
+    if (!project || !projectId || !peerEvalState || peerEvalState.submitted) return
+    const pastGracePeriod = getDaysFromToday(project.expectedEndDate) <= -7
+    const hasAnySubmission =
+      Object.values(peerEvalState.evaluations).some((evaluation) => evaluation.done) ||
+      (peerEvalState.selfFeedback?.done ?? false)
+    if (pastGracePeriod && hasAnySubmission) {
+      submitFinal(projectId, { partial: true })
+    }
+  }, [project, projectId, peerEvalState, submitFinal])
 
   // Peer 평가 목록에서 "최종 제출하기"로 막 넘어온 경우에만 발행 모달을 한 번 띄움
   useEffect(() => {
@@ -60,11 +75,18 @@ export default function ProjectReportPage() {
     navigate(`/project/${projectId}/peer-eval`)
   }
 
-  const reports = status === 'submitted' ? MOCK_REPORTS : []
+  const submittedAt = formatReportDate(peerEvalState?.submittedAt ?? null)
+  const reports: ReportItem[] =
+    status === 'submitted'
+      ? [
+          { id: 'r1', tier: 'basic', title: '테스트 프로젝트 기여도 분석 리포트', createdAt: submittedAt },
+          { id: 'r2', tier: 'premium', title: '개인 기여도 리포트', createdAt: submittedAt, locked: true },
+        ]
+      : []
   const hasReports = reports.length > 0
 
   return (
-    <div className="min-h-full bg-gray-25 px-[21px] pt-[22px] pb-6">
+    <div className="min-h-[calc(100svh-theme(spacing.12)-theme(spacing.10))] bg-gray-25 px-[21px] pt-[22px] pb-6">
       {status === 'locked' && (
         <div className="flex flex-col gap-3">
           <div className="flex items-center gap-3.5 rounded-18 bg-gray-50 px-5 py-[22px]">
@@ -87,35 +109,41 @@ export default function ProjectReportPage() {
         </div>
       )}
 
-      {(status === 'unlocked' || status === 'submitted') && (
+      {status === 'unlocked' && (
         <button
           type="button"
-          aria-label={status === 'submitted' ? 'Peer 평가 제출 완료' : 'Peer 평가 시작'}
+          aria-label="Peer 평가 시작"
           onClick={handleStartEvaluation}
-          disabled={status === 'submitted'}
-          className="flex w-full items-center gap-3.5 rounded-18 bg-gradient-to-r from-primary-500 to-aqua-500 px-5 py-[22px] text-left shadow-cta disabled:cursor-default"
+          className="flex w-full items-center gap-3.5 rounded-18 bg-gradient-to-r from-primary-500 to-aqua-500 px-5 py-[22px] text-left shadow-cta"
         >
           <div className="flex flex-1 flex-col gap-2">
             <div className="flex items-center gap-2">
               <p className="text-body-sm font-bold tracking-[-0.4px] text-gray-25">
-                {status === 'submitted' ? 'Peer 평가 제출이 완료되었습니다' : 'Peer 평가를 시작하세요'}
+                Peer 평가를 시작하세요
               </p>
-              {status === 'unlocked' && deadline && (
+              {deadline && (
                 <span className="flex h-[18px] w-10 items-center justify-center rounded-full bg-primary-100 text-[10px] font-bold text-navy-700">
                   {deadline.label}
                 </span>
               )}
             </div>
-            {status === 'unlocked' && (
-              <p className="text-caption font-medium text-gray-25">
-                AI 리포트 생성을 위해 평가가 필요해요
-              </p>
-            )}
+            <p className="text-caption font-medium text-gray-25">
+              AI 리포트 생성을 위해 평가가 필요해요
+            </p>
           </div>
           <span className="flex h-[46px] shrink-0 items-center rounded-12 bg-gray-25 px-[18px] text-title font-bold text-navy-700">
-            {status === 'submitted' ? '평가 완료' : '평가 시작'}
+            평가 시작
           </span>
         </button>
+      )}
+
+      {status === 'submitted' && peerEvalState?.partial && (
+        <div className="mt-3 flex items-start gap-2 rounded-12 bg-warning/10 px-4 py-3">
+          <Info className="mt-0.5 h-4 w-4 shrink-0 text-warning" aria-hidden />
+          <p className="text-caption font-medium text-warning">
+            마감일로부터 7일이 지나 일부 팀원 평가 없이 발행됐어요. 미제출 팀원은 분석에서 제한돼요.
+          </p>
+        </div>
       )}
 
       {hasReports ? (
@@ -159,7 +187,7 @@ export default function ProjectReportPage() {
         <div className="mt-[72px] flex flex-col items-center gap-4">
           <p className="text-title font-medium text-gray-500">아직 리포트가 없어요</p>
           <p className="whitespace-pre-line text-center text-body-sm text-gray-400">
-            {'Peer 평가를 완료하면 \n기여도 리포트가자동으로 생성됩니다'}
+            {'Peer 평가를 완료하면 \n기여도 리포트가 자동으로 생성됩니다'}
           </p>
         </div>
       )}

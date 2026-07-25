@@ -21,8 +21,10 @@ const initialMessages: Record<string, ChatMessage[]> = {
 
 interface ChatState {
   messagesByProject: Record<string, ChatMessage[]>
+  lastReadAtByProject: Record<string, string>
   sendText: (projectId: string, text: string) => void
   sendFile: (projectId: string, file: Pick<Extract<ChatMessage, { type: 'file' }>, 'fileName' | 'fileSize' | 'mimeType' | 'dataUrl'>) => void
+  markAsRead: (projectId: string) => void
 }
 
 const createMine = (projectId: string) => ({
@@ -37,6 +39,11 @@ export const useChatStore = create<ChatState>()(
   persist(
     (set) => ({
       messagesByProject: initialMessages,
+      lastReadAtByProject: {},
+      markAsRead: (projectId) =>
+        set((state) => ({
+          lastReadAtByProject: { ...state.lastReadAtByProject, [projectId]: new Date().toISOString() },
+        })),
       sendText: (projectId, text) =>
         set((state) => ({
           messagesByProject: {

@@ -67,7 +67,7 @@ export default function PeerEvalListPage() {
   const user = useAuthStore((s) => s.user);
   const project = useProjectStore((s) => s.projects.find((p) => p.id === id));
   const projectState = usePeerEvaluationStore((s) =>
-    id ? s.getProjectState(id) : { evaluations: {}, selfFeedback: null, submitted: false, submittedAt: null }
+    id ? s.getProjectState(id) : { evaluations: {}, selfFeedback: null, submitted: false, submittedAt: null, partial: false }
   );
   const submitFinal = usePeerEvaluationStore((s) => s.submitFinal);
 
@@ -103,7 +103,7 @@ export default function PeerEvalListPage() {
           <h1 className="text-h3 font-semibold text-gray-900">
             {allDone ? '모든 평가 완료' : '평가할 팀원을 선택하세요'}
           </h1>
-          <p className="text-caption text-gray-400">
+          <p className="text-caption font-normal text-gray-400">
             {allDone
               ? '자기 피드백까지 평가가 완료되었습니다. 최종 제출해 주세요.'
               : '닉네임 기반 익명 평가 / 리포트 발행 후 실명 공개'}
@@ -185,9 +185,9 @@ export default function PeerEvalListPage() {
         {allDone && (
           <InfoBox>
             <div className="text-caption text-primary leading-5">
-              <p className="font-semibold">제출 전 확인사항</p>
-              <p>제출 후에는 수정이 불가합니다.</p>
-              <p>전원 제출 완료 시 기여도 리포트가 자동으로 발행됩니다.</p>
+              <p className="font-bold">제출 전 확인사항</p>
+              <p className="font-normal">제출 후에는 수정이 불가합니다.</p>
+              <p className="font-normal">전원 제출 완료 시 기여도 리포트가 자동으로 발행됩니다.</p>
             </div>
           </InfoBox>
         )}

@@ -15,4 +15,6 @@ export interface PeerEvaluationProjectState {
   selfFeedback: SelfFeedbackEntry | null
   submitted: boolean
   submittedAt: string | null
+  // 마감일+7일 경과 후 미제출자가 있는 채로 자동 발행된 경우 true
+  partial: boolean
 }

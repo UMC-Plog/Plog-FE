@@ -112,7 +112,7 @@ export default function ChatListItem({
           {projectName}
         </span>
         <p className="text-body-sm text-gray-400 truncate">
-          {lastSenderName}: {lastMessage}
+          {lastSenderName ? `${lastSenderName}: ${lastMessage}` : lastMessage}
         </p>
       </div>
 

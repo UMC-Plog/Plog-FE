@@ -7,27 +7,27 @@ const FIELDS = [
   {
     id: 'tasks',
     label: '실제 수행한 업무',
-    placeholder: '예) API 설계, 프론트엔드 연동, 배포 자동화 스크립트 작성',
+    placeholder: '수행한 업무를 작성해 주세요',
   },
   {
     id: 'contribution',
     label: '기여했다고 생각하는 부분',
-    placeholder: '예) 배포 자동화로 팀 전체 배포 시간을 40% 단축했어요',
+    placeholder: '어떤 부분에서 기여했는지 작성해 주세요',
   },
   {
     id: 'hardship',
     label: '어려웠던 점',
-    placeholder: '예) 레거시 코드 파악에 시간이 많이 걸렸어요',
+    placeholder: '프로젝트에서 어려웠던 부분을 작성해 주세요',
   },
   {
     id: 'improvement',
     label: '개선점',
-    placeholder: '예) 코드 리뷰 문화를 정착시키면 좋겠어요',
+    placeholder: '개선하고 싶은 점을 작성해 주세요',
   },
   {
     id: 'role',
     label: '협업 과정에서 맡았던 역할',
-    placeholder: '예) 주 1회 스프린트 회의 진행, 이슈 트래킹 관리',
+    placeholder: '팀 내에서 맡은 역할을 설명해 주세요',
   },
 ];
 
@@ -93,16 +93,8 @@ export default function SelfFeedbackPage() {
         {/* 제목 */}
         <div className="flex flex-col gap-1">
           <h1 className="text-h3 font-semibold text-gray-900">자기 피드백이란?</h1>
-          <p className="text-caption text-gray-400">
-            활동 로그로 파악하기 어려운 기여 맥락을 직접 작성합니다
-          </p>
-        </div>
-
-        {/* 안내 박스 */}
-        <div className="bg-primary-50 rounded-xl px-4 py-3 flex items-start gap-3">
-          <InfoIcon />
-          <p className="text-caption text-primary leading-5">
-            자기 피드백은 업무카드, 활동로그, Peer 평가와 교차 검증되어 AI 분석의 보조 맥락으로 활용됩니다.
+          <p className="text-caption font-normal text-gray-400">
+            점수를 직접 높이는 항목이 아닙니다. 활동 로그만으로 파악하기 어려운 기여 맥락을 보완하는 서술형 입력입니다.
           </p>
         </div>
 
@@ -110,7 +102,7 @@ export default function SelfFeedbackPage() {
         <div className="flex flex-col gap-4">
           {FIELDS.map((field) => (
             <div key={field.id} className="flex flex-col gap-2">
-              <label htmlFor={field.id} className="text-body-sm font-semibold text-gray-700">
+              <label htmlFor={field.id} className="text-body text-gray-900">
                 {field.label}
               </label>
               <input
@@ -120,13 +112,22 @@ export default function SelfFeedbackPage() {
                 onChange={(e) => setValue(field.id, e.target.value)}
                 placeholder={field.placeholder}
                 className={cn(
-                  'border border-gray-200 rounded-lg px-5 h-14',
+                  'border border-gray-200 rounded-lg px-[19px] h-14',
                   'text-body text-gray-900 placeholder:text-gray-400 bg-white',
                   'focus:outline-none focus:border-primary transition-colors',
                 )}
               />
             </div>
           ))}
+        </div>
+
+        {/* 안내 박스 — 입력 필드 아래 배치 */}
+        <div className="bg-primary-50 rounded-xl px-4 py-3 flex items-start gap-3">
+          <InfoIcon />
+          <div className="text-caption text-primary leading-5">
+            <p className="font-medium">자기 피드백은 업무카드, 활동로그, Peer 평가와 교차 검증되어</p>
+            <p className="font-medium">AI 분석의 보조 맥락으로 활용됩니다.</p>
+          </div>
         </div>
       </div>
 
