@@ -11,10 +11,7 @@ import { Button } from "../../components/Button";
 import { Input } from "../../components/Input";
 import { Layout } from "../../components/Layout";
 import { AlertModal, BottomSheet } from "../../components/Modal";
-import {
-  getPersistentProfileImage,
-  readProfileImage,
-} from "../../lib/profileImage";
+import { getPersistentProfileImage } from "../../lib/profileImage";
 import { mockCheckNickname } from "../../mocks/nickname";
 import { useAuthStore } from "../../store/authStore";
 
@@ -120,27 +117,6 @@ export function ProfileEditPage() {
     setAvatarId(stagedAvatarId);
     setCustomImageUrl(stagedImageUrl);
     setAvatarSheetOpen(false);
-  };
-
-  const handleUpload = async (file: File) => {
-    const requestId = ++imageRequestRef.current;
-    setImageReading(true);
-    setImageError("");
-
-    try {
-      const imageUrl = await readProfileImage(file);
-      if (requestId !== imageRequestRef.current) return;
-
-      setStagedImageUrl(imageUrl);
-      setStagedAvatarId(null);
-    } catch (error) {
-      if (requestId !== imageRequestRef.current) return;
-      setImageError(error instanceof Error ? error.message : "이미지를 불러오지 못했어요.");
-    } finally {
-      if (requestId === imageRequestRef.current) {
-        setImageReading(false);
-      }
-    }
   };
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
@@ -267,7 +243,6 @@ export function ProfileEditPage() {
               setStagedImageUrl(null);
               setImageError("");
             }}
-            onUpload={handleUpload}
             showLabel={false}
             size="lg"
           />

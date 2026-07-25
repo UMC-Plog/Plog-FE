@@ -1,5 +1,4 @@
-import { useRef } from "react";
-import { Camera, User } from "lucide-react";
+import { User } from "lucide-react";
 import { cn } from "../lib/utils";
 import otterImg from "../assets/otter.png";
 import penguinImg from "../assets/penguin.png";
@@ -27,7 +26,6 @@ interface AvatarPickerProps {
   value: AvatarPresetId | null;
   customImageUrl?: string | null;
   onSelect: (id: AvatarPresetId) => void;
-  onUpload?: (file: File) => void;
   showLabel?: boolean;
   size?: "md" | "lg";
 }
@@ -36,11 +34,9 @@ export function AvatarPicker({
   value,
   customImageUrl,
   onSelect,
-  onUpload,
   showLabel = true,
   size = "md",
 }: AvatarPickerProps) {
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const selected = AVATAR_PRESETS.find((a) => a.id === value);
 
   return (
@@ -73,29 +69,6 @@ export function AvatarPicker({
               <User className="h-1/2 w-1/2 text-gray-25" strokeWidth={1.5} fill="currentColor" aria-hidden />
             )}
           </div>
-          {onUpload && (
-            <>
-              <button
-                type="button"
-                onClick={() => fileInputRef.current?.click()}
-                aria-label="프로필 이미지 업로드"
-                className="absolute bottom-0 right-0 flex h-8 w-8 items-center justify-center rounded-full bg-blue-500 text-white ring-2 ring-white"
-              >
-                <Camera size={16} aria-hidden="true" />
-              </button>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/jpeg,image/png,image/webp"
-                className="hidden"
-                onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  if (file) onUpload(file);
-                  e.target.value = "";
-                }}
-              />
-            </>
-          )}
         </div>
       </div>
 

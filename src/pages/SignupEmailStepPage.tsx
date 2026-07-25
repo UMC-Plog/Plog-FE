@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { Eye, EyeOff } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { cn } from "../lib/utils";
 import { AuthHeader } from "../components/AuthHeader";
 import { PasswordStrengthBar } from "../components/PasswordStrengthBar";
 import { ProgressBar } from "../components/ProgressBar";
@@ -49,6 +50,7 @@ export function SignupEmailStepPage() {
   const [showPasswordConfirm, setShowPasswordConfirm] = useState(false);
   const [alreadyRegistered, setAlreadyRegistered] = useState(false);
   const [completeModalOpen, setCompleteModalOpen] = useState(false);
+  const [infoTermsAgreed, setInfoTermsAgreed] = useState(false);
 
   const emailFormatValid = EMAIL_REGEX.test(email);
   const emailError =
@@ -63,8 +65,9 @@ export function SignupEmailStepPage() {
       realName.trim().length > 0 &&
       emailVerified &&
       password.length >= 8 &&
-      password === passwordConfirm,
-    [realName, emailVerified, password, passwordConfirm]
+      password === passwordConfirm &&
+      infoTermsAgreed,
+    [realName, emailVerified, password, passwordConfirm, infoTermsAgreed]
   );
 
   const handleTermsNext = () => {
@@ -225,6 +228,35 @@ export function SignupEmailStepPage() {
               }
             />
           </div>
+
+          <button
+            type="button"
+            onClick={() => setInfoTermsAgreed((v) => !v)}
+            aria-pressed={infoTermsAgreed}
+            className="mt-6 flex items-center gap-2.5 text-left"
+          >
+            <span
+              className={cn(
+                "flex h-6 w-6 shrink-0 items-center justify-center rounded-sm border transition-colors",
+                infoTermsAgreed ? "border-blue-500 bg-blue-500 text-white" : "border-gray-400 bg-white"
+              )}
+            >
+              {infoTermsAgreed && (
+                <svg width="14" height="14" viewBox="0 0 12 12" fill="none" aria-hidden>
+                  <path
+                    d="M2.5 6.2 4.8 8.5 9.5 3.5"
+                    stroke="currentColor"
+                    strokeWidth="1.8"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              )}
+            </span>
+            <span className="text-body font-normal text-gray-900">
+              이용약관 및 개인정보처리방침에 동의합니다
+            </span>
+          </button>
 
           <div className="mt-auto pb-8 pt-8">
             <Button size="lg" disabled={!canSubmitInfo} onClick={handleSubmit}>
