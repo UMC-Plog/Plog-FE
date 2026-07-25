@@ -4,7 +4,6 @@ import { AvatarPicker, type AvatarPresetId } from "../components/AvatarPicker";
 import { ProgressBar } from "../components/ProgressBar";
 import { Button } from "../components/Button";
 import { Input } from "../components/Input";
-import { readProfileImage } from "../lib/profileImage";
 import { mockCheckNickname } from "../mocks/nickname";
 import { useAuthStore } from "../store/authStore";
 
@@ -14,40 +13,15 @@ export function ProfileSetupPage() {
   const setSignupField = useAuthStore((s) => s.setSignupField);
 
   const [avatarId, setAvatarId] = useState<AvatarPresetId | null>(null);
-  const [customImageUrl, setCustomImageUrl] = useState<string | null>(null);
-  const [imageError, setImageError] = useState("");
-  const [imageReading, setImageReading] = useState(false);
   const [nickname, setNickname] = useState("");
   const [checkedNickname, setCheckedNickname] = useState<string | null>(null);
   const [nicknameAvailable, setNicknameAvailable] = useState<boolean | null>(null);
   const [nicknameChecking, setNicknameChecking] = useState(false);
   const latestNicknameRef = useRef(nickname);
   const nicknameRequestRef = useRef(0);
-  const imageRequestRef = useRef(0);
 
   const normalizedNickname = nickname.trim();
   const nicknameValid = normalizedNickname.length >= 2 && normalizedNickname.length <= 6;
-
-  const handleUpload = async (file: File) => {
-    const requestId = ++imageRequestRef.current;
-    setImageReading(true);
-    setImageError("");
-
-    try {
-      const imageUrl = await readProfileImage(file);
-      if (requestId !== imageRequestRef.current) return;
-
-      setCustomImageUrl(imageUrl);
-      setAvatarId(null);
-    } catch (error) {
-      if (requestId !== imageRequestRef.current) return;
-      setImageError(error instanceof Error ? error.message : "이미지를 불러오지 못했어요.");
-    } finally {
-      if (requestId === imageRequestRef.current) {
-        setImageReading(false);
-      }
-    }
-  };
 
   const handleCheckNickname = async () => {
     const targetNickname = normalizedNickname;
@@ -75,16 +49,13 @@ export function ProfileSetupPage() {
 
   const nicknameVerified =
     nicknameAvailable === true && checkedNickname === normalizedNickname;
-  const canSubmit =
-    (avatarId !== null || customImageUrl !== null) &&
-    nicknameVerified &&
-    !imageReading;
+  const canSubmit = nicknameVerified;
 
   const handleSubmit = () => {
     if (!canSubmit) return;
 
     setSignupField("avatarId", avatarId);
-    setSignupField("avatarImageUrl", customImageUrl);
+    setSignupField("avatarImageUrl", null);
     setSignupField("nickname", normalizedNickname);
     setSignupField("isNicknameAvailable", true);
     completeSignup();
@@ -101,20 +72,7 @@ export function ProfileSetupPage() {
         <h1 className="text-h2 font-semibold text-gray-900">프로필 설정</h1>
 
         <div className="mt-6">
-          <AvatarPicker
-            size="lg"
-            value={avatarId}
-            customImageUrl={customImageUrl}
-            onSelect={(id) => {
-              setAvatarId(id);
-              setCustomImageUrl(null);
-              setImageError("");
-            }}
-            onUpload={handleUpload}
-          />
-          <p className="mt-2 min-h-5 text-body-sm text-error" aria-live="polite">
-            {imageError}
-          </p>
+          <AvatarPicker size="lg" value={avatarId} onSelect={setAvatarId} />
         </div>
 
         <div className="mt-6">
