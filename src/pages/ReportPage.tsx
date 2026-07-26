@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react';
 import { Search, Download } from 'lucide-react';
 import { PlogIcon } from '../components/PlogIcon';
+import { AlertModal } from '../components/Modal';
 import { cn } from '../lib/utils';
 import { useProjectStore } from '../store/projectStore';
 import { usePeerEvaluationStore } from '../store/peerEvaluationStore';
@@ -12,7 +13,6 @@ interface ReportItem {
   projectName: string;
   createdAt: string;
   status: ReportStatus;
-  pdfUrl?: string;
 }
 
 const formatReportDate = (iso: string | null) => {
@@ -39,6 +39,7 @@ function StatusBadge({ status }: { status: ReportStatus }) {
 
 export default function ReportPage() {
   const [keyword, setKeyword] = useState('');
+  const [notice, setNotice] = useState(false);
   const projects = useProjectStore((state) => state.projects);
   const byProject = usePeerEvaluationStore((state) => state.byProject);
 
@@ -52,7 +53,6 @@ export default function ReportPage() {
           projectName: project.name,
           createdAt: done ? formatReportDate(evalState?.submittedAt ?? null) : '',
           status: done ? 'done' : 'pending',
-          pdfUrl: done ? '#' : undefined,
         };
       }),
     [projects, byProject],
@@ -139,9 +139,7 @@ export default function ReportPage() {
               <button
                 type="button"
                 disabled={item.status === 'pending'}
-                onClick={() => {
-                  if (item.pdfUrl) window.open(item.pdfUrl);
-                }}
+                onClick={() => setNotice(true)}
                 className={cn(
                   'shrink-0 flex items-center gap-1.5 h-10 px-4 rounded-md text-body-sm transition-colors',
                   item.status === 'done'
@@ -156,6 +154,12 @@ export default function ReportPage() {
           ))
         )}
       </div>
+
+      <AlertModal
+        open={notice}
+        title="PDF 다운로드는 준비 중이에요"
+        onConfirm={() => setNotice(false)}
+      />
     </div>
   );
 }

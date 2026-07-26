@@ -94,6 +94,7 @@ export const usePeerEvaluationStore = create<PeerEvaluationState>()(
       submitFinal: (projectId, options) =>
         set((state) => {
           const project = state.byProject[projectId] ?? emptyProjectState
+          if (project.submitted) return state
           return {
             byProject: {
               ...state.byProject,

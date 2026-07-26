@@ -109,15 +109,15 @@ export default function PeerEvalStarPage() {
 
   const allRated = useMemo(() => Object.values(ratings).every((v) => v >= 1), [ratings]);
 
-  // 평가자가 모든 항목에 동일 점수를 주는 것을 막기 위한 실시간 가이드(Nudge).
-  // 전 항목을 다 채웠는데 값이 전부 같으면 배너를 띄우고 [다음]을 막는다.
+  // 평가자가 모든 항목에 동일 점수를 주는 것에 대한 실시간 가이드(Nudge).
+  // 전 항목을 다 채웠는데 값이 전부 같으면 배너로 안내하되, 진행 자체는 막지 않는다.
   const allSame = useMemo(() => {
     const values = Object.values(ratings);
     return values.every((v) => v === values[0]);
   }, [ratings]);
 
   const showNudge = allRated && allSame;
-  const canProceed = allRated && !allSame;
+  const canProceed = allRated;
 
   const setRating = (categoryId: string, value: number) => {
     setRatings((prev) => ({ ...prev, [categoryId]: value }));
