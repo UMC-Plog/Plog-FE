@@ -37,7 +37,7 @@ export default function NoticeHistoryPage() {
 
   return (
     <Layout>
-      <TopNavBar title="공지" showSettings={false} onBack={goToFeed} />
+      <TopNavBar title="공지" onBack={goToFeed} />
 
       <main className="flex flex-1 flex-col bg-gray-25">
         {projectNotices.length === 0 ? (

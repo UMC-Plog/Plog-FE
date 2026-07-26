@@ -51,7 +51,7 @@ export function WithdrawPage() {
     <Layout className="min-h-svh bg-gray-25">
       <MySubpageHeader title="회원 탈퇴" onBack={() => navigate("/my")} />
 
-      <main className="flex-1 px-[22px] pt-8">
+      <main className="flex-1 px-[22px] pt-[46px]">
         <h2 className="text-[22px] font-bold leading-[30px] text-gray-900">정말 탈퇴하시겠어요?</h2>
         <p className="mt-1 text-[14px] font-normal leading-[20px] text-gray-400">
           탈퇴 전에 아래 내용을 꼭 확인해주세요
@@ -59,7 +59,7 @@ export function WithdrawPage() {
 
         <div className="mt-6 space-y-3">
           {WARNINGS.map((warning) => (
-            <section key={warning.title} className="flex h-[77px] flex-col justify-center rounded-16 bg-gray-100 px-[18px]">
+            <section key={warning.title} className="flex h-20 w-[357px] flex-col justify-center rounded-16 bg-gray-100 px-[18px]">
               <h3 className="text-[15px] font-semibold leading-[21px] text-gray-900">{warning.title}</h3>
               <p className="mt-1 text-[14px] font-normal leading-[20px] text-gray-400">{warning.description}</p>
             </section>
@@ -67,7 +67,7 @@ export function WithdrawPage() {
         </div>
       </main>
 
-      <footer className="shrink-0 border-t border-gray-100 bg-white px-[22px] pb-[26px] pt-4">
+      <footer className="shrink-0 border-t border-gray-100 bg-white px-[22px] pb-[35px] pt-4">
         <label className="flex cursor-pointer items-center gap-[10px] text-[14px] font-normal leading-5 text-gray-900">
           <input
             type="checkbox"
@@ -87,7 +87,7 @@ export function WithdrawPage() {
             logout();
             setCompleted(true);
           }}
-          className="mt-3 h-14 w-full rounded-[14px] bg-error text-[16px] font-semibold text-white disabled:bg-gray-100 disabled:text-gray-400"
+          className="mt-3 h-[54px] w-full rounded-11 bg-error text-[16px] font-semibold text-white disabled:bg-gray-100 disabled:text-gray-400"
         >
           탈퇴 진행하기
         </button>

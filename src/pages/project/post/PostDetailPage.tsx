@@ -115,7 +115,7 @@ export default function PostDetailPage() {
   if (!post) {
     return (
       <Layout>
-        <TopNavBar title="게시글" showSettings={false} onBack={goToFeed} />
+        <TopNavBar title="게시글" onBack={goToFeed} />
         <main className="flex flex-1 flex-col items-center justify-center px-8 text-center">
           <p className="text-title font-bold text-gray-700">게시글을 찾을 수 없어요</p>
           <p className="mt-1.5 text-body-sm text-gray-400">
@@ -134,7 +134,7 @@ export default function PostDetailPage() {
 
   return (
     <Layout>
-      <TopNavBar title="게시글" showSettings={false} onBack={goToFeed} />
+      <TopNavBar title="게시글" onBack={goToFeed} />
 
       <main className="flex-1 px-5 pb-24 pt-5">
         <div className="flex items-center gap-3">

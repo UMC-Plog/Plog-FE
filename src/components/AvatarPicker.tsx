@@ -1,5 +1,6 @@
 import { User } from "lucide-react";
 import { cn } from "../lib/utils";
+import cameraBadge from "../assets/profile-camera-badge.svg";
 import otterImg from "../assets/otter.png";
 import penguinImg from "../assets/penguin.png";
 import frogImg from "../assets/frog.png";
@@ -27,7 +28,7 @@ interface AvatarPickerProps {
   customImageUrl?: string | null;
   onSelect: (id: AvatarPresetId) => void;
   showLabel?: boolean;
-  size?: "md" | "lg";
+  size?: "md" | "lg" | "profile-edit";
 }
 
 export function AvatarPicker({
@@ -44,12 +45,21 @@ export function AvatarPicker({
       {showLabel && <p className="mb-3 text-body font-normal text-gray-900">프로필 선택</p>}
 
       {/* 대표 미리보기 */}
-      <div className="mb-5 flex justify-center">
+      <div
+        className={cn(
+          "flex justify-center",
+          size === "profile-edit" ? "mb-8" : "mb-5"
+        )}
+      >
         <div className="relative">
           <div
             className={cn(
               "flex items-center justify-center overflow-hidden rounded-full",
-              size === "lg" ? "h-28 w-28" : "h-24 w-24",
+              size === "profile-edit"
+                ? "h-[116px] w-[116px]"
+                : size === "lg"
+                  ? "h-28 w-28"
+                  : "h-24 w-24",
               customImageUrl || selected ? "" : "bg-blue-100"
             )}
           >
@@ -69,11 +79,24 @@ export function AvatarPicker({
               <User className="h-1/2 w-1/2 text-gray-25" strokeWidth={1.5} fill="currentColor" aria-hidden />
             )}
           </div>
+          {size === "profile-edit" && (
+            <img
+              src={cameraBadge}
+              alt=""
+              className="absolute bottom-0 right-0 h-8 w-8"
+              aria-hidden="true"
+            />
+          )}
         </div>
       </div>
 
       {/* 프리셋 그리드 */}
-      <div className="grid grid-cols-4 justify-items-center gap-3">
+      <div
+        className={cn(
+          "grid grid-cols-4 justify-items-center",
+          size === "profile-edit" ? "gap-x-[22px] gap-y-4" : "gap-3"
+        )}
+      >
         {AVATAR_PRESETS.map((avatar) => (
           <button
             key={avatar.id}
@@ -82,7 +105,11 @@ export function AvatarPicker({
             aria-pressed={value === avatar.id}
             className={cn(
               "flex items-center justify-center overflow-hidden rounded-full transition-all",
-              size === "lg" ? "h-16 w-16" : "h-14 w-14",
+              size === "profile-edit"
+                ? "h-[72px] w-[72px]"
+                : size === "lg"
+                  ? "h-16 w-16"
+                  : "h-14 w-14",
               value === avatar.id
                 ? "ring-2 ring-blue-500 ring-offset-2"
                 : "hover:ring-2 hover:ring-gray-200 hover:ring-offset-2"

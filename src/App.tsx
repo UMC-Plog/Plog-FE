@@ -27,7 +27,6 @@ import { ProfileEditPage } from './pages/my/ProfileEditPage'
 import { AccountConnectionsPage } from './pages/my/AccountConnectionsPage'
 import { NotificationSettingsPage } from './pages/my/NotificationSettingsPage'
 import { WithdrawPage } from './pages/my/WithdrawPage'
-import { ProjectSettingsPage } from './pages/project/ProjectSettingsPage'
 import PeerEvalListPage from './pages/project/PeerEvalListPage'
 import PeerEvalStarPage from './pages/project/PeerEvalStarPage'
 import PeerEvalKeywordPage from './pages/project/PeerEvalKeywordPage'
@@ -60,7 +59,6 @@ function App() {
         <Route path="/my/notifications" element={<NotificationSettingsPage />} />
         <Route path="/my/withdraw" element={<WithdrawPage />} />
         <Route path="/project/new" element={<CreateProjectPage />} />
-        <Route path="/project/:id/settings" element={<ProjectSettingsPage />} />
 
         {/* Peer 평가 플로우 — ProjectTabBar 밖 독립 화면 */}
         <Route path="/project/:id/peer-eval" element={<PeerEvalListPage />} />

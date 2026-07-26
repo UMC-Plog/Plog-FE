@@ -27,7 +27,7 @@ export function NotificationSettingsPage() {
           연동된 툴의 활동 데이터가 기여도 분석에 자동 반영됩니다
         </p>
 
-        <section className="mt-[18px] flex h-20 items-center rounded-16 border border-gray-100 bg-white/10 px-[26px] shadow-card">
+        <section className="mt-[23px] flex h-[90px] items-center rounded-16 border border-gray-100 bg-white/10 px-[26px] shadow-card">
           <div className="min-w-0 flex-1">
             <h2 className="text-[17px] font-normal leading-[24px] text-gray-900">전체 알림</h2>
             <p className="mt-0.5 text-[12px] font-normal leading-[17px] text-gray-400">
