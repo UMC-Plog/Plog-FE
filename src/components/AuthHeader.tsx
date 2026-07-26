@@ -54,7 +54,7 @@ export function AuthHeader({
           type="button"
           aria-label="뒤로가기"
           onClick={handleBack}
-          className="mb-3 flex h-9 w-9 items-center justify-center rounded-full text-gray-700 hover:bg-gray-50"
+          className="-ml-1 mb-3 flex h-9 w-9 items-center justify-center rounded-full text-gray-700 hover:bg-gray-50"
         >
           <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden>
             <path

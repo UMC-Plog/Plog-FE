@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Eye, EyeOff } from "lucide-react";
+import { Eye, EyeOff, User } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { cn } from "../lib/utils";
 import { AuthHeader } from "../components/AuthHeader";
@@ -103,8 +103,8 @@ export function SignupEmailStepPage() {
 
   return (
     <div className="app-shell">
-      <div className="px-5 pt-4">
-        <AuthHeader title="" showBack />
+      <AuthHeader title="" showBack />
+      <div className="px-5">
         <ProgressBar total={2} current={step === "terms" ? 1 : 2} />
       </div>
 
@@ -150,37 +150,33 @@ export function SignupEmailStepPage() {
                 setEmailVerified(false);
               }}
               errorText={emailError}
-              successText={
-                emailVerified ? "인증이 완료되었습니다" : emailSent ? "인증번호를 전송했습니다" : undefined
-              }
-              locked={emailVerified}
+              successText={emailSent ? "인증번호를 전송했습니다" : undefined}
               suffix={
-                !emailVerified && (
-                  <button
-                    type="button"
-                    onClick={handleSendCode}
-                    disabled={!emailFormatValid}
-                    className="h-9 shrink-0 rounded-md bg-blue-500 px-3 text-body-sm font-semibold text-white disabled:bg-gray-200 disabled:text-gray-400"
-                  >
-                    코드 전송
-                  </button>
-                )
+                <button
+                  type="button"
+                  onClick={handleSendCode}
+                  disabled={!emailFormatValid}
+                  className="h-9 shrink-0 rounded-md bg-blue-500 px-3 text-body-sm font-semibold text-white disabled:bg-gray-200 disabled:text-gray-400"
+                >
+                  코드 전송
+                </button>
               }
             />
 
-            {emailSent && !emailVerified && (
+            {emailSent && (
               <Input
                 label="인증번호 확인"
                 placeholder="인증번호 입력"
                 value={code}
                 onChange={(e) => setCode(e.target.value)}
                 maxLength={6}
+                successText={emailVerified ? "인증이 완료되었습니다" : undefined}
                 suffix={
                   <button
                     type="button"
                     onClick={handleVerifyCode}
                     disabled={code.trim().length !== 6}
-                    className="h-9 shrink-0 rounded-md bg-gray-100 px-3 text-body-sm font-semibold text-gray-600 disabled:text-gray-300"
+                    className="h-9 shrink-0 rounded-md bg-blue-500 px-3 text-body-sm font-semibold text-white disabled:bg-gray-200 disabled:text-gray-400"
                   >
                     확인
                   </button>
@@ -268,7 +264,11 @@ export function SignupEmailStepPage() {
 
       <AlertModal
         open={alreadyRegistered}
-        icon={<span className="text-3xl">👤</span>}
+        icon={
+          <span className="flex h-[52px] w-[52px] items-center justify-center rounded-full bg-blue-100">
+            <User className="h-6 w-6 text-navy-700" strokeWidth={2} aria-hidden />
+          </span>
+        }
         title="해당 이메일은 유가입자로 확인됩니다"
         confirmText="로그인 하러가기"
         onConfirm={() => navigate("/login")}
