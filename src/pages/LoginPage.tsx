@@ -55,8 +55,16 @@ export function LoginPage() {
   };
 
   const handleSocial = (provider: SocialProvider) => {
-    // TODO: 소셜 로그인 SDK 연동
-    console.info(`[TODO] ${provider} 로그인 연동 필요`);
+    // TODO: 실제 소셜 로그인 SDK 연동 (백엔드 완성 전까지 mock)
+    login({
+      id: crypto.randomUUID(),
+      email: `${provider}@plog.com`,
+      realName: "홍길동",
+      nickname: "바나나",
+      avatarId: null,
+      avatarImageUrl: null,
+    });
+    navigate("/home");
   };
 
   return (
