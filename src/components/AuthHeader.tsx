@@ -20,7 +20,7 @@ export function AuthHeader({
 
   if (variant === "inline") {
     return (
-      <header className="flex h-16 items-center gap-3 border-b border-gray-100 bg-gray-25 px-5 shadow-sm">
+      <header className="flex h-[58px] items-center gap-3 border-b border-gray-100 bg-gray-25 px-5 shadow-sm">
         {showBack && (
           <button
             type="button"

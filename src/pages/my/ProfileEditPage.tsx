@@ -143,13 +143,13 @@ export function ProfileEditPage() {
       />
 
       <form className="flex flex-1 flex-col" onSubmit={handleSubmit} noValidate>
-        <div className="px-5 pt-8">
+        <div className="px-[22px] pt-9">
           <div className="flex justify-center">
             <div className="relative">
               <img
                 src={avatarSrc}
                 alt={`${user?.nickname ?? "사용자"} 프로필`}
-                className="h-28 w-28 rounded-full object-cover"
+                className="h-[116px] w-[116px] rounded-full object-cover"
                 onError={(event) => {
                   event.currentTarget.onerror = null;
                   event.currentTarget.src = avatarPreset.src;
@@ -166,7 +166,7 @@ export function ProfileEditPage() {
             </div>
           </div>
 
-          <div className="mt-10 space-y-5">
+          <div className="mt-[46px] space-y-[25px]">
             <div>
               <div className="mb-2 flex items-center gap-2">
                 <label htmlFor="profile-real-name" className="text-body-sm font-medium text-gray-700">
@@ -180,7 +180,7 @@ export function ProfileEditPage() {
                 id="profile-real-name"
                 value={user?.realName ?? ""}
                 locked
-                className="h-14 rounded-lg bg-white text-gray-900 disabled:text-gray-900"
+                className="h-14 w-[354px] rounded-lg bg-white text-gray-900 disabled:text-gray-900"
                 suffix={
                   <Button type="button" size="sm" fullWidth={false} disabled className="h-10 px-4">
                     변경
@@ -196,7 +196,7 @@ export function ProfileEditPage() {
               onChange={(event) => handleNicknameChange(event.target.value)}
               errorText={nicknameError}
               successText={nicknameSuccess}
-              className="h-14 rounded-lg"
+              className="h-14 w-[354px] rounded-lg"
               suffix={
                 <Button
                   type="button"
@@ -219,7 +219,7 @@ export function ProfileEditPage() {
           </div>
         </div>
 
-        <footer className="mt-auto border-t border-gray-100 bg-white px-5 pb-8 pt-4">
+        <footer className="mt-auto border-t border-gray-100 bg-white px-[22px] pb-[37px] pt-4">
           <Button
             type="submit"
             size="lg"
@@ -232,9 +232,16 @@ export function ProfileEditPage() {
         </footer>
       </form>
 
-      <BottomSheet open={avatarSheetOpen} onClose={closeAvatarSheet}>
-        <h2 className="text-h3 font-bold text-gray-900">프로필 이미지 변경</h2>
-        <div className="mt-6">
+      <BottomSheet
+        open={avatarSheetOpen}
+        onClose={closeAvatarSheet}
+        ariaLabelledby="profile-image-sheet-title"
+        contentClassName="min-h-[564px] [&>div:first-child]:top-0"
+      >
+        <h2 id="profile-image-sheet-title" className="mt-[10px] text-h3 font-bold text-gray-900">
+          프로필 이미지 변경
+        </h2>
+        <div className="mt-[46px]">
           <AvatarPicker
             value={stagedAvatarId}
             customImageUrl={stagedImageUrl}
@@ -244,13 +251,13 @@ export function ProfileEditPage() {
               setImageError("");
             }}
             showLabel={false}
-            size="lg"
+            size="profile-edit"
           />
           <p className="mt-2 min-h-5 text-body-sm text-error" aria-live="polite">
             {imageError}
           </p>
         </div>
-        <div className="mt-8">
+        <div className="mt-4">
           <Button
             type="button"
             size="lg"
@@ -267,13 +274,14 @@ export function ProfileEditPage() {
       <AlertModal
         open={savedOpen}
         icon={
-          <span className="flex h-12 w-12 items-center justify-center rounded-full bg-blue-100 text-blue-500">
+          <span className="flex h-[52px] w-[52px] items-center justify-center rounded-full bg-blue-100 text-blue-500">
             <Check size={24} strokeWidth={2.5} aria-hidden="true" />
           </span>
         }
         title="변경 사항이 저장되었습니다"
         confirmText="확인"
         onConfirm={() => navigate("/my")}
+        variant="profile-saved"
       />
     </Layout>
   );

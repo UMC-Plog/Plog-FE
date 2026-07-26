@@ -2,11 +2,9 @@ import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import {
   ArrowLeft,
   ChevronDown,
-  Copy,
   FileText,
   Folder,
   MessageSquare,
-  Settings,
   UserRound,
   X,
 } from "lucide-react";
@@ -16,6 +14,7 @@ import { Input } from "../../components/Input";
 import { BottomSheet, Modal } from "../../components/Modal";
 import { isFutureDate } from "../../lib/projectDate";
 import { cn } from "../../lib/utils";
+import inviteLinkIcon from "../../assets/invite-link-icon.svg";
 import { useAuthStore } from "../../store/authStore";
 import { useProjectStore } from "../../store/projectStore";
 import type { Project, ProjectType } from "../../types/project";
@@ -166,12 +165,11 @@ function CreatedProjectBackdrop({ projectName }: { projectName: string }) {
 
   return (
     <div className="min-h-svh bg-gray-25" aria-hidden="true">
-      <header className="flex h-16 items-center justify-between border-b border-gray-100 px-5">
+      <header className="flex h-16 items-center border-b border-gray-100 px-5">
         <div className="flex items-center gap-4">
           <ArrowLeft size={22} />
           <strong className="text-title text-gray-900">{projectName}</strong>
         </div>
-        <Settings size={22} className="text-gray-500" />
       </header>
       <div className="grid h-12 grid-cols-4 border-b border-gray-100">
         {tabs.map((tab, index) => (
@@ -336,7 +334,7 @@ export function CreateProjectPage() {
 
       <BottomSheet open={!createdProject} onClose={() => navigate("/home")}>
         {step === "info" ? (
-          <form className="flex min-h-[556px] flex-col" onSubmit={handleInfoSubmit} noValidate>
+          <form className="flex min-h-[506px] flex-col pb-4" onSubmit={handleInfoSubmit} noValidate>
             <ProjectCreationProgress step={step} />
 
             <div className="mt-6 space-y-4">
@@ -395,7 +393,7 @@ export function CreateProjectPage() {
             </div>
           </form>
         ) : (
-          <div className="flex min-h-[556px] flex-col">
+          <div className="flex min-h-[506px] flex-col pb-4">
             <ProjectCreationProgress step={step} />
             <p className="mt-6 text-body-sm text-gray-400">
               외부 툴을 연동하면 활동 데이터를 자동으로 수집할 수 있어요
@@ -437,7 +435,11 @@ export function CreateProjectPage() {
         )}
       </BottomSheet>
 
-      <Modal open={createdProject !== null} onClose={handleEnterProject}>
+      <Modal
+        open={createdProject !== null}
+        onClose={handleEnterProject}
+        contentClassName="rounded-[24px] p-[22px]"
+      >
         {createdProject && (
           <div>
             <div className="flex items-start justify-between gap-4">
@@ -464,7 +466,7 @@ export function CreateProjectPage() {
               onClick={handleCopyLink}
               className="mt-4 flex h-14 w-full items-center justify-center gap-2 rounded-lg border border-blue-500 text-body font-semibold text-blue-500"
             >
-              <Copy size={17} aria-hidden="true" />
+              <img src={inviteLinkIcon} alt="" className="h-4 w-4" aria-hidden="true" />
               <span aria-live="polite">{copied ? "복사 완료" : "초대 링크 복사"}</span>
             </button>
           </div>

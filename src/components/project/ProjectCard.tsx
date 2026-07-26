@@ -1,4 +1,4 @@
-import { Code2, Pencil, Settings } from "lucide-react";
+import { Code2, Pencil } from "lucide-react";
 import { Link } from "react-router-dom";
 import { getProjectDeadline } from "../../lib/projectDate";
 import { cn } from "../../lib/utils";
@@ -60,16 +60,20 @@ export function ProjectCard({ project, viewMode }: ProjectCardProps) {
   return (
     <article
       className={cn(
-        "relative h-44 rounded-lg border border-gray-100 bg-white shadow-md",
+        "relative rounded-lg border border-gray-100 bg-white shadow-md",
+        "h-[172px]",
         "transition-transform active:scale-[0.99]"
       )}
     >
       <Link
         to={`/project/${project.id}/feed`}
         aria-label={`${project.name} 프로젝트 열기`}
-        className="flex h-full flex-col rounded-lg px-5 pb-5 pt-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-300"
+        className={cn(
+          "flex h-full min-w-0 flex-col rounded-lg pb-5 pt-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-300",
+          "px-[22px]"
+        )}
       >
-        <div className="flex items-start justify-between gap-2 pr-10">
+        <div className="flex min-w-0 items-start justify-between gap-2">
           <span className={cn("inline-flex items-center gap-1 rounded-md px-2 py-1 text-caption", projectType.className)}>
             <TypeIcon size={13} aria-hidden="true" />
             {projectType.label}
@@ -88,7 +92,15 @@ export function ProjectCard({ project, viewMode }: ProjectCardProps) {
           )}
         </div>
 
-        <h2 className="mt-2 truncate text-title font-bold text-gray-900">{project.name}</h2>
+        <h2
+          className={cn(
+            "mt-2 min-w-0 break-keep text-title font-bold text-gray-900",
+            isGrid ? "line-clamp-2 leading-6" : "truncate"
+          )}
+          title={project.name}
+        >
+          {project.name}
+        </h2>
 
         <div className="mt-4 flex items-center justify-between gap-2">
           <div className="flex min-w-0 items-center gap-3">
@@ -127,13 +139,6 @@ export function ProjectCard({ project, viewMode }: ProjectCardProps) {
         </div>
       </Link>
 
-      <Link
-        to={`/project/${project.id}/settings`}
-        aria-label={`${project.name} 프로젝트 설정`}
-        className="absolute right-3 top-3 z-10 flex h-8 w-8 items-center justify-center rounded-full text-gray-400 hover:bg-gray-50 hover:text-gray-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-300"
-      >
-        <Settings size={18} aria-hidden="true" />
-      </Link>
     </article>
   );
 }

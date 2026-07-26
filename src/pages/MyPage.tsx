@@ -46,7 +46,7 @@ export default function MyPage() {
         <h1 className="text-[18px] font-bold leading-[25px] text-gray-900">마이페이지</h1>
       </header>
 
-      <div className="px-4 pt-6">
+      <div className="px-4 pt-7">
         <button
           type="button"
           onClick={() => navigate("/my/profile")}
@@ -73,9 +73,9 @@ export default function MyPage() {
           <ChevronRight size={20} strokeWidth={1.7} className="text-gray-400" aria-hidden="true" />
         </button>
 
-        <section className="mt-9" aria-labelledby="settings-title">
+        <section className="mt-[38px]" aria-labelledby="settings-title">
           <h2 id="settings-title" className="text-[18px] font-normal leading-[25px] text-gray-500">설정</h2>
-          <div className="mt-[10px] rounded-16 border border-gray-100 bg-white/10 px-[18px] shadow-card">
+          <div className="mt-2 rounded-16 border border-gray-100 bg-white/10 px-[18px] shadow-card">
             {[
               { label: "알림 설정", danger: false, onClick: () => navigate("/my/notifications") },
               { label: "로그아웃", danger: false, onClick: () => setLogoutOpen(true) },
@@ -85,7 +85,7 @@ export default function MyPage() {
                 type="button"
                 key={setting.label}
                 onClick={setting.onClick}
-                className="flex h-[49px] w-full items-center text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-300"
+                className="flex h-[52.66px] w-full items-center text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-300"
               >
                 <span className={cn("flex-1 text-[15px] font-normal leading-[21px]", setting.danger ? "text-error" : "text-gray-700")}>
                   {setting.label}
@@ -106,7 +106,7 @@ export default function MyPage() {
             role="dialog"
             aria-modal="true"
             aria-labelledby="logout-dialog-title"
-            className="w-full max-w-[362px] rounded-[24px] bg-white px-6 pb-6 pt-9 shadow-xl"
+            className="h-[282px] w-full max-w-[360px] rounded-[22px] bg-white px-6 pb-6 pt-9 shadow-xl"
             onClick={(event) => event.stopPropagation()}
           >
             <div className="flex flex-col items-center text-center">
@@ -119,7 +119,7 @@ export default function MyPage() {
               <p className="mt-2 text-[13px] font-normal leading-[18px] text-gray-400">
                 다시 로그인하면 모든 데이터는 유지돼요
               </p>
-              <div className="mt-7 grid w-full grid-cols-2 gap-[10px]">
+              <div className="mt-[38px] grid w-full grid-cols-2 gap-[10px]">
                 <button
                   type="button"
                   onClick={() => setLogoutOpen(false)}

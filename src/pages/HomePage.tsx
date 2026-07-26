@@ -86,7 +86,7 @@ export default function HomePage() {
         </button>
       </header>
 
-      <div className="mt-4 flex items-center justify-between gap-3 px-5">
+      <div className="mt-[14px] flex items-center justify-between gap-3 px-[22px]">
         <ProjectStatusFilter value={statusFilter} onChange={setStatusFilter} />
         <ProjectViewToggle value={viewMode} onChange={setViewMode} />
       </div>
@@ -94,8 +94,8 @@ export default function HomePage() {
       {filteredProjects.length > 0 ? (
         <div
           className={cn(
-            "mt-4 px-5",
-            viewMode === "grid" ? "grid grid-cols-2 gap-1.5" : "space-y-4"
+            "mt-[18px] px-[22px]",
+            viewMode === "grid" ? "grid grid-cols-[176px_176px] gap-x-[5px] gap-y-4" : "space-y-[18px]"
           )}
         >
           {filteredProjects.map((project) => (
