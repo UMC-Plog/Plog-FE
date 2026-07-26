@@ -119,6 +119,12 @@ function OtherBubble({ msg, onDownload, memberNicknames }: { msg: MessageItem; o
             <div className="bg-white shadow-sm rounded-tl rounded-tr-2xl rounded-br-2xl rounded-bl-2xl px-3.5 py-3 text-body-sm text-gray-900 max-w-xs">
               {renderText(msg.text, false, memberNicknames)}
             </div>
+          ) : msg.mimeType.startsWith('image/') && msg.dataUrl ? (
+            <img
+              src={msg.dataUrl}
+              alt={msg.fileName}
+              className="max-w-[200px] max-h-[240px] rounded-tl rounded-tr-2xl rounded-br-2xl rounded-bl-2xl shadow-sm object-cover"
+            />
           ) : (
             <div className="bg-white shadow-sm rounded-tl rounded-tr-2xl rounded-br-2xl rounded-bl-2xl p-3 flex items-center gap-3 w-56">
               <div className="size-9 bg-white border border-gray-100 p-px rounded-md flex items-center justify-center text-gray-400 shrink-0">
@@ -148,6 +154,12 @@ function MyBubble({ msg, onDownload, memberNicknames }: { msg: MessageItem; onDo
         <div className="bg-primary rounded-tl-2xl rounded-tr rounded-br-2xl rounded-bl-2xl px-3.5 py-3 text-body-sm text-gray-25 max-w-xs">
           {renderText(msg.text, true, memberNicknames)}
         </div>
+      ) : msg.mimeType.startsWith('image/') && msg.dataUrl ? (
+        <img
+          src={msg.dataUrl}
+          alt={msg.fileName}
+          className="max-w-[200px] max-h-[240px] rounded-tl-2xl rounded-tr rounded-br-2xl rounded-bl-2xl shadow-sm object-cover"
+        />
       ) : (
         <div className="bg-primary rounded-tl-2xl rounded-tr rounded-br-2xl rounded-bl-2xl p-3 flex items-center gap-3 w-56">
           <div className="size-9 bg-white border border-gray-100 p-px rounded-md flex items-center justify-center shrink-0">
@@ -334,7 +346,8 @@ export default function ProjectChatPage() {
           {/* 전송 버튼 */}
           <button
             type="submit"
-            className="size-10 bg-primary rounded-md flex items-center justify-center shrink-0 text-gray-25 hover:bg-primary-600 transition-colors"
+            disabled={!input.trim()}
+            className="size-10 bg-primary rounded-md flex items-center justify-center shrink-0 text-gray-25 hover:bg-primary-600 disabled:bg-gray-200 disabled:hover:bg-gray-200 transition-colors"
             aria-label="전송"
           >
             <SendIcon />

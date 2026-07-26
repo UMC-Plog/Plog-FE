@@ -79,7 +79,7 @@ export default function ProjectReportPage() {
   const reports: ReportItem[] =
     status === 'submitted'
       ? [
-          { id: 'r1', tier: 'basic', title: '테스트 프로젝트 기여도 분석 리포트', createdAt: submittedAt },
+          { id: 'r1', tier: 'basic', title: `${project?.name ?? ''} 기여도 분석 리포트`, createdAt: submittedAt },
           { id: 'r2', tier: 'premium', title: '개인 기여도 리포트', createdAt: submittedAt, locked: true },
         ]
       : []
