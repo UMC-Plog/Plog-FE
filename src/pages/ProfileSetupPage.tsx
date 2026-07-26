@@ -11,8 +11,11 @@ export function ProfileSetupPage() {
   const navigate = useNavigate();
   const completeSignup = useAuthStore((s) => s.completeSignup);
   const setSignupField = useAuthStore((s) => s.setSignupField);
+  const signupMethod = useAuthStore((s) => s.signupDraft.method);
+  const isSocialSignup = signupMethod === "kakao" || signupMethod === "google";
 
   const [avatarId, setAvatarId] = useState<AvatarPresetId | null>(null);
+  const [realName, setRealName] = useState("");
   const [nickname, setNickname] = useState("");
   const [checkedNickname, setCheckedNickname] = useState<string | null>(null);
   const [nicknameAvailable, setNicknameAvailable] = useState<boolean | null>(null);
@@ -47,13 +50,19 @@ export function ProfileSetupPage() {
     }
   };
 
+  const normalizedRealName = realName.trim();
+  const realNameValid = normalizedRealName.length > 0;
+
   const nicknameVerified =
     nicknameAvailable === true && checkedNickname === normalizedNickname;
-  const canSubmit = nicknameVerified;
+  const canSubmit = nicknameVerified && (!isSocialSignup || realNameValid);
 
   const handleSubmit = () => {
     if (!canSubmit) return;
 
+    if (isSocialSignup) {
+      setSignupField("realName", normalizedRealName);
+    }
     setSignupField("avatarId", avatarId);
     setSignupField("avatarImageUrl", null);
     setSignupField("nickname", normalizedNickname);
@@ -71,9 +80,24 @@ export function ProfileSetupPage() {
       <div className="flex flex-1 flex-col px-5 pt-6">
         <h1 className="text-h2 font-semibold text-gray-900">프로필 설정</h1>
 
-        <div className="mt-6">
-          <AvatarPicker size="lg" value={avatarId} onSelect={setAvatarId} />
-        </div>
+        {isSocialSignup && (
+          <div className="mt-6">
+            <div className="mb-1.5 flex items-end gap-1">
+              <label htmlFor="signup-real-name" className="text-body font-normal text-gray-900">
+                실명
+              </label>
+              <span className="text-caption font-normal text-gray-400">
+                *반드시 실명으로 설정하셔야 하며, 가입 후 1회만 변경가능합니다
+              </span>
+            </div>
+            <Input
+              id="signup-real-name"
+              placeholder="홍길동"
+              value={realName}
+              onChange={(e) => setRealName(e.target.value)}
+            />
+          </div>
+        )}
 
         <div className="mt-6">
           <Input
@@ -107,6 +131,10 @@ export function ProfileSetupPage() {
               </button>
             }
           />
+        </div>
+
+        <div className="mt-6">
+          <AvatarPicker size="lg" value={avatarId} onSelect={setAvatarId} />
         </div>
 
         <div className="mt-auto pb-8 pt-8">
