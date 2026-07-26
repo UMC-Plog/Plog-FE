@@ -30,8 +30,8 @@ export function ResetPasswordPage() {
 
   return (
     <div className="app-shell">
-      <div className="px-5 pt-4">
-        <AuthHeader title="" showBack />
+      <AuthHeader title="" showBack />
+      <div className="px-5">
         <ProgressBar total={2} current={2} />
       </div>
 

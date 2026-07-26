@@ -1,5 +1,5 @@
 import { type FormEvent, useState } from "react";
-import { Eye, EyeOff } from "lucide-react";
+import { AlertCircle, Eye, EyeOff } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { AuthHeader } from "../components/AuthHeader";
 import { SocialLoginButton, type SocialProvider } from "../components/SocialLoginButton";
@@ -55,8 +55,16 @@ export function LoginPage() {
   };
 
   const handleSocial = (provider: SocialProvider) => {
-    // TODO: 소셜 로그인 SDK 연동
-    console.info(`[TODO] ${provider} 로그인 연동 필요`);
+    // TODO: 실제 소셜 로그인 SDK 연동 (백엔드 완성 전까지 mock)
+    login({
+      id: crypto.randomUUID(),
+      email: `${provider}@plog.com`,
+      realName: "홍길동",
+      nickname: "바나나",
+      avatarId: null,
+      avatarImageUrl: null,
+    });
+    navigate("/home");
   };
 
   return (
@@ -125,7 +133,11 @@ export function LoginPage() {
 
       <AlertModal
         open={loginFailed}
-        icon={<span className="text-3xl">⚠️</span>}
+        icon={
+          <span className="flex h-[52px] w-[52px] items-center justify-center rounded-full bg-error/10">
+            <AlertCircle className="h-6 w-6 text-error" strokeWidth={2} aria-hidden />
+          </span>
+        }
         title="로그인 실패"
         description="정보를 확인해주세요"
         onConfirm={() => setLoginFailed(false)}

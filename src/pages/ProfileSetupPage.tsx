@@ -1,5 +1,6 @@
 import { useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { AuthHeader } from "../components/AuthHeader";
 import { AvatarPicker, type AvatarPresetId } from "../components/AvatarPicker";
 import { ProgressBar } from "../components/ProgressBar";
 import { Button } from "../components/Button";
@@ -73,7 +74,8 @@ export function ProfileSetupPage() {
 
   return (
     <div className="app-shell">
-      <div className="px-5 pt-4">
+      <AuthHeader title="" showBack />
+      <div className="px-5">
         <ProgressBar total={2} current={2} />
       </div>
 
