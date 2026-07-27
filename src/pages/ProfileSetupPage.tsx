@@ -1,12 +1,16 @@
 import { useRef, useState } from "react";
+import { AlertCircle } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { AuthHeader } from "../components/AuthHeader";
 import { AvatarPicker, type AvatarPresetId } from "../components/AvatarPicker";
 import { ProgressBar } from "../components/ProgressBar";
 import { Button } from "../components/Button";
 import { Input } from "../components/Input";
-import { mockCheckNickname } from "../mocks/nickname";
+import { AlertModal } from "../components/Modal";
 import { useAuthStore } from "../store/authStore";
+import { checkNicknameAvailable, signup, login, type AgreementItem } from "../api/auth";
+import { ApiError } from "../api/client";
+import { toProfilePreset } from "../lib/profilePreset";
 
 export function ProfileSetupPage() {
   const navigate = useNavigate();
@@ -21,6 +25,8 @@ export function ProfileSetupPage() {
   const [checkedNickname, setCheckedNickname] = useState<string | null>(null);
   const [nicknameAvailable, setNicknameAvailable] = useState<boolean | null>(null);
   const [nicknameChecking, setNicknameChecking] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [signupError, setSignupError] = useState<string | null>(null);
   const latestNicknameRef = useRef(nickname);
   const nicknameRequestRef = useRef(0);
 
@@ -34,7 +40,13 @@ export function ProfileSetupPage() {
     const requestId = ++nicknameRequestRef.current;
     setNicknameChecking(true);
     try {
-      const available = await mockCheckNickname(targetNickname);
+      const available = await checkNicknameAvailable(targetNickname)
+        .then(() => true)
+        .catch((err) => {
+          if (err instanceof ApiError) return false;
+          throw err;
+        });
+
       if (
         requestId !== nicknameRequestRef.current ||
         latestNicknameRef.current.trim() !== targetNickname
@@ -58,8 +70,8 @@ export function ProfileSetupPage() {
     nicknameAvailable === true && checkedNickname === normalizedNickname;
   const canSubmit = nicknameVerified && (!isSocialSignup || realNameValid);
 
-  const handleSubmit = () => {
-    if (!canSubmit) return;
+  const handleSubmit = async () => {
+    if (!canSubmit || submitting) return;
 
     if (isSocialSignup) {
       setSignupField("realName", normalizedRealName);
@@ -68,8 +80,44 @@ export function ProfileSetupPage() {
     setSignupField("avatarImageUrl", null);
     setSignupField("nickname", normalizedNickname);
     setSignupField("isNicknameAvailable", true);
-    completeSignup();
-    navigate("/home");
+
+    if (isSocialSignup) {
+      // TODO: 소셜 회원가입 실제 API 연동 (별도 이슈)
+      completeSignup();
+      navigate("/home");
+      return;
+    }
+
+    const draft = useAuthStore.getState().signupDraft;
+    const agreements: AgreementItem[] = [
+      { agreementType: "SERVICE_TERMS", agreed: draft.terms.service },
+      { agreementType: "PRIVACY", agreed: draft.terms.privacy },
+      { agreementType: "EXTERNAL_DATA", agreed: draft.terms.externalTool },
+      { agreementType: "MARKETING", agreed: draft.terms.marketing },
+    ];
+
+    setSubmitting(true);
+    try {
+      await signup({
+        name: draft.realName,
+        email: draft.email,
+        password: draft.password,
+        nickname: normalizedNickname,
+        profilePreset: toProfilePreset(avatarId),
+        agreements,
+      });
+      const tokens = await login(draft.email, draft.password);
+      completeSignup(tokens);
+      navigate("/home");
+    } catch (err) {
+      if (err instanceof ApiError) {
+        setSignupError(err.message);
+      } else {
+        throw err;
+      }
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -140,11 +188,23 @@ export function ProfileSetupPage() {
         </div>
 
         <div className="mt-auto pb-8 pt-8">
-          <Button size="lg" disabled={!canSubmit} onClick={handleSubmit}>
+          <Button size="lg" disabled={!canSubmit || submitting} loading={submitting} onClick={handleSubmit}>
             시작하기
           </Button>
         </div>
       </div>
+
+      <AlertModal
+        open={signupError !== null}
+        icon={
+          <span className="flex h-[52px] w-[52px] items-center justify-center rounded-full bg-error/10">
+            <AlertCircle className="h-6 w-6 text-error" strokeWidth={2} aria-hidden />
+          </span>
+        }
+        title="회원가입에 실패했어요"
+        description={signupError ?? undefined}
+        onConfirm={() => setSignupError(null)}
+      />
     </div>
   );
 }

@@ -7,6 +7,9 @@ import { Button } from "../components/Button";
 import { Input } from "../components/Input";
 import { AlertModal } from "../components/Modal";
 import { useAuthStore } from "../store/authStore";
+import { fetchProfile, login as loginRequest } from "../api/auth";
+import { ApiError } from "../api/client";
+import { toAvatarId } from "../lib/profilePreset";
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -33,25 +36,31 @@ export function LoginPage() {
     if (!canSubmit) return;
 
     setLoading(true);
-    // TODO: 실제 로그인 API 연동 (백엔드 완성 전까지 mock)
-    await new Promise((r) => setTimeout(r, 600));
-    setLoading(false);
+    try {
+      const tokens = await loginRequest(email, password);
+      const profile = await fetchProfile(tokens.accessToken);
 
-    const mockSuccess = password !== "fail"; // 데모용: "fail" 입력 시 실패 케이스 테스트 가능
-    if (!mockSuccess) {
-      setLoginFailed(true);
-      return;
+      login(
+        {
+          id: crypto.randomUUID(),
+          email: profile.email,
+          realName: profile.name,
+          nickname: profile.nickname,
+          avatarId: toAvatarId(profile.profilePreset),
+          avatarImageUrl: null,
+        },
+        tokens
+      );
+      navigate("/home");
+    } catch (err) {
+      if (err instanceof ApiError) {
+        setLoginFailed(true);
+      } else {
+        throw err;
+      }
+    } finally {
+      setLoading(false);
     }
-
-    login({
-      id: crypto.randomUUID(),
-      email,
-      realName: "홍길동",
-      nickname: "바나나",
-      avatarId: null,
-      avatarImageUrl: null,
-    });
-    navigate("/home");
   };
 
   const handleSocial = (provider: SocialProvider) => {
