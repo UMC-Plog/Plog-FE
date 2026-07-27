@@ -68,3 +68,7 @@ export function resetPassword(email: string, newPassword: string, newPasswordCon
     body: { email, newPassword, newPasswordConfirm },
   });
 }
+
+export function logoutRequest(refreshToken: string) {
+  return apiRequest<void>("/api/auth/logout", { method: "POST", body: { refreshToken } });
+}

@@ -5,6 +5,7 @@ import { AVATAR_PRESETS } from "../components/AvatarPicker";
 import { getPersistentProfileImage } from "../lib/profileImage";
 import { cn } from "../lib/utils";
 import { useAuthStore } from "../store/authStore";
+import { logoutRequest } from "../api/auth";
 
 function PlogMark() {
   return (
@@ -129,7 +130,11 @@ export default function MyPage() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => {
+                  onClick={async () => {
+                    const refreshToken = useAuthStore.getState().refreshToken;
+                    if (refreshToken) {
+                      await logoutRequest(refreshToken).catch(() => {});
+                    }
                     logout();
                     navigate("/login", { replace: true });
                   }}

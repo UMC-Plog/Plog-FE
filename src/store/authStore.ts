@@ -60,7 +60,7 @@ const emptySignupDraft: SignupDraft = {
   isNicknameAvailable: false,
 };
 
-interface AuthTokens {
+export interface AuthTokens {
   accessToken: string;
   refreshToken: string;
 }
@@ -74,6 +74,7 @@ interface AuthState {
   // auth actions
   login: (user: AuthUser, tokens?: AuthTokens) => void;
   logout: () => void;
+  setTokens: (tokens: AuthTokens) => void;
   updateProfile: (profile: ProfileUpdate) => void;
 
   // signup draft actions (다단계 진행 중 데이터 유지)
@@ -98,6 +99,7 @@ export const useAuthStore = create<AuthState>()(
           ...(tokens ? { accessToken: tokens.accessToken, refreshToken: tokens.refreshToken } : {}),
         }),
       logout: () => set({ user: null, accessToken: null, refreshToken: null }),
+      setTokens: (tokens) => set({ accessToken: tokens.accessToken, refreshToken: tokens.refreshToken }),
       updateProfile: (profile) =>
         set((state) => ({
           user: state.user
