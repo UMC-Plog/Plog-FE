@@ -5,6 +5,7 @@ import { SocialLoginButton, type SocialProvider } from "../components/SocialLogi
 import emailIcon from "../assets/auth/email.png";
 import plogWordmark from "../assets/auth/plog-wordmark.png";
 import { useAuthStore } from "../store/authStore";
+import { startOAuth } from "../lib/oauth";
 
 export function SignupPage() {
   const navigate = useNavigate();
@@ -16,8 +17,7 @@ export function SignupPage() {
   };
 
   const handleSocial = (provider: SocialProvider) => {
-    setSignupMethod(provider);
-    navigate("/signup/social-consent");
+    startOAuth(provider);
   };
 
   return (
