@@ -53,3 +53,18 @@ export function login(email: string, password: string) {
 export function fetchProfile(accessToken: string) {
   return apiRequest<ProfileResponse>("/api/profile", { accessToken });
 }
+
+export function sendPasswordResetCode(email: string) {
+  return apiRequest<void>("/api/auth/password/email/send", { method: "POST", body: { email } });
+}
+
+export function verifyPasswordResetCode(email: string, code: string) {
+  return apiRequest<void>("/api/auth/password/email/verify", { method: "POST", body: { email, code } });
+}
+
+export function resetPassword(email: string, newPassword: string, newPasswordConfirm: string) {
+  return apiRequest<void>("/api/auth/password/reset", {
+    method: "POST",
+    body: { email, newPassword, newPasswordConfirm },
+  });
+}
