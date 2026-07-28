@@ -8,7 +8,7 @@ import { Button } from "../components/Button";
 import { Input } from "../components/Input";
 import { AlertModal } from "../components/Modal";
 import { useAuthStore } from "../store/authStore";
-import { checkNicknameAvailable, signup, login, type AgreementItem } from "../api/auth";
+import { checkNicknameAvailable, signup, login, oauthSignup, type AgreementItem } from "../api/auth";
 import { ApiError } from "../api/client";
 import { toProfilePreset } from "../lib/profilePreset";
 
@@ -81,13 +81,6 @@ export function ProfileSetupPage() {
     setSignupField("nickname", normalizedNickname);
     setSignupField("isNicknameAvailable", true);
 
-    if (isSocialSignup) {
-      // TODO: 소셜 회원가입 실제 API 연동 (별도 이슈)
-      completeSignup();
-      navigate("/home");
-      return;
-    }
-
     const draft = useAuthStore.getState().signupDraft;
     const agreements: AgreementItem[] = [
       { agreementType: "SERVICE_TERMS", agreed: draft.terms.service },
@@ -96,18 +89,34 @@ export function ProfileSetupPage() {
       { agreementType: "MARKETING", agreed: draft.terms.marketing },
     ];
 
+    if (isSocialSignup && !draft.ticket) {
+      setSignupError("소셜 가입 정보가 없어요. 처음부터 다시 시도해 주세요.");
+      return;
+    }
+
     setSubmitting(true);
     try {
-      await signup({
-        name: draft.realName,
-        email: draft.email,
-        password: draft.password,
-        nickname: normalizedNickname,
-        profilePreset: toProfilePreset(avatarId),
-        agreements,
-      });
-      const tokens = await login(draft.email, draft.password);
-      completeSignup(tokens);
+      if (isSocialSignup) {
+        const tokens = await oauthSignup({
+          ticket: draft.ticket as string,
+          name: normalizedRealName,
+          nickname: normalizedNickname,
+          profilePreset: toProfilePreset(avatarId),
+          agreements,
+        });
+        completeSignup(tokens);
+      } else {
+        await signup({
+          name: draft.realName,
+          email: draft.email,
+          password: draft.password,
+          nickname: normalizedNickname,
+          profilePreset: toProfilePreset(avatarId),
+          agreements,
+        });
+        const tokens = await login(draft.email, draft.password);
+        completeSignup(tokens);
+      }
       navigate("/home");
     } catch (err) {
       if (err instanceof ApiError) {

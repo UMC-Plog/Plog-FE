@@ -22,6 +22,7 @@ import { SignupEmailStepPage } from './pages/SignupEmailStepPage'
 import { ProfileSetupPage } from './pages/ProfileSetupPage'
 import { FindPasswordPage } from './pages/FindPasswordPage'
 import { ResetPasswordPage } from './pages/ResetPasswordPage'
+import { OAuthCallbackPage } from './pages/OAuthCallbackPage'
 import { CreateProjectPage } from './pages/project/CreateProjectPage'
 import { ProfileEditPage } from './pages/my/ProfileEditPage'
 import { AccountConnectionsPage } from './pages/my/AccountConnectionsPage'
@@ -45,6 +46,7 @@ function App() {
         <Route path="/signup/profile" element={<ProfileSetupPage />} />
         <Route path="/find-password" element={<FindPasswordPage />} />
         <Route path="/reset-password" element={<ResetPasswordPage />} />
+        <Route path="/oauth/:provider" element={<OAuthCallbackPage />} />
 
         {/* 하단 탭바가 있는 화면들 */}
         <Route element={<BottomTabBar />}>

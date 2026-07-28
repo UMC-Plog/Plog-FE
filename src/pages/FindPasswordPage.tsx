@@ -1,10 +1,13 @@
 import { useState } from "react";
-import { Headphones, Info } from "lucide-react";
+import { AlertCircle, Headphones, Info } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { AuthHeader } from "../components/AuthHeader";
 import { ProgressBar } from "../components/ProgressBar";
 import { Button } from "../components/Button";
 import { Input } from "../components/Input";
+import { AlertModal } from "../components/Modal";
+import { sendPasswordResetCode, verifyPasswordResetCode } from "../api/auth";
+import { ApiError } from "../api/client";
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -12,34 +15,59 @@ export function FindPasswordPage() {
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [sent, setSent] = useState(false);
+  const [sending, setSending] = useState(false);
+  const [sendErrorMessage, setSendErrorMessage] = useState<string | null>(null);
   const [code, setCode] = useState("");
-  const [codeError, setCodeError] = useState(false);
+  const [codeError, setCodeError] = useState<string | undefined>(undefined);
+  const [verifying, setVerifying] = useState(false);
   const [verified, setVerified] = useState(false);
 
   const emailValid = EMAIL_REGEX.test(email);
 
-  const handleSendCode = () => {
-    if (!emailValid) return;
-    setSent(true);
-    setCode("");
-    setCodeError(false);
-    setVerified(false);
-    // TODO: 실제 인증코드 발송 API 연동
+  const handleSendCode = async () => {
+    if (!emailValid || sending) return;
+
+    setSending(true);
+    try {
+      await sendPasswordResetCode(email.trim());
+      setSent(true);
+      setCode("");
+      setCodeError(undefined);
+      setVerified(false);
+    } catch (err) {
+      if (err instanceof ApiError) {
+        setSendErrorMessage(err.message);
+      } else {
+        throw err;
+      }
+    } finally {
+      setSending(false);
+    }
   };
 
-  const handleVerify = () => {
-    // TODO: 실제 인증코드 검증 API 연동 (데모: 6자리면 통과)
-    if (code.trim().length === 6) {
+  const handleVerify = async () => {
+    if (code.trim().length !== 6 || verifying) return;
+
+    setVerifying(true);
+    try {
+      await verifyPasswordResetCode(email.trim(), code.trim());
       setVerified(true);
-      setCodeError(false);
-    } else {
-      setCodeError(true);
+      setCodeError(undefined);
+    } catch (err) {
+      if (err instanceof ApiError) {
+        setVerified(false);
+        setCodeError(err.message);
+      } else {
+        throw err;
+      }
+    } finally {
+      setVerifying(false);
     }
   };
 
   const handleNext = () => {
     if (!verified) return;
-    navigate("/reset-password");
+    navigate("/reset-password", { state: { email: email.trim() } });
   };
 
   return (
@@ -66,7 +94,13 @@ export function FindPasswordPage() {
             }}
           />
 
-          <Button variant="primary" size="lg" onClick={handleSendCode} disabled={!emailValid}>
+          <Button
+            variant="primary"
+            size="lg"
+            onClick={handleSendCode}
+            disabled={!emailValid || sending}
+            loading={sending}
+          >
             인증 코드 발송
           </Button>
 
@@ -92,19 +126,19 @@ export function FindPasswordPage() {
                 value={code}
                 onChange={(e) => {
                   setCode(e.target.value);
-                  setCodeError(false);
+                  setCodeError(undefined);
                   setVerified(false);
                 }}
                 maxLength={6}
-                errorText={codeError ? "인증코드가 올바르지 않아요" : undefined}
+                errorText={codeError}
                 suffix={
                   <button
                     type="button"
                     onClick={handleVerify}
-                    disabled={code.trim().length !== 6}
+                    disabled={code.trim().length !== 6 || verifying}
                     className="h-9 shrink-0 rounded-md bg-blue-500 px-3 text-body-sm font-normal text-white disabled:bg-gray-100 disabled:text-gray-400"
                   >
-                    확인
+                    {verifying ? "확인 중" : "확인"}
                   </button>
                 }
               />
@@ -136,6 +170,18 @@ export function FindPasswordPage() {
           </div>
         </div>
       </div>
+
+      <AlertModal
+        open={sendErrorMessage !== null}
+        icon={
+          <span className="flex h-[52px] w-[52px] items-center justify-center rounded-full bg-error/10">
+            <AlertCircle className="h-6 w-6 text-error" strokeWidth={2} aria-hidden />
+          </span>
+        }
+        title="인증코드를 발송하지 못했어요"
+        description={sendErrorMessage ?? undefined}
+        onConfirm={() => setSendErrorMessage(null)}
+      />
     </div>
   );
 }
