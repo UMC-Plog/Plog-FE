@@ -60,12 +60,19 @@ const emptySignupDraft: SignupDraft = {
   isNicknameAvailable: false,
 };
 
+interface AuthTokens {
+  accessToken: string;
+  refreshToken: string;
+}
+
 interface AuthState {
   user: AuthUser | null;
+  accessToken: string | null;
+  refreshToken: string | null;
   signupDraft: SignupDraft;
 
   // auth actions
-  login: (user: AuthUser) => void;
+  login: (user: AuthUser, tokens?: AuthTokens) => void;
   logout: () => void;
   updateProfile: (profile: ProfileUpdate) => void;
 
@@ -74,17 +81,23 @@ interface AuthState {
   setTerms: (terms: Partial<TermsAgreement>) => void;
   setSignupField: <K extends keyof SignupDraft>(key: K, value: SignupDraft[K]) => void;
   resetSignupDraft: () => void;
-  completeSignup: () => AuthUser;
+  completeSignup: (tokens?: AuthTokens) => AuthUser;
 }
 
 export const useAuthStore = create<AuthState>()(
   persist(
     (set, get) => ({
       user: null,
+      accessToken: null,
+      refreshToken: null,
       signupDraft: emptySignupDraft,
 
-      login: (user) => set({ user }),
-      logout: () => set({ user: null }),
+      login: (user, tokens) =>
+        set({
+          user,
+          ...(tokens ? { accessToken: tokens.accessToken, refreshToken: tokens.refreshToken } : {}),
+        }),
+      logout: () => set({ user: null, accessToken: null, refreshToken: null }),
       updateProfile: (profile) =>
         set((state) => ({
           user: state.user
@@ -110,7 +123,7 @@ export const useAuthStore = create<AuthState>()(
 
       resetSignupDraft: () => set({ signupDraft: emptySignupDraft }),
 
-      completeSignup: () => {
+      completeSignup: (tokens) => {
         const draft = get().signupDraft;
         const newUser: AuthUser = {
           id: crypto.randomUUID(),
@@ -120,14 +133,21 @@ export const useAuthStore = create<AuthState>()(
           avatarId: draft.avatarId,
           avatarImageUrl: getPersistentProfileImage(draft.avatarImageUrl),
         };
-        set({ user: newUser });
+        set({
+          user: newUser,
+          ...(tokens ? { accessToken: tokens.accessToken, refreshToken: tokens.refreshToken } : {}),
+        });
         get().resetSignupDraft();
         return newUser;
       },
     }),
     {
       name: "plog-auth-storage",
-      partialize: (state) => ({ user: state.user }), // signupDraft는 새로고침 시 굳이 유지 안 함
+      partialize: (state) => ({
+        user: state.user,
+        accessToken: state.accessToken,
+        refreshToken: state.refreshToken,
+      }), // signupDraft는 새로고침 시 굳이 유지 안 함
       merge: (persistedState, currentState) => {
         const persisted = (persistedState ?? {}) as Partial<AuthState>;
         const persistedUser = persisted.user;

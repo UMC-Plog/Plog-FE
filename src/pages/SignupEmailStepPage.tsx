@@ -14,10 +14,10 @@ import { Button } from "../components/Button";
 import { Input } from "../components/Input";
 import { AlertModal } from "../components/Modal";
 import { useAuthStore } from "../store/authStore";
+import { sendEmailVerificationCode, verifyEmailCode } from "../api/auth";
+import { ApiError } from "../api/client";
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-// TODO: 실제 API 연동 시 서버 중복확인 엔드포인트로 교체
-const REGISTERED_EMAILS = ["hello@plog.com"];
 
 const initialTerms: TermsState = {
   service: false,
@@ -42,7 +42,10 @@ export function SignupEmailStepPage() {
   const [realName, setRealName] = useState("");
   const [email, setEmail] = useState("");
   const [emailSent, setEmailSent] = useState(false);
+  const [sendingCode, setSendingCode] = useState(false);
   const [code, setCode] = useState("");
+  const [codeError, setCodeError] = useState<string | undefined>(undefined);
+  const [verifyingCode, setVerifyingCode] = useState(false);
   const [emailVerified, setEmailVerified] = useState(false);
   const [password, setPassword] = useState("");
   const [passwordConfirm, setPasswordConfirm] = useState("");
@@ -75,20 +78,40 @@ export function SignupEmailStepPage() {
     setStep("info");
   };
 
-  const handleSendCode = () => {
-    if (!emailFormatValid) return;
-    if (REGISTERED_EMAILS.includes(email.trim())) {
-      setAlreadyRegistered(true);
-      return;
+  const handleSendCode = async () => {
+    if (!emailFormatValid || sendingCode) return;
+
+    setSendingCode(true);
+    try {
+      await sendEmailVerificationCode(email.trim());
+      setEmailSent(true);
+    } catch (err) {
+      if (err instanceof ApiError) {
+        setAlreadyRegistered(true);
+      } else {
+        throw err;
+      }
+    } finally {
+      setSendingCode(false);
     }
-    setEmailSent(true);
-    // TODO: 실제 이메일 인증 코드 발송 API 연동
   };
 
-  const handleVerifyCode = () => {
-    // TODO: 실제 인증코드 검증 API 연동 (데모: 6자리면 통과)
-    if (code.trim().length === 6) {
+  const handleVerifyCode = async () => {
+    if (code.trim().length !== 6 || verifyingCode) return;
+
+    setVerifyingCode(true);
+    try {
+      await verifyEmailCode(email.trim(), code.trim());
       setEmailVerified(true);
+      setCodeError(undefined);
+    } catch (err) {
+      if (err instanceof ApiError) {
+        setCodeError(err.message);
+      } else {
+        throw err;
+      }
+    } finally {
+      setVerifyingCode(false);
     }
   };
 
@@ -155,10 +178,10 @@ export function SignupEmailStepPage() {
                 <button
                   type="button"
                   onClick={handleSendCode}
-                  disabled={!emailFormatValid}
+                  disabled={!emailFormatValid || sendingCode}
                   className="h-9 shrink-0 rounded-md bg-blue-500 px-3 text-body-sm font-semibold text-white disabled:bg-gray-200 disabled:text-gray-400"
                 >
-                  코드 전송
+                  {sendingCode ? "전송 중" : "코드 전송"}
                 </button>
               }
             />
@@ -168,17 +191,22 @@ export function SignupEmailStepPage() {
                 label="인증번호 확인"
                 placeholder="인증번호 입력"
                 value={code}
-                onChange={(e) => setCode(e.target.value)}
+                onChange={(e) => {
+                  setCode(e.target.value);
+                  setCodeError(undefined);
+                  setEmailVerified(false);
+                }}
                 maxLength={6}
+                errorText={codeError}
                 successText={emailVerified ? "인증이 완료되었습니다" : undefined}
                 suffix={
                   <button
                     type="button"
                     onClick={handleVerifyCode}
-                    disabled={code.trim().length !== 6}
+                    disabled={code.trim().length !== 6 || verifyingCode}
                     className="h-9 shrink-0 rounded-md bg-blue-500 px-3 text-body-sm font-semibold text-white disabled:bg-gray-200 disabled:text-gray-400"
                   >
-                    확인
+                    {verifyingCode ? "확인 중" : "확인"}
                   </button>
                 }
               />
@@ -277,7 +305,7 @@ export function SignupEmailStepPage() {
       <AlertModal
         open={completeModalOpen}
         icon={<span className="text-3xl">✅</span>}
-        title="회원가입이 완료되었어요"
+        title="이메일 인증이 완료되었어요"
         description="이어서 프로필을 설정해 주세요"
         confirmText="다음"
         onConfirm={() => navigate("/signup/profile")}
