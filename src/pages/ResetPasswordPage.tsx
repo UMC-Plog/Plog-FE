@@ -1,20 +1,33 @@
-import { useState } from "react";
-import { Eye, EyeOff, Headphones } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { AlertCircle, Eye, EyeOff, Headphones } from "lucide-react";
+import { useLocation, useNavigate } from "react-router-dom";
 import { AuthHeader } from "../components/AuthHeader";
 import { PasswordStrengthBar } from "../components/PasswordStrengthBar";
 import { ProgressBar } from "../components/ProgressBar";
 import { Button } from "../components/Button";
 import { Input } from "../components/Input";
 import { AlertModal } from "../components/Modal";
+import { resetPassword } from "../api/auth";
+import { ApiError } from "../api/client";
 
 export function ResetPasswordPage() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const email = (location.state as { email?: string } | null)?.email;
+
   const [password, setPassword] = useState("");
   const [passwordConfirm, setPasswordConfirm] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [showPasswordConfirm, setShowPasswordConfirm] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const [done, setDone] = useState(false);
+
+  useEffect(() => {
+    if (!email) {
+      navigate("/find-password", { replace: true });
+    }
+  }, [email, navigate]);
 
   const mismatch =
     passwordConfirm.length > 0 && password !== passwordConfirm
@@ -22,10 +35,22 @@ export function ResetPasswordPage() {
       : undefined;
   const canSubmit = password.length >= 8 && password === passwordConfirm;
 
-  const handleSubmit = () => {
-    if (!canSubmit) return;
-    // TODO: 실제 비밀번호 재설정 API 연동
-    setDone(true);
+  const handleSubmit = async () => {
+    if (!canSubmit || submitting || !email) return;
+
+    setSubmitting(true);
+    try {
+      await resetPassword(email, password, passwordConfirm);
+      setDone(true);
+    } catch (err) {
+      if (err instanceof ApiError) {
+        setSubmitError(err.message);
+      } else {
+        throw err;
+      }
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -82,7 +107,7 @@ export function ResetPasswordPage() {
         </div>
 
         <div className="mt-auto pb-8 pt-8">
-          <Button size="lg" disabled={!canSubmit} onClick={handleSubmit}>
+          <Button size="lg" disabled={!canSubmit || submitting} loading={submitting} onClick={handleSubmit}>
             완료
           </Button>
 
@@ -115,6 +140,18 @@ export function ResetPasswordPage() {
         description="새 비밀번호로 로그인해 주세요"
         confirmText="로그인 하러가기"
         onConfirm={() => navigate("/login")}
+      />
+
+      <AlertModal
+        open={submitError !== null}
+        icon={
+          <span className="flex h-[52px] w-[52px] items-center justify-center rounded-full bg-error/10">
+            <AlertCircle className="h-6 w-6 text-error" strokeWidth={2} aria-hidden />
+          </span>
+        }
+        title="비밀번호 재설정에 실패했어요"
+        description={submitError ?? undefined}
+        onConfirm={() => setSubmitError(null)}
       />
     </div>
   );
