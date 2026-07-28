@@ -72,3 +72,30 @@ export function resetPassword(email: string, newPassword: string, newPasswordCon
 export function logoutRequest(refreshToken: string) {
   return apiRequest<void>("/api/auth/logout", { method: "POST", body: { refreshToken } });
 }
+
+export interface SocialLoginResponse {
+  status: "LOGIN" | "SIGNUP_REQUIRED";
+  accessToken: string | null;
+  refreshToken: string | null;
+  ticket: string | null;
+  email: string | null;
+}
+
+export interface SocialSignupRequest {
+  ticket: string;
+  name: string;
+  nickname: string;
+  profilePreset: ProfilePreset | null;
+  agreements: AgreementItem[];
+}
+
+export function oauthLogin(provider: "kakao" | "google", code: string) {
+  return apiRequest<SocialLoginResponse>(`/api/auth/oauth/${provider}`, {
+    method: "POST",
+    body: { code },
+  });
+}
+
+export function oauthSignup(payload: SocialSignupRequest) {
+  return apiRequest<TokenResponse>("/api/auth/oauth/signup", { method: "POST", body: payload });
+}

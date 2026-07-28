@@ -38,6 +38,7 @@ interface SignupDraft {
   avatarImageUrl: string | null;
   nickname: string;
   isNicknameAvailable: boolean;
+  ticket: string | null;
 }
 
 const emptyTerms: TermsAgreement = {
@@ -57,6 +58,7 @@ const emptySignupDraft: SignupDraft = {
   avatarId: null,
   avatarImageUrl: null,
   nickname: "",
+  ticket: null,
   isNicknameAvailable: false,
 };
 

@@ -10,6 +10,7 @@ import { useAuthStore } from "../store/authStore";
 import { fetchProfile, login as loginRequest } from "../api/auth";
 import { ApiError } from "../api/client";
 import { toAvatarId } from "../lib/profilePreset";
+import { startOAuth } from "../lib/oauth";
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -64,16 +65,7 @@ export function LoginPage() {
   };
 
   const handleSocial = (provider: SocialProvider) => {
-    // TODO: 실제 소셜 로그인 SDK 연동 (백엔드 완성 전까지 mock)
-    login({
-      id: crypto.randomUUID(),
-      email: `${provider}@plog.com`,
-      realName: "홍길동",
-      nickname: "바나나",
-      avatarId: null,
-      avatarImageUrl: null,
-    });
-    navigate("/home");
+    startOAuth(provider);
   };
 
   return (
