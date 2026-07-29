@@ -21,6 +21,9 @@ export default function ProjectTabBar() {
       <TopNavBar
         title={project?.name ?? '프로젝트'}
         onBack={() => navigate('/home')}
+        onSettingsClick={() => {
+          if (projectId) navigate(`/project/${projectId}/settings`)
+        }}
       />
 
       <nav className="border-b border-gray-200 bg-white">

@@ -1,14 +1,16 @@
-import { ChevronLeft } from 'lucide-react'
+import { ChevronLeft, Settings } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 
 interface TopNavBarProps {
   title: string
   onBack?: () => void
+  onSettingsClick?: () => void
 }
 
 export function TopNavBar({
   title,
   onBack,
+  onSettingsClick,
 }: TopNavBarProps) {
   const navigate = useNavigate()
 
@@ -27,7 +29,18 @@ export function TopNavBar({
         {title}
       </h1>
 
-      <span className="h-10 w-10 shrink-0" aria-hidden />
+      {onSettingsClick ? (
+        <button
+          type="button"
+          aria-label="프로젝트 설정"
+          onClick={onSettingsClick}
+          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-gray-600 hover:bg-gray-50"
+        >
+          <Settings className="h-5 w-5" aria-hidden />
+        </button>
+      ) : (
+        <span className="h-10 w-10 shrink-0" aria-hidden />
+      )}
     </header>
   )
 }
