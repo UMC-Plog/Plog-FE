@@ -3,11 +3,16 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { AVATAR_PRESETS } from '../../../components/AvatarPicker'
 import { ApiError } from '../../../api/client'
-import { deletePost as requestDeletePost } from '../../../api/postApi'
+import {
+  deletePost as requestDeletePost,
+  likePost,
+  unlikePost,
+} from '../../../api/postApi'
 import { Button } from '../../../components/Button'
 import { ConfirmDialog } from '../../../components/ConfirmDialog'
 import { Input } from '../../../components/Input'
 import { Layout } from '../../../components/Layout'
+import { AlertModal } from '../../../components/Modal'
 import { TopNavBar } from '../../../components/TopNavBar'
 import { usePostStore } from '../../../store/postStore'
 import { useAuthStore } from '../../../store/authStore'
@@ -46,15 +51,19 @@ export default function PostDetailPage() {
   const posts = usePostStore((state) => state.posts)
   const allComments = usePostStore((state) => state.comments)
   const addComment = usePostStore((state) => state.addComment)
-  const togglePostLike = usePostStore((state) => state.togglePostLike)
   const user = useAuthStore((state) => state.user)
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
   const [deleteError, setDeleteError] = useState<string>()
+  const [isLiked, setIsLiked] = useState(false)
+  const [likeCount, setLikeCount] = useState(0)
+  const [isLikeSubmitting, setIsLikeSubmitting] = useState(false)
+  const [likeError, setLikeError] = useState<string>()
   const [commentContent, setCommentContent] = useState('')
   const menuRef = useRef<HTMLDivElement>(null)
   const deletingRef = useRef(false)
+  const likeSubmittingRef = useRef(false)
 
   const post = posts.find((item) => item.id === postId && item.projectId === projectId)
   const comments = useMemo(
@@ -66,7 +75,15 @@ export default function PostDetailPage() {
         : [],
     [allComments, postId]
   )
-  const isLiked = Boolean(user && post?.likedUserIds?.includes(user.id))
+  const storedIsLiked = Boolean(user && post?.likedUserIds?.includes(user.id))
+
+  useEffect(() => {
+    setIsLiked(storedIsLiked)
+    setLikeCount(post?.likeCount ?? 0)
+    setLikeError(undefined)
+    likeSubmittingRef.current = false
+    setIsLikeSubmitting(false)
+  }, [post?.id, post?.likeCount, post?.projectId, storedIsLiked])
 
   useEffect(() => {
     if (!isMenuOpen) return
@@ -133,6 +150,45 @@ export default function PostDetailPage() {
     if (deletingRef.current) return
     setDeleteError(undefined)
     setIsDeleteDialogOpen(false)
+  }
+
+  const handleLike = async () => {
+    if (!user || likeSubmittingRef.current) return
+
+    const numericProjectId =
+      projectId && /^[1-9]\d*$/.test(projectId) && Number.isSafeInteger(Number(projectId))
+        ? Number(projectId)
+        : null
+    const numericPostId =
+      postId && /^[1-9]\d*$/.test(postId) && Number.isSafeInteger(Number(postId))
+        ? Number(postId)
+        : null
+
+    if (numericProjectId === null || numericPostId === null) {
+      setLikeError('올바른 게시글 경로가 아니어서 좋아요를 변경할 수 없습니다.')
+      return
+    }
+
+    likeSubmittingRef.current = true
+    setIsLikeSubmitting(true)
+    setLikeError(undefined)
+
+    try {
+      const response = isLiked
+        ? await unlikePost(numericProjectId, numericPostId)
+        : await likePost(numericProjectId, numericPostId)
+      setIsLiked(response.liked)
+      setLikeCount(response.likeCount)
+    } catch (error: unknown) {
+      setLikeError(
+        error instanceof ApiError
+          ? error.message
+          : '네트워크 상태를 확인한 뒤 다시 시도해 주세요.'
+      )
+    } finally {
+      likeSubmittingRef.current = false
+      setIsLikeSubmitting(false)
+    }
   }
 
   const handleAddComment = () => {
@@ -241,8 +297,8 @@ export default function PostDetailPage() {
           )}
 
           <div className="mt-5 flex items-center gap-4 text-caption font-normal text-gray-400">
-            <button type="button" disabled={!user} aria-pressed={isLiked} onClick={() => user && projectId && postId && togglePostLike(projectId, postId, user.id)} className={`flex items-center gap-1 disabled:cursor-not-allowed ${isLiked ? 'text-error' : 'text-gray-400'}`}>
-              <Heart className={`h-4 w-4 ${isLiked ? 'fill-current' : ''}`} aria-hidden />{post.likeCount}
+            <button type="button" disabled={!user || isLikeSubmitting} aria-pressed={isLiked} onClick={() => void handleLike()} className={`flex items-center gap-1 disabled:cursor-not-allowed ${isLiked ? 'text-error' : 'text-gray-400'}`}>
+              <Heart className={`h-4 w-4 ${isLiked ? 'fill-current' : ''}`} aria-hidden />{likeCount}
             </button>
             <span className="flex items-center gap-1"><MessageSquare className="h-4 w-4" aria-hidden />{post.commentCount}</span>
           </div>
@@ -308,6 +364,12 @@ export default function PostDetailPage() {
         confirmDisabled={isDeleting}
         onConfirm={() => void handleConfirmDelete()}
         onCancel={handleCancelDelete}
+      />
+      <AlertModal
+        open={Boolean(likeError)}
+        title="좋아요를 변경하지 못했어요"
+        description={likeError}
+        onConfirm={() => setLikeError(undefined)}
       />
     </Layout>
   )

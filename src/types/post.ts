@@ -77,3 +77,15 @@ export interface ServerPostCreateResponse {
 export interface ServerPostDeleteResponse {
   deleted?: boolean
 }
+
+export interface ServerPostLikeResponse {
+  postId?: number
+  liked?: boolean
+  likeCount?: number
+}
+
+export interface PostLikeResult {
+  postId: number
+  liked: boolean
+  likeCount: number
+}

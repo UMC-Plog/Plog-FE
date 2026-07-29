@@ -1,7 +1,10 @@
 import { FileText, Heart, Image, Link, MessageSquare, UserRound } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
+import { ApiError } from '../../api/client'
+import { likePost, unlikePost } from '../../api/postApi'
 import { AVATAR_PRESETS } from '../AvatarPicker'
+import { AlertModal } from '../Modal'
 import { useAuthStore } from '../../store/authStore'
-import { usePostStore } from '../../store/postStore'
 import type { Post } from '../../types/post'
 
 interface PostFeedItemProps {
@@ -28,15 +31,68 @@ function formatFileSize(size?: number) {
 
 export function PostFeedItem({ post, onClick }: PostFeedItemProps) {
   const user = useAuthStore((state) => state.user)
-  const togglePostLike = usePostStore((state) => state.togglePostLike)
   const avatarPreset = AVATAR_PRESETS.find((avatar) => avatar.id === post.author.avatarId)
   const avatarSrc = post.author.avatarImageUrl ?? avatarPreset?.src
   const attachment = post.attachments[0]
   const AttachmentIcon = attachment?.type === 'link' ? Link : attachment?.type === 'image' ? Image : FileText
-  const isLiked = Boolean(user && post.likedUserIds?.includes(user.id))
+  const initialIsLiked = Boolean(user && post.likedUserIds?.includes(user.id))
+  const [isLiked, setIsLiked] = useState(initialIsLiked)
+  const [likeCount, setLikeCount] = useState(post.likeCount)
+  const [isLikeSubmitting, setIsLikeSubmitting] = useState(false)
+  const [likeError, setLikeError] = useState<string>()
+  const likeSubmittingRef = useRef(false)
+
+  useEffect(() => {
+    setIsLiked(initialIsLiked)
+    setLikeCount(post.likeCount)
+    setLikeError(undefined)
+    likeSubmittingRef.current = false
+    setIsLikeSubmitting(false)
+  }, [initialIsLiked, post.id, post.likeCount, post.projectId])
+
+  const handleLike = async () => {
+    if (!user || likeSubmittingRef.current) return
+
+    const numericProjectId =
+      /^[1-9]\d*$/.test(post.projectId) &&
+      Number.isSafeInteger(Number(post.projectId))
+        ? Number(post.projectId)
+        : null
+    const numericPostId =
+      /^[1-9]\d*$/.test(post.id) && Number.isSafeInteger(Number(post.id))
+        ? Number(post.id)
+        : null
+
+    if (numericProjectId === null || numericPostId === null) {
+      setLikeError('올바른 게시글 경로가 아니어서 좋아요를 변경할 수 없습니다.')
+      return
+    }
+
+    likeSubmittingRef.current = true
+    setIsLikeSubmitting(true)
+    setLikeError(undefined)
+
+    try {
+      const response = isLiked
+        ? await unlikePost(numericProjectId, numericPostId)
+        : await likePost(numericProjectId, numericPostId)
+      setIsLiked(response.liked)
+      setLikeCount(response.likeCount)
+    } catch (error: unknown) {
+      setLikeError(
+        error instanceof ApiError
+          ? error.message
+          : '네트워크 상태를 확인한 뒤 다시 시도해 주세요.'
+      )
+    } finally {
+      likeSubmittingRef.current = false
+      setIsLikeSubmitting(false)
+    }
+  }
 
   return (
-    <article
+    <>
+      <article
       role="link"
       tabIndex={0}
       onClick={onClick}
@@ -84,12 +140,12 @@ export function PostFeedItem({ post, onClick }: PostFeedItemProps) {
       <div className="mt-4 flex items-center gap-4 text-caption font-normal text-gray-400">
         <button
           type="button"
-          disabled={!user}
+          disabled={!user || isLikeSubmitting}
           aria-label={isLiked ? '게시글 좋아요 취소' : '게시글 좋아요'}
           aria-pressed={isLiked}
           onClick={(event) => {
             event.stopPropagation()
-            if (user) togglePostLike(post.projectId, post.id, user.id)
+            void handleLike()
           }}
           onKeyDown={(event) => event.stopPropagation()}
           className={`flex cursor-pointer items-center gap-1 rounded-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-300 disabled:cursor-not-allowed ${
@@ -97,13 +153,20 @@ export function PostFeedItem({ post, onClick }: PostFeedItemProps) {
           }`}
         >
           <Heart className={`h-4 w-4 ${isLiked ? 'fill-current' : ''}`} aria-hidden />
-          {post.likeCount}
+          {likeCount}
         </button>
         <span className="flex items-center gap-1">
           <MessageSquare className="h-4 w-4" aria-hidden />
           {post.commentCount}
         </span>
       </div>
-    </article>
+      </article>
+      <AlertModal
+        open={Boolean(likeError)}
+        title="좋아요를 변경하지 못했어요"
+        description={likeError}
+        onConfirm={() => setLikeError(undefined)}
+      />
+    </>
   )
 }
