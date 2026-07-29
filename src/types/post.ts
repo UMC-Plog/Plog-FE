@@ -43,3 +43,33 @@ export type CreatePostInput = Pick<
 >
 
 export type CreateCommentInput = Pick<PostComment, 'postId' | 'author' | 'content'>
+
+export type ServerPostAttachmentType = 'FILE' | 'LINK'
+
+export interface ServerPostAttachmentRequest {
+  attachmentType?: ServerPostAttachmentType
+  fileName?: string
+  fileSize?: number
+  fileKey?: string
+  fileId?: number
+  linkUrl?: string
+}
+
+export interface ServerPostCreateRequest {
+  content: string
+  isNotice?: boolean
+  attachments?: ServerPostAttachmentRequest[]
+}
+
+export interface ServerPostCreateResponse {
+  postId?: number
+  projectId?: number
+  projectMemberId?: number
+  content?: string
+  isNotice?: boolean
+  likeCount?: number
+  commentCount?: number
+  likedByMe?: boolean
+  attachments?: unknown[]
+  createdAt?: string
+}

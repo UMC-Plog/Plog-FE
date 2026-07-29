@@ -6,6 +6,8 @@ import { Button } from '../../../components/Button'
 import { Input } from '../../../components/Input'
 import { Layout } from '../../../components/Layout'
 import { TextArea } from '../../../components/TextArea'
+import { ApiError } from '../../../api/client'
+import { createPost as requestCreatePost } from '../../../api/postApi'
 import {
   isAttachmentSizeValid,
   MAX_ATTACHMENT_SIZE_ERROR,
@@ -20,7 +22,6 @@ export default function PostFormPage() {
   const navigate = useNavigate()
   const user = useAuthStore((state) => state.user)
   const posts = usePostStore((state) => state.posts)
-  const createPost = usePostStore((state) => state.createPost)
   const updatePost = usePostStore((state) => state.updatePost)
   const existingPost = posts.find(
     (post) => post.id === postId && post.projectId === projectId
@@ -39,17 +40,35 @@ export default function PostFormPage() {
   const [linkError, setLinkError] = useState<string>()
   const [attachmentError, setAttachmentError] = useState<string>()
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [contentTouched, setContentTouched] = useState(false)
+  const [submitError, setSubmitError] = useState<string>()
 
   const author = existingPost?.author ?? user
   const avatarPreset = AVATAR_PRESETS.find((avatar) => avatar.id === author?.avatarId)
   const avatarSrc = author?.avatarImageUrl ?? avatarPreset?.src
   const authorName = existingPost?.author.nickname || user?.nickname || user?.realName || '사용자'
+  const normalizedContent = content.trim()
+  const numericProjectId =
+    projectId && /^[1-9]\d*$/.test(projectId) && Number.isSafeInteger(Number(projectId))
+      ? Number(projectId)
+      : null
+  const contentError =
+    contentTouched && normalizedContent.length === 0
+      ? '게시글 내용을 입력해 주세요'
+      : normalizedContent.length > 5000
+        ? '게시글 내용은 5000자 이하로 입력해 주세요'
+        : undefined
+  const projectIdError =
+    !isEditMode && numericProjectId === null
+      ? '올바른 프로젝트 ID가 아니어서 게시글을 작성할 수 없습니다.'
+      : undefined
   const canSubmit = Boolean(
-    projectId &&
-      title.trim() &&
-      content.trim() &&
-      !isSubmitting &&
-      (isEditMode ? existingPost : user)
+    !isSubmitting &&
+      (isEditMode
+        ? projectId && title.trim() && normalizedContent && existingPost
+        : numericProjectId !== null &&
+          normalizedContent.length >= 1 &&
+          normalizedContent.length <= 5000)
   )
 
   const goToFeed = () => {
@@ -107,36 +126,43 @@ export default function PostFormPage() {
     }
   }
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!canSubmit || !projectId || submittingRef.current) return
     submittingRef.current = true
     setIsSubmitting(true)
+    setSubmitError(undefined)
 
     if (isEditMode && postId) {
       updatePost(projectId, postId, {
         title: title.trim(),
-        content: content.trim(),
+        content: normalizedContent,
         attachments,
       })
       navigate(`/project/${projectId}/posts/${postId}`, { replace: true })
       return
     }
 
-    if (!user) return
+    if (numericProjectId === null) {
+      setSubmitError('올바른 프로젝트 ID가 아니어서 게시글을 작성할 수 없습니다.')
+      setIsSubmitting(false)
+      submittingRef.current = false
+      return
+    }
 
-    createPost({
-      projectId,
-      title: title.trim(),
-      content: content.trim(),
-      author: {
-        id: user.id,
-        nickname: authorName,
-        avatarId: user.avatarId,
-        avatarImageUrl: user.avatarImageUrl,
-      },
-      attachments,
-    })
-    goToFeed()
+    try {
+      await requestCreatePost(numericProjectId, {
+        content: normalizedContent,
+      })
+      navigate(`/project/${projectId}/feed`, { replace: true })
+    } catch (error: unknown) {
+      setSubmitError(
+        error instanceof ApiError
+          ? error.message
+          : '네트워크 상태를 확인한 뒤 다시 시도해 주세요.'
+      )
+      setIsSubmitting(false)
+      submittingRef.current = false
+    }
   }
 
   if (isEditMode && !existingPost) {
@@ -165,8 +191,8 @@ export default function PostFormPage() {
           취소
         </Button>
         <h1 className="text-center text-body font-semibold text-gray-900">게시글 작성</h1>
-        <Button type="button" size="sm" fullWidth={false} disabled={!canSubmit} onClick={handleSubmit} className="justify-self-end text-white">
-          게시
+        <Button type="button" size="sm" fullWidth={false} disabled={!canSubmit} onClick={() => void handleSubmit()} className="justify-self-end text-white">
+          {isSubmitting ? '게시 중' : '게시'}
         </Button>
       </header>
 
@@ -186,10 +212,32 @@ export default function PostFormPage() {
         </div>
 
         <div className="space-y-4">
-          <Input aria-label="게시글 제목" placeholder="게시글 제목을 입력하세요" value={title} onChange={(event) => setTitle(event.target.value)} />
-          <TextArea aria-label="게시글 내용" placeholder={'팀원들에게 공유할 내용을 입력하세요\n@멘션, 파일 첨부가 가능합니다'} value={content} onChange={(event) => setContent(event.target.value)} className="min-h-60" />
+          {isEditMode && (
+            <Input aria-label="게시글 제목" placeholder="게시글 제목을 입력하세요" value={title} onChange={(event) => setTitle(event.target.value)} />
+          )}
+          <TextArea
+            aria-label="게시글 내용"
+            placeholder="팀원들에게 공유할 내용을 입력하세요"
+            value={content}
+            maxLength={5000}
+            errorText={contentError}
+            onBlur={() => setContentTouched(true)}
+            onChange={(event) => {
+              setContent(event.target.value)
+              setSubmitError(undefined)
+            }}
+            className="min-h-60"
+          />
         </div>
 
+        {(projectIdError || submitError) && (
+          <p className="mt-2 text-caption font-normal text-error">
+            {projectIdError ?? submitError}
+          </p>
+        )}
+
+        {isEditMode && (
+          <>
         <div className="mt-4 flex items-center gap-5 border-b border-gray-200 pb-3">
           <button type="button" onClick={() => fileInputRef.current?.click()} className="flex items-center gap-1.5 text-caption font-normal text-gray-500">
             <FileText className="h-4 w-4" aria-hidden /> 파일
@@ -231,6 +279,8 @@ export default function PostFormPage() {
               )
             })}
           </div>
+        )}
+          </>
         )}
       </main>
     </Layout>
