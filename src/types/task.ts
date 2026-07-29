@@ -113,6 +113,21 @@ export interface ServerTaskListResponse {
   content?: ServerTaskSummaryResponse[]
 }
 
+export interface TaskListItemViewModel {
+  id: number
+  title: string
+  category: ServerTaskCategory
+  status: ServerTaskStatus
+  dueDate: string
+  isOverdue: boolean
+  assignee: {
+    projectMemberId: number
+    nickname: string
+    profilePreset?: ServerProfilePreset
+  }
+  attachmentCount: number
+}
+
 export interface ServerTaskDetailResponse {
   taskId?: number
   title?: string
