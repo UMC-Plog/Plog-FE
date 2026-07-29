@@ -24,6 +24,7 @@ import { FindPasswordPage } from './pages/FindPasswordPage'
 import { ResetPasswordPage } from './pages/ResetPasswordPage'
 import { OAuthCallbackPage } from './pages/OAuthCallbackPage'
 import { CreateProjectPage } from './pages/project/CreateProjectPage'
+import { ProjectSettingsPage } from './pages/project/ProjectSettingsPage'
 import { ProfileEditPage } from './pages/my/ProfileEditPage'
 import { AccountConnectionsPage } from './pages/my/AccountConnectionsPage'
 import { NotificationSettingsPage } from './pages/my/NotificationSettingsPage'
@@ -61,6 +62,7 @@ function App() {
         <Route path="/my/notifications" element={<NotificationSettingsPage />} />
         <Route path="/my/withdraw" element={<WithdrawPage />} />
         <Route path="/project/new" element={<CreateProjectPage />} />
+        <Route path="/project/:id/settings" element={<ProjectSettingsPage />} />
 
         {/* Peer 평가 플로우 — ProjectTabBar 밖 독립 화면 */}
         <Route path="/project/:id/peer-eval" element={<PeerEvalListPage />} />

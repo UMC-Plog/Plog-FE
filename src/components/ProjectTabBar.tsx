@@ -16,11 +16,20 @@ export default function ProjectTabBar() {
   const project = useProjectStore((state) =>
     state.projects.find((item) => item.id === projectId)
   )
+  const hasUnseenSettingsUpdate = useProjectStore((state) =>
+    projectId
+      ? Boolean(state.settingsUpdatesByProjectId[projectId]?.hasUnseenUpdate)
+      : false
+  )
   return (
     <div className="flex flex-col min-h-svh">
       <TopNavBar
         title={project?.name ?? '프로젝트'}
         onBack={() => navigate('/home')}
+        onSettingsClick={() => {
+          if (projectId) navigate(`/project/${projectId}/settings`)
+        }}
+        hasSettingsUpdate={hasUnseenSettingsUpdate}
       />
 
       <nav className="border-b border-gray-200 bg-white">
