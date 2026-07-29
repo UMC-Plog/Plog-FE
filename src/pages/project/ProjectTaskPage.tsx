@@ -1,7 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ClipboardList, Plus } from 'lucide-react'
 import { useParams } from 'react-router-dom'
-import { fetchProjectTasks, fetchTaskDetail } from '../../api/task'
+import {
+  fetchProjectTasks,
+  fetchTaskDetail,
+  updateTaskStatus,
+} from '../../api/task'
 import { Button } from '../../components/Button'
 import { EmptyState } from '../../components/EmptyState'
 import { AlertModal } from '../../components/Modal'
@@ -210,6 +214,7 @@ export default function ProjectTaskPage() {
   const projectId = useMemo(() => parseProjectId(projectIdParam), [projectIdParam])
   const requestIdRef = useRef(0)
   const detailRequestIdRef = useRef(0)
+  const statusUpdatingRef = useRef(false)
   const [tasks, setTasks] = useState<TaskListItemViewModel[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -219,6 +224,8 @@ export default function ProjectTaskPage() {
   const [detail, setDetail] = useState<TaskDetailViewModel | null>(null)
   const [isDetailLoading, setIsDetailLoading] = useState(false)
   const [detailError, setDetailError] = useState<string | null>(null)
+  const [isStatusUpdating, setIsStatusUpdating] = useState(false)
+  const [statusError, setStatusError] = useState<string | null>(null)
   const [isCreateOpen, setIsCreateOpen] = useState(false)
   const project = useProjectStore((state) =>
     state.projects.find((item) => item.id === projectIdParam)
@@ -291,6 +298,7 @@ export default function ProjectTaskPage() {
 
   const openTaskDetail = useCallback((taskId: number) => {
     setSelectedTaskId(taskId)
+    setStatusError(null)
     void loadTaskDetail(taskId)
   }, [loadTaskDetail])
 
@@ -300,7 +308,53 @@ export default function ProjectTaskPage() {
     setDetail(null)
     setDetailError(null)
     setIsDetailLoading(false)
+    setStatusError(null)
   }, [])
+
+  const changeTaskStatus = useCallback(async (
+    nextStatus: ServerTaskStatus
+  ) => {
+    if (
+      projectId === null ||
+      selectedTaskId === null ||
+      !detail ||
+      statusUpdatingRef.current
+    ) {
+      return
+    }
+
+    statusUpdatingRef.current = true
+    setIsStatusUpdating(true)
+    setStatusError(null)
+
+    try {
+      await updateTaskStatus(projectId, selectedTaskId, {
+        cardStatus: nextStatus,
+      })
+
+      if (nextStatus === 'IN_PROGRESS') {
+        await Promise.all([
+          loadTasks(),
+          loadTaskDetail(selectedTaskId),
+        ])
+      } else {
+        closeTaskDetail()
+        await loadTasks()
+      }
+    } catch (updateError: unknown) {
+      setStatusError(getErrorMessage(updateError))
+    } finally {
+      statusUpdatingRef.current = false
+      setIsStatusUpdating(false)
+    }
+  }, [
+    closeTaskDetail,
+    detail,
+    loadTaskDetail,
+    loadTasks,
+    projectId,
+    selectedTaskId,
+  ])
 
   const completedCount = tasks.filter((task) => task.status === 'DONE').length
   const totalCount = tasks.length
@@ -405,6 +459,8 @@ export default function ProjectTaskPage() {
           if (selectedTaskId !== null) void loadTaskDetail(selectedTaskId)
         }}
         onUnavailableAction={() => setNotice('detailAction')}
+        isStatusUpdating={isStatusUpdating}
+        onStatusChange={(status) => void changeTaskStatus(status)}
       />
 
       {projectId !== null && (
@@ -430,6 +486,12 @@ export default function ProjectTaskPage() {
             : '서버 API 연동 후 사용할 수 있어요.'
         }
         onConfirm={() => setNotice(null)}
+      />
+      <AlertModal
+        open={statusError !== null}
+        title="업무 상태를 변경하지 못했어요"
+        description={statusError ?? undefined}
+        onConfirm={() => setStatusError(null)}
       />
     </div>
   )

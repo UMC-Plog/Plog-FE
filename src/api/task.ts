@@ -124,18 +124,34 @@ export function updateTask(
   )
 }
 
-export function updateTaskStatus(
+export async function updateTaskStatus(
   projectId: number,
   taskId: number,
   payload: ServerTaskStatusUpdateRequest
 ) {
-  return apiRequest<ServerTaskStatusUpdateResponse>(
+  const response = await apiRequest<ServerTaskStatusUpdateResponse>(
     `/api/projects/${projectId}/tasks/${taskId}/status`,
     {
       method: 'PATCH',
       body: payload,
     }
   )
+
+  if (
+    !Number.isSafeInteger(response.taskId) ||
+    response.taskId !== taskId ||
+    response.cardStatus !== payload.cardStatus ||
+    (response.completedAt !== undefined &&
+      response.completedAt !== null &&
+      typeof response.completedAt !== 'string')
+  ) {
+    throw new ApiError(
+      'INVALID_TASK_STATUS_RESPONSE',
+      '업무 상태 변경 응답 형식이 올바르지 않습니다.'
+    )
+  }
+
+  return response
 }
 
 export function deleteTask(projectId: number, taskId: number) {

@@ -22,6 +22,8 @@ interface TaskCardDetailModalProps {
   onClose: () => void
   onRetry: () => void
   onUnavailableAction: () => void
+  isStatusUpdating: boolean
+  onStatusChange: (status: ServerTaskStatus) => void
 }
 
 const statusLabels: Record<ServerTaskStatus, string> = {
@@ -54,30 +56,28 @@ export function TaskCardDetailModal({
   onClose,
   onRetry,
   onUnavailableAction,
+  isStatusUpdating,
+  onStatusChange,
 }: TaskCardDetailModalProps) {
   const avatarId = task?.assignee.profilePreset
     ? PROFILE_PRESET_TO_AVATAR_ID[task.assignee.profilePreset]
     : undefined
   const avatarSrc = AVATAR_PRESETS.find((avatar) => avatar.id === avatarId)?.src
   const category = task ? SERVER_TASK_CATEGORY_CONFIG[task.category] : null
-  const statusActionLabel =
-    task?.status === 'TODO'
-      ? '진행 중'
-      : task?.status === 'IN_PROGRESS'
-        ? '완료 처리'
-        : '완료됨'
-
   return (
-    <BottomSheet open={open} onClose={onClose}>
+    <BottomSheet
+      open={open}
+      onClose={isStatusUpdating ? undefined : onClose}
+    >
       <div className="max-h-[calc(100svh-7rem)] overflow-y-auto pr-1">
         <div className="flex items-center justify-between gap-3">
           <h2 className="text-h3 text-gray-900">업무카드 상세</h2>
           {task && (
             <div className="flex gap-1">
-              <Button type="button" variant="ghost" size="sm" fullWidth={false} onClick={onUnavailableAction} className="h-7 px-2.5 text-caption leading-none bg-gray-100 text-gray-400">
+              <Button type="button" variant="ghost" size="sm" fullWidth={false} disabled={isStatusUpdating} onClick={onUnavailableAction} className="h-7 px-2.5 text-caption leading-none bg-gray-100 text-gray-400">
                 수정
               </Button>
-              <Button type="button" variant="ghost" size="sm" fullWidth={false} onClick={onUnavailableAction} className="h-7 px-2.5 text-caption leading-none bg-error/10 text-error hover:bg-error/20">
+              <Button type="button" variant="ghost" size="sm" fullWidth={false} disabled={isStatusUpdating} onClick={onUnavailableAction} className="h-7 px-2.5 text-caption leading-none bg-error/10 text-error hover:bg-error/20">
                 삭제
               </Button>
             </div>
@@ -191,18 +191,38 @@ export function TaskCardDetailModal({
         </p>
 
         <div className="mt-5 flex gap-3">
-          <Button type="button" variant="ghost" fullWidth={false} onClick={onUnavailableAction} className="flex-1 bg-gray-100 text-gray-400">
+          <Button type="button" variant="ghost" fullWidth={false} disabled={isStatusUpdating} onClick={onUnavailableAction} className="flex-1 bg-gray-100 text-gray-400">
             파일 추가
           </Button>
-          <Button
-            type="button"
-            fullWidth={false}
-            disabled={task.status === 'DONE'}
-            onClick={onUnavailableAction}
-            className="flex-[2] text-white"
-          >
-            {statusActionLabel}
-          </Button>
+          {task.status !== 'DONE' ? (
+            <Button
+              type="button"
+              fullWidth={false}
+              loading={isStatusUpdating}
+              disabled={isStatusUpdating}
+              onClick={() =>
+                onStatusChange(
+                  task.status === 'TODO' ? 'IN_PROGRESS' : 'DONE'
+                )
+              }
+              className="flex-[2] text-white"
+            >
+              {isStatusUpdating
+                ? '변경 중'
+                : task.status === 'TODO'
+                  ? '진행 중'
+                  : '완료 처리'}
+            </Button>
+          ) : (
+            <Button
+              type="button"
+              fullWidth={false}
+              disabled
+              className="flex-[2] text-white"
+            >
+              완료됨
+            </Button>
+          )}
         </div>
           </>
         ) : null}
