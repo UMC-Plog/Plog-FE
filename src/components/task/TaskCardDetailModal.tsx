@@ -1,31 +1,44 @@
 import { CalendarDays, FileText, Info, Link, TriangleAlert, UserRound } from 'lucide-react'
-import { useEffect, useRef, useState } from 'react'
 import { AVATAR_PRESETS } from '../AvatarPicker'
 import { BottomSheet } from '../Modal'
 import { Button } from '../Button'
 import { cn } from '../../lib/utils'
-import type { Task, TaskStatus } from '../../types/task'
+import type {
+  ServerProfilePreset,
+  ServerTaskStatus,
+  TaskDetailViewModel,
+} from '../../types/task'
+import { parseTaskDate } from '../../utils/taskDate'
 import {
-  getTaskDaysRemaining,
-  isTaskDueSoon,
-  isTaskOverdue,
-  parseTaskDate,
-} from '../../utils/taskDate'
-import { TASK_BADGE_BASE_CLASS, TASK_CATEGORY_CONFIG } from './taskCategoryConfig'
+  SERVER_TASK_CATEGORY_CONFIG,
+  TASK_BADGE_BASE_CLASS,
+} from './taskCategoryConfig'
 
 interface TaskCardDetailModalProps {
   open: boolean
-  task: Task | null
+  task: TaskDetailViewModel | null
+  isLoading: boolean
+  error: string | null
   onClose: () => void
-  onEdit: (task: Task) => void
-  onDelete: (task: Task) => void
-  onStatusChange: (task: Task, status: TaskStatus) => void
+  onRetry: () => void
+  onUnavailableAction: () => void
 }
 
-const statusLabels: Record<TaskStatus, string> = {
-  todo: '예정',
-  inProgress: '진행 중',
-  done: '완료',
+const statusLabels: Record<ServerTaskStatus, string> = {
+  TODO: '예정',
+  IN_PROGRESS: '진행 중',
+  DONE: '완료',
+}
+
+const PROFILE_PRESET_TO_AVATAR_ID: Record<ServerProfilePreset, string> = {
+  OTTER: 'otter',
+  PENGUIN: 'penguin',
+  FROG: 'frog',
+  KOALA: 'koala',
+  PANDA: 'panda',
+  SMILEY: 'smile',
+  GHOST: 'ghost',
+  TIGER: 'tiger',
 }
 
 function formatDueDate(value: string) {
@@ -36,70 +49,66 @@ function formatDueDate(value: string) {
 export function TaskCardDetailModal({
   open,
   task,
+  isLoading,
+  error,
   onClose,
-  onEdit,
-  onDelete,
-  onStatusChange,
+  onRetry,
+  onUnavailableAction,
 }: TaskCardDetailModalProps) {
-  const statusChangeLockRef = useRef(false)
-  const [isStatusChanging, setIsStatusChanging] = useState(false)
-
-  useEffect(() => {
-    statusChangeLockRef.current = false
-    setIsStatusChanging(false)
-  }, [task?.status])
-
-  if (!task) return null
-
-  const overdue = isTaskOverdue(task)
-  const dueSoon = isTaskDueSoon(task)
-  const daysRemaining = getTaskDaysRemaining(task)
-  const avatarPreset = AVATAR_PRESETS.find((avatar) => avatar.id === task.assignee.avatarId)
-  const avatarSrc = task.assignee.avatarImageUrl ?? avatarPreset?.src
-  const attachments = task.attachments ?? []
-  const category = TASK_CATEGORY_CONFIG[task.category]
-  const nextStatus =
-    task.status === 'todo'
-      ? 'inProgress'
-      : task.status === 'inProgress'
-        ? 'done'
-        : null
+  const avatarId = task?.assignee.profilePreset
+    ? PROFILE_PRESET_TO_AVATAR_ID[task.assignee.profilePreset]
+    : undefined
+  const avatarSrc = AVATAR_PRESETS.find((avatar) => avatar.id === avatarId)?.src
+  const category = task ? SERVER_TASK_CATEGORY_CONFIG[task.category] : null
   const statusActionLabel =
-    task.status === 'todo'
+    task?.status === 'TODO'
       ? '진행 중'
-      : task.status === 'inProgress'
+      : task?.status === 'IN_PROGRESS'
         ? '완료 처리'
         : '완료됨'
-
-  const handleStatusChange = () => {
-    if (!nextStatus || statusChangeLockRef.current) return
-    statusChangeLockRef.current = true
-    setIsStatusChanging(true)
-    onStatusChange(task, nextStatus)
-  }
 
   return (
     <BottomSheet open={open} onClose={onClose}>
       <div className="max-h-[calc(100svh-7rem)] overflow-y-auto pr-1">
         <div className="flex items-center justify-between gap-3">
           <h2 className="text-h3 text-gray-900">업무카드 상세</h2>
-          <div className="flex gap-1">
-            <Button type="button" variant="ghost" size="sm" fullWidth={false} onClick={() => onEdit(task)} className="h-7 px-2.5 text-caption leading-none bg-gray-100 text-gray-400">
-              수정
-            </Button>
-            <Button type="button" variant="ghost" size="sm" fullWidth={false} onClick={() => onDelete(task)} className="h-7 px-2.5 text-caption leading-none bg-error/10 text-error hover:bg-error/20">
-              삭제
-            </Button>
-          </div>
+          {task && (
+            <div className="flex gap-1">
+              <Button type="button" variant="ghost" size="sm" fullWidth={false} onClick={onUnavailableAction} className="h-7 px-2.5 text-caption leading-none bg-gray-100 text-gray-400">
+                수정
+              </Button>
+              <Button type="button" variant="ghost" size="sm" fullWidth={false} onClick={onUnavailableAction} className="h-7 px-2.5 text-caption leading-none bg-error/10 text-error hover:bg-error/20">
+                삭제
+              </Button>
+            </div>
+          )}
         </div>
 
-        {dueSoon && (
+        {isLoading ? (
+          <p className="py-16 text-center text-body-sm text-gray-400">
+            업무 상세를 불러오는 중이에요.
+          </p>
+        ) : error ? (
+          <div className="py-12 text-center">
+            <p className="text-body-sm text-error">{error}</p>
+            <div className="mt-4 flex gap-3">
+              <Button type="button" variant="ghost" fullWidth={false} onClick={onClose} className="flex-1 bg-gray-100 text-gray-500">
+                닫기
+              </Button>
+              <Button type="button" fullWidth={false} onClick={onRetry} className="flex-1 text-white">
+                다시 시도
+              </Button>
+            </div>
+          </div>
+        ) : task && category ? (
+          <>
+        {task.isImminent && (
           <div className="mt-4 flex items-center gap-2 rounded-md bg-warning/10 px-3 py-2 text-caption text-warning">
             <TriangleAlert className="h-4 w-4 shrink-0" aria-hidden />
-            마감일이 {daysRemaining === 0 ? '오늘이에요' : `${daysRemaining}일 남았어요`}
+            마감일이 {task.dDay === 0 ? '오늘이에요' : `${task.dDay}일 남았어요`}
           </div>
         )}
-        {overdue && (
+        {task.isOverdue && (
           <div className="mt-4 flex items-center gap-2 rounded-md bg-error/10 px-3 py-2 text-caption text-error">
             <TriangleAlert className="h-4 w-4 shrink-0" aria-hidden />
             마감일이 지났어요
@@ -143,7 +152,7 @@ export function TaskCardDetailModal({
           </div>
           <div>
             <dt className="text-body-sm text-gray-600">마감일</dt>
-            <dd className={cn('mt-2 flex items-center gap-1 text-body-sm text-gray-700', overdue && 'text-error', dueSoon && 'text-warning')}>
+            <dd className={cn('mt-2 flex items-center gap-1 text-body-sm text-gray-700', task.isOverdue && 'text-error', task.isImminent && 'text-warning')}>
               <CalendarDays className="h-4 w-4" aria-hidden />
               {formatDueDate(task.dueDate)}
             </dd>
@@ -152,25 +161,19 @@ export function TaskCardDetailModal({
 
         <div className="mt-5">
           <h3 className="text-body-sm text-gray-600">첨부 자료</h3>
-          {attachments.length > 0 ? (
+          {task.attachments.length > 0 ? (
             <div className="mt-2 flex flex-col gap-2">
-              {attachments.map((attachment) => {
-                const AttachmentIcon = attachment.type === 'link' ? Link : FileText
-                const content = (
-                  <>
-                    <AttachmentIcon className="h-5 w-5 shrink-0 text-primary" aria-hidden />
-                    <span className="min-w-0 flex-1 truncate text-body-sm text-primary-700">{attachment.name}</span>
-                    <span className="text-caption font-normal text-gray-400">{attachment.type === 'link' ? '링크' : attachment.size}</span>
-                  </>
-                )
-
-                return attachment.type === 'link' && attachment.url ? (
-                  <a key={attachment.id} href={attachment.url} target="_blank" rel="noreferrer" className="flex items-center gap-3 rounded-md bg-gray-50 p-3">
-                    {content}
-                  </a>
-                ) : (
+              {task.attachments.map((attachment) => {
+                const AttachmentIcon = attachment.type === 'LINK' ? Link : FileText
+                return (
                   <div key={attachment.id} className="flex items-center gap-3 rounded-md bg-gray-50 p-3">
-                    {content}
+                    <AttachmentIcon className="h-5 w-5 shrink-0 text-primary" aria-hidden />
+                    <span className="min-w-0 flex-1 truncate text-body-sm text-primary-700">
+                      {attachment.fileName}
+                    </span>
+                    <span className="text-caption font-normal text-gray-400">
+                      {attachment.type === 'LINK' ? '링크' : '파일'}
+                    </span>
                   </div>
                 )
               })}
@@ -188,19 +191,21 @@ export function TaskCardDetailModal({
         </p>
 
         <div className="mt-5 flex gap-3">
-          <Button type="button" variant="ghost" fullWidth={false} onClick={() => onEdit(task)} className="flex-1 bg-gray-100 text-gray-400">
+          <Button type="button" variant="ghost" fullWidth={false} onClick={onUnavailableAction} className="flex-1 bg-gray-100 text-gray-400">
             파일 추가
           </Button>
           <Button
             type="button"
             fullWidth={false}
-            disabled={!nextStatus || isStatusChanging}
-            onClick={handleStatusChange}
+            disabled={task.status === 'DONE'}
+            onClick={onUnavailableAction}
             className="flex-[2] text-white"
           >
             {statusActionLabel}
           </Button>
         </div>
+          </>
+        ) : null}
       </div>
     </BottomSheet>
   )

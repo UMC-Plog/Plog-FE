@@ -1,16 +1,22 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ClipboardList, Plus } from 'lucide-react'
 import { useParams } from 'react-router-dom'
-import { fetchProjectTasks } from '../../api/task'
+import { fetchProjectTasks, fetchTaskDetail } from '../../api/task'
 import { Button } from '../../components/Button'
 import { EmptyState } from '../../components/EmptyState'
 import { AlertModal } from '../../components/Modal'
 import { KanbanColumn } from '../../components/task/KanbanColumn'
+import { TaskCardDetailModal } from '../../components/task/TaskCardDetailModal'
 import { ProgressBar } from '../../components/ProgressBar'
 import { cn } from '../../lib/utils'
 import type {
-  ServerTaskSummaryResponse,
+  ServerProfilePreset,
+  ServerTaskCategory,
+  ServerTaskDetailResponse,
   ServerTaskStatus,
+  ServerTaskSummaryResponse,
+  ServerTaskAttachmentType,
+  TaskDetailViewModel,
   TaskListItemViewModel,
 } from '../../types/task'
 
@@ -24,10 +30,56 @@ const FILTERS: Array<{ value: TaskFilter; label: string }> = [
   { value: 'dueSoon', label: '마감임박' },
 ]
 
+const SERVER_TASK_STATUSES: ReadonlySet<string> = new Set([
+  'TODO',
+  'IN_PROGRESS',
+  'DONE',
+])
+
+const SERVER_TASK_CATEGORIES: ReadonlySet<string> = new Set([
+  'PLANNING',
+  'DESIGN',
+  'DEVELOP',
+  'TEST_FIX',
+  'PRESENTATION_DOC',
+  'RESEARCH',
+  'MATERIAL_PRODUCTION',
+  'PRESENTATION',
+  'SCHEDULE_MANAGEMENT',
+  'ETC',
+])
+
+const SERVER_PROFILE_PRESETS: ReadonlySet<string> = new Set([
+  'OTTER',
+  'PENGUIN',
+  'FROG',
+  'KOALA',
+  'PANDA',
+  'SMILEY',
+  'GHOST',
+  'TIGER',
+])
+
 function parseProjectId(value: string) {
   if (!/^[1-9]\d*$/.test(value)) return null
   const projectId = Number(value)
   return Number.isSafeInteger(projectId) ? projectId : null
+}
+
+function isServerTaskStatus(value: unknown): value is ServerTaskStatus {
+  return typeof value === 'string' && SERVER_TASK_STATUSES.has(value)
+}
+
+function isServerTaskCategory(value: unknown): value is ServerTaskCategory {
+  return typeof value === 'string' && SERVER_TASK_CATEGORIES.has(value)
+}
+
+function isServerProfilePreset(value: unknown): value is ServerProfilePreset {
+  return typeof value === 'string' && SERVER_PROFILE_PRESETS.has(value)
+}
+
+function isServerAttachmentType(value: unknown): value is ServerTaskAttachmentType {
+  return value === 'FILE' || value === 'LINK'
 }
 
 function mapTaskSummary(response: ServerTaskSummaryResponse): TaskListItemViewModel {
@@ -64,6 +116,87 @@ function mapTaskSummary(response: ServerTaskSummaryResponse): TaskListItemViewMo
   }
 }
 
+function mapTaskDetail(
+  response: ServerTaskDetailResponse,
+  requestedTaskId: number
+): TaskDetailViewModel {
+  const {
+    taskId,
+    title,
+    assignee,
+    category,
+    cardStatus,
+    endDate,
+    completedAt,
+    dDay,
+    isOverdue,
+    isImminent,
+    attachments,
+  } = response
+
+  if (
+    taskId !== requestedTaskId ||
+    typeof title !== 'string' ||
+    typeof assignee?.projectMemberId !== 'number' ||
+    typeof assignee.nickname !== 'string' ||
+    !isServerTaskCategory(category) ||
+    !isServerTaskStatus(cardStatus) ||
+    typeof endDate !== 'string' ||
+    (completedAt !== undefined && completedAt !== null && typeof completedAt !== 'string') ||
+    typeof dDay !== 'number' ||
+    typeof isOverdue !== 'boolean' ||
+    typeof isImminent !== 'boolean' ||
+    !Array.isArray(attachments) ||
+    (assignee.profilePreset !== undefined &&
+      assignee.profilePreset !== null &&
+      !isServerProfilePreset(assignee.profilePreset))
+  ) {
+    throw new Error('업무 상세 응답 형식이 올바르지 않습니다.')
+  }
+
+  const mappedAttachments = attachments.map((attachment) => {
+    if (
+      typeof attachment.taskAttachmentId !== 'number' ||
+      !isServerAttachmentType(attachment.attachmentType) ||
+      typeof attachment.fileName !== 'string' ||
+      (attachment.linkUrl !== undefined &&
+        attachment.linkUrl !== null &&
+        typeof attachment.linkUrl !== 'string') ||
+      (attachment.downloadUrlApi !== undefined &&
+        attachment.downloadUrlApi !== null &&
+        typeof attachment.downloadUrlApi !== 'string')
+    ) {
+      throw new Error('업무 상세 응답 형식이 올바르지 않습니다.')
+    }
+
+    return {
+      id: attachment.taskAttachmentId,
+      type: attachment.attachmentType,
+      fileName: attachment.fileName,
+      linkUrl: attachment.linkUrl,
+      downloadUrlApi: attachment.downloadUrlApi,
+    }
+  })
+
+  return {
+    id: taskId,
+    title,
+    assignee: {
+      projectMemberId: assignee.projectMemberId,
+      nickname: assignee.nickname,
+      profilePreset: assignee.profilePreset,
+    },
+    category,
+    status: cardStatus,
+    dueDate: endDate,
+    completedAt,
+    dDay,
+    isOverdue,
+    isImminent,
+    attachments: mappedAttachments,
+  }
+}
+
 function getErrorMessage(error: unknown) {
   return error instanceof Error
     ? error.message
@@ -74,11 +207,16 @@ export default function ProjectTaskPage() {
   const { id: projectIdParam = '' } = useParams<{ id: string }>()
   const projectId = useMemo(() => parseProjectId(projectIdParam), [projectIdParam])
   const requestIdRef = useRef(0)
+  const detailRequestIdRef = useRef(0)
   const [tasks, setTasks] = useState<TaskListItemViewModel[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [filter, setFilter] = useState<TaskFilter>('all')
-  const [notice, setNotice] = useState<'create' | 'detail' | 'filter' | null>(null)
+  const [notice, setNotice] = useState<'create' | 'filter' | 'detailAction' | null>(null)
+  const [selectedTaskId, setSelectedTaskId] = useState<number | null>(null)
+  const [detail, setDetail] = useState<TaskDetailViewModel | null>(null)
+  const [isDetailLoading, setIsDetailLoading] = useState(false)
+  const [detailError, setDetailError] = useState<string | null>(null)
 
   const loadTasks = useCallback(async () => {
     const requestId = ++requestIdRef.current
@@ -116,6 +254,47 @@ export default function ProjectTaskPage() {
       requestIdRef.current += 1
     }
   }, [loadTasks])
+
+  const loadTaskDetail = useCallback(async (taskId: number) => {
+    const requestId = ++detailRequestIdRef.current
+
+    if (projectId === null) {
+      setDetail(null)
+      setDetailError('올바른 프로젝트 ID가 아니어서 업무 상세를 불러올 수 없습니다.')
+      setIsDetailLoading(false)
+      return
+    }
+
+    setDetail(null)
+    setDetailError(null)
+    setIsDetailLoading(true)
+
+    try {
+      const response = await fetchTaskDetail(projectId, taskId)
+      const nextDetail = mapTaskDetail(response, taskId)
+      if (requestId === detailRequestIdRef.current) setDetail(nextDetail)
+    } catch (loadError: unknown) {
+      if (requestId === detailRequestIdRef.current) {
+        setDetail(null)
+        setDetailError(getErrorMessage(loadError))
+      }
+    } finally {
+      if (requestId === detailRequestIdRef.current) setIsDetailLoading(false)
+    }
+  }, [projectId])
+
+  const openTaskDetail = useCallback((taskId: number) => {
+    setSelectedTaskId(taskId)
+    void loadTaskDetail(taskId)
+  }, [loadTaskDetail])
+
+  const closeTaskDetail = useCallback(() => {
+    detailRequestIdRef.current += 1
+    setSelectedTaskId(null)
+    setDetail(null)
+    setDetailError(null)
+    setIsDetailLoading(false)
+  }, [])
 
   const completedCount = tasks.filter((task) => task.status === 'DONE').length
   const totalCount = tasks.length
@@ -203,20 +382,32 @@ export default function ProjectTaskPage() {
                 key={status}
                 status={status}
                 tasks={tasks.filter((task) => task.status === status)}
-                onTaskClick={() => setNotice('detail')}
+                onTaskClick={(task) => openTaskDetail(task.id)}
               />
             ))}
           </div>
         </div>
       )}
 
+      <TaskCardDetailModal
+        open={selectedTaskId !== null}
+        task={detail}
+        isLoading={isDetailLoading}
+        error={detailError}
+        onClose={closeTaskDetail}
+        onRetry={() => {
+          if (selectedTaskId !== null) void loadTaskDetail(selectedTaskId)
+        }}
+        onUnavailableAction={() => setNotice('detailAction')}
+      />
+
       <AlertModal
         open={notice !== null}
         title={
           notice === 'filter'
             ? '필터 연동 준비 중이에요'
-            : notice === 'detail'
-              ? '업무 상세 연동 준비 중이에요'
+            : notice === 'detailAction'
+              ? '업무 변경 기능 준비 중이에요'
               : '업무 등록 연동 준비 중이에요'
         }
         description={

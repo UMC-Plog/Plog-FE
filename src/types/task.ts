@@ -95,7 +95,7 @@ export interface ServerAttachmentResponse {
 export interface ServerAssigneeResponse {
   projectMemberId?: number
   nickname?: string
-  profilePreset?: ServerProfilePreset
+  profilePreset?: ServerProfilePreset | null
 }
 
 export interface ServerTaskSummaryResponse {
@@ -123,9 +123,33 @@ export interface TaskListItemViewModel {
   assignee: {
     projectMemberId: number
     nickname: string
-    profilePreset?: ServerProfilePreset
+    profilePreset?: ServerProfilePreset | null
   }
   attachmentCount: number
+}
+
+export interface TaskDetailViewModel {
+  id: number
+  title: string
+  assignee: {
+    projectMemberId: number
+    nickname: string
+    profilePreset?: ServerProfilePreset | null
+  }
+  category: ServerTaskCategory
+  status: ServerTaskStatus
+  dueDate: string
+  completedAt?: string | null
+  dDay: number
+  isOverdue: boolean
+  isImminent: boolean
+  attachments: Array<{
+    id: number
+    type: ServerTaskAttachmentType
+    fileName: string
+    linkUrl?: string | null
+    downloadUrlApi?: string | null
+  }>
 }
 
 export interface ServerTaskDetailResponse {
