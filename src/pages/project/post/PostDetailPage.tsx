@@ -2,6 +2,8 @@ import { ArrowRight, ArrowUpRight, Ellipsis, FileText, Heart, Image, Link, Messa
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { AVATAR_PRESETS } from '../../../components/AvatarPicker'
+import { ApiError } from '../../../api/client'
+import { deletePost as requestDeletePost } from '../../../api/postApi'
 import { Button } from '../../../components/Button'
 import { ConfirmDialog } from '../../../components/ConfirmDialog'
 import { Input } from '../../../components/Input'
@@ -43,14 +45,16 @@ export default function PostDetailPage() {
   const navigate = useNavigate()
   const posts = usePostStore((state) => state.posts)
   const allComments = usePostStore((state) => state.comments)
-  const deletePost = usePostStore((state) => state.deletePost)
   const addComment = usePostStore((state) => state.addComment)
   const togglePostLike = usePostStore((state) => state.togglePostLike)
   const user = useAuthStore((state) => state.user)
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
+  const [deleteError, setDeleteError] = useState<string>()
   const [commentContent, setCommentContent] = useState('')
   const menuRef = useRef<HTMLDivElement>(null)
+  const deletingRef = useRef(false)
 
   const post = posts.find((item) => item.id === postId && item.projectId === projectId)
   const comments = useMemo(
@@ -86,14 +90,49 @@ export default function PostDetailPage() {
 
   const handleDelete = () => {
     setIsMenuOpen(false)
+    setDeleteError(undefined)
     setIsDeleteDialogOpen(true)
   }
 
-  const handleConfirmDelete = () => {
-    if (!projectId || !postId) return
-    deletePost(projectId, postId)
+  const handleConfirmDelete = async () => {
+    if (deletingRef.current) return
+
+    const numericProjectId =
+      projectId && /^[1-9]\d*$/.test(projectId) && Number.isSafeInteger(Number(projectId))
+        ? Number(projectId)
+        : null
+    const numericPostId =
+      postId && /^[1-9]\d*$/.test(postId) && Number.isSafeInteger(Number(postId))
+        ? Number(postId)
+        : null
+
+    if (numericProjectId === null || numericPostId === null) {
+      setDeleteError('올바른 게시글 경로가 아니어서 삭제할 수 없습니다.')
+      return
+    }
+
+    deletingRef.current = true
+    setIsDeleting(true)
+    setDeleteError(undefined)
+
+    try {
+      await requestDeletePost(numericProjectId, numericPostId)
+      navigate(`/project/${projectId}/feed`, { replace: true })
+    } catch (error: unknown) {
+      setDeleteError(
+        error instanceof ApiError
+          ? error.message
+          : '네트워크 상태를 확인한 뒤 다시 시도해 주세요.'
+      )
+      deletingRef.current = false
+      setIsDeleting(false)
+    }
+  }
+
+  const handleCancelDelete = () => {
+    if (deletingRef.current) return
+    setDeleteError(undefined)
     setIsDeleteDialogOpen(false)
-    goToFeed()
   }
 
   const handleAddComment = () => {
@@ -253,7 +292,23 @@ export default function PostDetailPage() {
         </div>
       </div>
 
-      <ConfirmDialog open={isDeleteDialogOpen} title="게시글을 삭제하시겠습니까?" description="삭제된 게시글은 복구할 수 없어요" confirmText="삭제하기" cancelText="취소" destructive onConfirm={handleConfirmDelete} onCancel={() => setIsDeleteDialogOpen(false)} />
+      <ConfirmDialog
+        open={isDeleteDialogOpen}
+        title="게시글을 삭제하시겠습니까?"
+        description={
+          deleteError ? (
+            <span className="text-error">{deleteError}</span>
+          ) : (
+            '삭제된 게시글은 복구할 수 없어요'
+          )
+        }
+        confirmText={isDeleting ? '삭제 중' : '삭제하기'}
+        cancelText="취소"
+        destructive
+        confirmDisabled={isDeleting}
+        onConfirm={() => void handleConfirmDelete()}
+        onCancel={handleCancelDelete}
+      />
     </Layout>
   )
 }

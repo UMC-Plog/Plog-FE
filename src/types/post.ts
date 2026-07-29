@@ -73,3 +73,7 @@ export interface ServerPostCreateResponse {
   attachments?: unknown[]
   createdAt?: string
 }
+
+export interface ServerPostDeleteResponse {
+  deleted?: boolean
+}
