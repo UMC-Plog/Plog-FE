@@ -3,7 +3,10 @@ import type {
   ServerPostCreateResponse,
   ServerPostDeleteResponse,
   ServerPostLikeResponse,
+  ServerPostNoticeRequest,
+  ServerPostNoticeResponse,
   PostLikeResult,
+  PostNoticeResult,
   ServerPostAttachmentResponse,
   ServerPostFeedResponse,
   ServerPostResponse,
@@ -87,6 +90,58 @@ export function likePost(projectId: number, postId: number) {
 
 export function unlikePost(projectId: number, postId: number) {
   return requestPostLike(projectId, postId, 'DELETE')
+}
+
+function validatePostNoticeResponse(
+  value: unknown,
+  expectedProjectId: number,
+  expectedPostId: number
+): PostNoticeResult {
+  if (typeof value !== 'object' || value === null) {
+    throw new ApiError(
+      'INVALID_POST_NOTICE_RESPONSE',
+      '공지 변경 응답 형식이 올바르지 않습니다.'
+    )
+  }
+
+  const response = value as ServerPostNoticeResponse
+  if (
+    !Number.isSafeInteger(response.postId) ||
+    response.postId !== expectedPostId ||
+    !Number.isSafeInteger(response.projectId) ||
+    response.projectId !== expectedProjectId ||
+    typeof response.isNotice !== 'boolean' ||
+    typeof response.updatedAt !== 'string'
+  ) {
+    throw new ApiError(
+      'INVALID_POST_NOTICE_RESPONSE',
+      '공지 변경 응답 형식이 올바르지 않습니다.'
+    )
+  }
+
+  return {
+    postId: response.postId,
+    projectId: response.projectId,
+    isNotice: response.isNotice,
+    updatedAt: response.updatedAt,
+  }
+}
+
+export async function changePostNotice(
+  projectId: number,
+  postId: number,
+  isNotice: boolean
+) {
+  const payload: ServerPostNoticeRequest = { isNotice }
+  const response = await apiRequest<unknown>(
+    `/api/projects/${projectId}/posts/${postId}/notice`,
+    {
+      method: 'PATCH',
+      body: payload,
+    }
+  )
+
+  return validatePostNoticeResponse(response, projectId, postId)
 }
 
 function invalidFeedResponse(): never {

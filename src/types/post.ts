@@ -84,6 +84,24 @@ export interface ServerPostLikeResponse {
   likeCount?: number
 }
 
+export interface ServerPostNoticeRequest {
+  isNotice: boolean
+}
+
+export interface ServerPostNoticeResponse {
+  postId?: number
+  projectId?: number
+  isNotice?: boolean
+  updatedAt?: string
+}
+
+export interface PostNoticeResult {
+  postId: number
+  projectId: number
+  isNotice: boolean
+  updatedAt: string
+}
+
 export interface PostLikeResult {
   postId: number
   liked: boolean

@@ -168,12 +168,18 @@ export default function ProjectFeedPage() {
       ) : (
         <div className="w-full px-4 py-4">
           {notice && (
-            <div className="flex w-full items-center gap-2 rounded-md bg-blue-50 px-3 py-2.5 text-left text-body-sm text-blue-600">
+            <button
+              type="button"
+              onClick={() =>
+                navigate(`/project/${notice.projectId}/notices/${notice.postId}`)
+              }
+              className="flex w-full items-center gap-2 rounded-md bg-blue-50 px-3 py-2.5 text-left text-body-sm text-blue-600 hover:bg-blue-100"
+            >
               <Volume2 className="h-4 w-4 shrink-0" aria-hidden />
               <p className="min-w-0 truncate">
                 <span className="font-semibold">[공지]</span> {notice.content}
               </p>
-            </div>
+            </button>
           )}
 
           {posts.length > 0 && (
