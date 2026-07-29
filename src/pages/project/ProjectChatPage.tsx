@@ -1,13 +1,15 @@
-import { Fragment, useState, useRef, useEffect } from 'react';
+import { Fragment, useState, useRef, useEffect, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
+import type { Client } from '@stomp/stompjs';
 import { cn } from '../../lib/utils';
 import { AlertModal } from '../../components/Modal';
-import { useChatStore } from '../../store/chatStore';
-import { useProjectStore } from '../../store/projectStore';
-import type { ChatMessage } from '../../types/chat';
+import { useAuthStore } from '../../store/authStore';
+import { AVATAR_PRESETS } from '../../components/AvatarPicker';
+import { toAvatarId } from '../../lib/profilePreset';
+import { fetchChannels, fetchMessages, markRoomAsRead, type ChatMessageResponse } from '../../api/chat';
+import { createChatStompClient, subscribeToDestination, publishToDestination, chatDestinations } from '../../api/chatSocket';
+import { ApiError } from '../../api/client';
 import docFileIcon from '../../assets/doc-file-icon.png';
-
-type MessageItem = ChatMessage;
 
 const formatTime = (value: string) =>
   new Intl.DateTimeFormat('ko-KR', { hour: '2-digit', minute: '2-digit', hour12: false }).format(new Date(value));
@@ -19,6 +21,13 @@ const dateKey = (value: string) => new Date(value).toLocaleDateString('en-CA');
 
 const formatFileSize = (bytes: number) =>
   bytes < 1024 * 1024 ? `${Math.ceil(bytes / 1024)} KB` : `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+
+const isImageFile = (fileName: string) => /\.(png|jpe?g|gif|webp|svg)$/i.test(fileName);
+
+const avatarUrl = (preset: string | null) => {
+  const id = toAvatarId(preset);
+  return id ? AVATAR_PRESETS.find((item) => item.id === id)?.src ?? '' : '';
+};
 
 // ── Inline SVG icons (lucide 금지) ──────────────────────────────────────────
 
@@ -104,25 +113,26 @@ function renderText(text: string, isMine: boolean, memberNicknames: Set<string>)
 
 // ── 말풍선 컴포넌트 ──────────────────────────────────────────────────────────
 
-function OtherBubble({ msg, onDownload, memberNicknames }: { msg: MessageItem; onDownload: (message: MessageItem) => void; memberNicknames: Set<string> }) {
+function OtherBubble({ msg, memberNicknames }: { msg: ChatMessageResponse; memberNicknames: Set<string> }) {
+  const attachment = msg.attachments[0];
   return (
     <div className="flex items-start gap-2">
       <img
-        src={msg.sender.avatarUrl}
-        alt={msg.sender.name}
+        src={avatarUrl(msg.profilePreset)}
+        alt={msg.senderNickname}
         className="size-9 rounded-full shrink-0 object-cover"
       />
       <div className="flex flex-col gap-1">
-        <span className="text-caption text-gray-500">{msg.sender.name}</span>
+        <span className="text-caption text-gray-500">{msg.senderNickname}</span>
         <div className="flex items-end gap-2">
-          {msg.type === 'text' ? (
+          {!attachment ? (
             <div className="bg-white shadow-sm rounded-tl rounded-tr-2xl rounded-br-2xl rounded-bl-2xl px-3.5 py-3 text-body-sm text-gray-900 max-w-xs">
-              {renderText(msg.text, false, memberNicknames)}
+              {renderText(msg.message, false, memberNicknames)}
             </div>
-          ) : msg.mimeType.startsWith('image/') && msg.dataUrl ? (
+          ) : isImageFile(attachment.fileName) ? (
             <img
-              src={msg.dataUrl}
-              alt={msg.fileName}
+              src={attachment.fileUrl}
+              alt={attachment.fileName}
               className="max-w-[200px] max-h-[240px] rounded-tl rounded-tr-2xl rounded-br-2xl rounded-bl-2xl shadow-sm object-cover"
             />
           ) : (
@@ -131,33 +141,34 @@ function OtherBubble({ msg, onDownload, memberNicknames }: { msg: MessageItem; o
                 <DocIcon />
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-caption font-semibold text-navy-700 truncate">{msg.fileName}</p>
-                <p className="text-caption text-gray-400">{msg.fileSize}</p>
+                <p className="text-caption font-semibold text-navy-700 truncate">{attachment.fileName}</p>
+                <p className="text-caption text-gray-400">{formatFileSize(attachment.fileSize)}</p>
               </div>
-              <button type="button" onClick={() => onDownload(msg)} className="text-gray-400 shrink-0" aria-label={`${msg.fileName} 다운로드`}>
+              <a href={attachment.fileUrl} target="_blank" rel="noopener noreferrer" className="text-gray-400 shrink-0" aria-label={`${attachment.fileName} 다운로드`}>
                 <DownloadIcon />
-              </button>
+              </a>
             </div>
           )}
-          <time dateTime={msg.sentAt} className="shrink-0 text-chat-time text-gray-400">{formatTime(msg.sentAt)}</time>
+          <time dateTime={msg.createdAt} className="shrink-0 text-chat-time text-gray-400">{formatTime(msg.createdAt)}</time>
         </div>
       </div>
     </div>
   );
 }
 
-function MyBubble({ msg, onDownload, memberNicknames }: { msg: MessageItem; onDownload: (message: MessageItem) => void; memberNicknames: Set<string> }) {
+function MyBubble({ msg, memberNicknames }: { msg: ChatMessageResponse; memberNicknames: Set<string> }) {
+  const attachment = msg.attachments[0];
   return (
     <div className="flex items-end justify-end gap-2">
-      <time dateTime={msg.sentAt} className="shrink-0 text-chat-time text-gray-400">{formatTime(msg.sentAt)}</time>
-      {msg.type === 'text' ? (
+      <time dateTime={msg.createdAt} className="shrink-0 text-chat-time text-gray-400">{formatTime(msg.createdAt)}</time>
+      {!attachment ? (
         <div className="bg-primary rounded-tl-2xl rounded-tr rounded-br-2xl rounded-bl-2xl px-3.5 py-3 text-body-sm text-gray-25 max-w-xs">
-          {renderText(msg.text, true, memberNicknames)}
+          {renderText(msg.message, true, memberNicknames)}
         </div>
-      ) : msg.mimeType.startsWith('image/') && msg.dataUrl ? (
+      ) : isImageFile(attachment.fileName) ? (
         <img
-          src={msg.dataUrl}
-          alt={msg.fileName}
+          src={attachment.fileUrl}
+          alt={attachment.fileName}
           className="max-w-[200px] max-h-[240px] rounded-tl-2xl rounded-tr rounded-br-2xl rounded-bl-2xl shadow-sm object-cover"
         />
       ) : (
@@ -166,12 +177,12 @@ function MyBubble({ msg, onDownload, memberNicknames }: { msg: MessageItem; onDo
             <DocIcon />
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-caption font-semibold text-gray-25 truncate">{msg.fileName}</p>
-            <p className="text-caption text-gray-25">{msg.fileSize}</p>
+            <p className="text-caption font-semibold text-gray-25 truncate">{attachment.fileName}</p>
+            <p className="text-caption text-gray-25">{formatFileSize(attachment.fileSize)}</p>
           </div>
-          <button type="button" onClick={() => onDownload(msg)} className="text-gray-25 shrink-0" aria-label={`${msg.fileName} 다운로드`}>
+          <a href={attachment.fileUrl} target="_blank" rel="noopener noreferrer" className="text-gray-25 shrink-0" aria-label={`${attachment.fileName} 다운로드`}>
             <DownloadIcon />
-          </button>
+          </a>
         </div>
       )}
     </div>
@@ -185,22 +196,83 @@ export default function ProjectChatPage() {
   const [input, setInput] = useState('');
   const [showPopup, setShowPopup] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
+  const [messages, setMessages] = useState<ChatMessageResponse[]>([]);
+  const [memberNicknames, setMemberNicknames] = useState<Set<string>>(new Set());
+  const [roomId, setRoomId] = useState<number | null>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const popupRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const messages = useChatStore((state) => state.messagesByProject[projectId] ?? []);
-  const sendText = useChatStore((state) => state.sendText);
-  const sendFile = useChatStore((state) => state.sendFile);
-  const markAsRead = useChatStore((state) => state.markAsRead);
-  const project = useProjectStore((state) => state.projects.find((item) => item.id === projectId));
-  const memberNicknames = new Set((project?.members ?? []).map((member) => member.nickname));
+  const stompClientRef = useRef<Client | null>(null);
+  const myNickname = useAuthStore((s) => s.user?.nickname);
 
+  // 채팅방 목록에서 현재 프로젝트에 해당하는 roomId/참여자 조회 (프로젝트별 단건 조회 API가 없음)
   useEffect(() => {
-    if (!projectId) return;
-    markAsRead(projectId);
-  }, [projectId, markAsRead, messages.length]);
+    const numericProjectId = Number(projectId);
+    if (!Number.isFinite(numericProjectId)) return;
+    let cancelled = false;
+    fetchChannels({ size: 100 })
+      .then((res) => {
+        if (cancelled) return;
+        const channel = res.content.find((c) => c.projectId === numericProjectId);
+        if (!channel) {
+          setNotice('채팅방을 찾을 수 없어요.');
+          return;
+        }
+        setRoomId(channel.roomId);
+        setMemberNicknames(new Set(channel.participants.map((p) => p.nickname)));
+      })
+      .catch(() => {
+        if (!cancelled) setNotice('채팅방 정보를 불러오지 못했어요. 다시 시도해 주세요.');
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [projectId]);
+
+  // roomId가 확정되면 메시지 이력 조회 + 읽음 처리
+  useEffect(() => {
+    if (roomId === null) return;
+    let cancelled = false;
+    fetchMessages(roomId, { size: 30 })
+      .then((res) => {
+        if (cancelled) return;
+        setMessages(res.messages);
+        const last = res.messages[res.messages.length - 1];
+        if (last) markRoomAsRead(roomId, last.chatId).catch(() => undefined);
+      })
+      .catch((err) => {
+        if (!cancelled) setNotice(err instanceof ApiError ? err.message : '메시지를 불러오지 못했어요. 다시 시도해 주세요.');
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [roomId]);
+
+  // roomId가 확정되면 STOMP 연결 + 실시간 구독
+  useEffect(() => {
+    if (roomId === null) return;
+    const client = createChatStompClient(
+      () => {
+        subscribeToDestination(client, chatDestinations.subscribeRoom(roomId), (frame) => {
+          const incoming = JSON.parse(frame.body) as ChatMessageResponse;
+          setMessages((prev) => [...prev, incoming]);
+          markRoomAsRead(roomId, incoming.chatId).catch(() => undefined);
+        });
+        subscribeToDestination(client, chatDestinations.subscribeErrors(), (frame) => {
+          setNotice(frame.body || '메시지 전송 중 오류가 발생했어요.');
+        });
+      },
+      () => setNotice('실시간 연결에 실패했어요. 새로고침 후 다시 시도해 주세요.')
+    );
+    client.activate();
+    stompClientRef.current = client;
+    return () => {
+      client.deactivate();
+      stompClientRef.current = null;
+    };
+  }, [roomId]);
 
   useEffect(() => {
     if (!showPopup) return;
@@ -218,45 +290,17 @@ export default function ProjectChatPage() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
   }, [messages.length]);
 
-  const handleSend = () => {
+  const handleSend = useCallback(() => {
     const text = input.trim();
-    if (!text) return;
-
-    if (!projectId) return;
-    sendText(projectId, text);
+    if (!text || roomId === null || !stompClientRef.current?.connected) return;
+    publishToDestination(stompClientRef.current, chatDestinations.publishMessage(roomId), { message: text });
     setInput('');
-  };
+  }, [input, roomId]);
 
   const handleFile = (file?: File) => {
-    if (!file || !projectId) return;
-    if (file.size > 2 * 1024 * 1024) {
-      setNotice('데모에서는 2MB 이하 파일만 첨부할 수 있어요.');
-      return;
-    }
-    const reader = new FileReader();
-    reader.onload = () => {
-      sendFile(projectId, {
-        fileName: file.name,
-        fileSize: formatFileSize(file.size),
-        mimeType: file.type || 'application/octet-stream',
-        dataUrl: typeof reader.result === 'string' ? reader.result : undefined,
-      });
-    };
-    reader.onerror = () => setNotice('파일을 읽지 못했어요. 다시 시도해 주세요.');
-    reader.readAsDataURL(file);
+    if (!file) return;
+    setNotice('파일 첨부는 곧 지원 예정이에요.');
     setShowPopup(false);
-  };
-
-  const handleDownload = (message: MessageItem) => {
-    if (message.type !== 'file') return;
-    if (!message.dataUrl) {
-      setNotice('목업 파일은 실제 원본이 없어 다운로드할 수 없어요.');
-      return;
-    }
-    const link = document.createElement('a');
-    link.href = message.dataUrl;
-    link.download = message.fileName;
-    link.click();
   };
 
   return (
@@ -264,17 +308,18 @@ export default function ProjectChatPage() {
       {/* 메시지 목록 — 하단 입력창 높이만큼 pb 확보 */}
       <div className="px-4 pt-4 pb-28 flex flex-col gap-4">
         {messages.map((message, index) => {
-          const showDate = index === 0 || dateKey(messages[index - 1].sentAt) !== dateKey(message.sentAt);
+          const showDate = index === 0 || dateKey(messages[index - 1].createdAt) !== dateKey(message.createdAt);
+          const isMine = message.senderNickname === myNickname;
           return (
-            <Fragment key={message.id}>
+            <Fragment key={message.chatId}>
               {showDate && (
                 <div className="flex justify-center">
-                  <span className="bg-gray-100 rounded-full px-3 py-1 text-caption text-gray-400">{formatDate(message.sentAt)}</span>
+                  <span className="bg-gray-100 rounded-full px-3 py-1 text-caption text-gray-400">{formatDate(message.createdAt)}</span>
                 </div>
               )}
-              {message.isMine
-                ? <MyBubble msg={message} onDownload={handleDownload} memberNicknames={memberNicknames} />
-                : <OtherBubble msg={message} onDownload={handleDownload} memberNicknames={memberNicknames} />}
+              {isMine
+                ? <MyBubble msg={message} memberNicknames={memberNicknames} />
+                : <OtherBubble msg={message} memberNicknames={memberNicknames} />}
             </Fragment>
           );
         })}
