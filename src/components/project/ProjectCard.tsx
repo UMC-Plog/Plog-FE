@@ -24,10 +24,11 @@ const PROJECT_TYPE = {
 
 function MemberAvatars({ project, limit }: { project: Project; limit: number }) {
   const visibleMembers = project.members.slice(0, limit);
-  const remainingCount = project.members.length - visibleMembers.length;
+  const memberCount = project.memberCount ?? project.members.length;
+  const remainingCount = Math.max(0, memberCount - visibleMembers.length);
 
   return (
-    <div className="flex -space-x-2" aria-label={`팀원 ${project.members.length}명`}>
+    <div className="flex -space-x-2" aria-label={`팀원 ${memberCount}명`}>
       {visibleMembers.map((member) => (
         <span
           key={member.id}
@@ -107,7 +108,7 @@ export function ProjectCard({ project, viewMode }: ProjectCardProps) {
             <MemberAvatars project={project} limit={isGrid ? 2 : 3} />
             {!isGrid && (
               <span className="shrink-0 text-caption font-normal text-gray-500">
-                팀원 {project.members.length}명
+                팀원 {project.memberCount ?? project.members.length}명
               </span>
             )}
           </div>

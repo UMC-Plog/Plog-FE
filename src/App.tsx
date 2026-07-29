@@ -33,6 +33,7 @@ import PeerEvalListPage from './pages/project/PeerEvalListPage'
 import PeerEvalStarPage from './pages/project/PeerEvalStarPage'
 import PeerEvalKeywordPage from './pages/project/PeerEvalKeywordPage'
 import SelfFeedbackPage from './pages/project/SelfFeedbackPage'
+import { ProjectDataLoader } from './components/ProjectDataLoader'
 
 function App() {
   return (
@@ -49,13 +50,14 @@ function App() {
         <Route path="/reset-password" element={<ResetPasswordPage />} />
         <Route path="/oauth/:provider" element={<OAuthCallbackPage />} />
 
-        {/* 하단 탭바가 있는 화면들 */}
-        <Route element={<BottomTabBar />}>
-          <Route path="/home" element={<HomePage />} />
-          <Route path="/report" element={<ReportPage />} />
-          <Route path="/chat" element={<ChatPage />} />
-          <Route path="/my" element={<MyPage />} />
-        </Route>
+        <Route element={<ProjectDataLoader />}>
+          {/* 하단 탭바가 있는 화면들 */}
+          <Route element={<BottomTabBar />}>
+            <Route path="/home" element={<HomePage />} />
+            <Route path="/report" element={<ReportPage />} />
+            <Route path="/chat" element={<ChatPage />} />
+            <Route path="/my" element={<MyPage />} />
+          </Route>
 
         <Route path="/my/profile" element={<ProfileEditPage />} />
         <Route path="/my/accounts" element={<AccountConnectionsPage />} />
@@ -64,30 +66,31 @@ function App() {
         <Route path="/project/new" element={<CreateProjectPage />} />
         <Route path="/project/:id/settings" element={<ProjectSettingsPage />} />
 
-        {/* Peer 평가 플로우 — ProjectTabBar 밖 독립 화면 */}
-        <Route path="/project/:id/peer-eval" element={<PeerEvalListPage />} />
-        <Route path="/project/:id/peer-eval/self" element={<SelfFeedbackPage />} />
-        <Route path="/project/:id/peer-eval/:memberId/star" element={<PeerEvalStarPage />} />
-        <Route path="/project/:id/peer-eval/:memberId/keyword" element={<PeerEvalKeywordPage />} />
+          {/* Peer 평가 플로우 — ProjectTabBar 밖 독립 화면 */}
+          <Route path="/project/:id/peer-eval" element={<PeerEvalListPage />} />
+          <Route path="/project/:id/peer-eval/self" element={<SelfFeedbackPage />} />
+          <Route path="/project/:id/peer-eval/:memberId/star" element={<PeerEvalStarPage />} />
+          <Route path="/project/:id/peer-eval/:memberId/keyword" element={<PeerEvalKeywordPage />} />
 
-        {/* 프로젝트 상세: 피드/채팅/업무/리포트 상단 탭 */}
-        <Route path="/project/:id" element={<ProjectTabBar />}>
-          <Route index element={<Navigate to="feed" replace />} />
-          <Route path="feed" element={<ProjectFeedPage />} />
-          <Route path="chat" element={<ProjectChatPage />} />
-          <Route path="tasks" element={<ProjectTaskPage />} />
-          <Route path="report" element={<ProjectReportPage />} />
+          {/* 프로젝트 상세: 피드/채팅/업무/리포트 상단 탭 */}
+          <Route path="/project/:id" element={<ProjectTabBar />}>
+            <Route index element={<Navigate to="feed" replace />} />
+            <Route path="feed" element={<ProjectFeedPage />} />
+            <Route path="chat" element={<ProjectChatPage />} />
+            <Route path="tasks" element={<ProjectTaskPage />} />
+            <Route path="report" element={<ProjectReportPage />} />
+          </Route>
+
+          <Route path="/project/:id/notices/new" element={<NoticeFormPage />} />
+          <Route path="/project/:id/notices" element={<NoticeHistoryPage />} />
+          <Route path="/project/:id/notices/:noticeId" element={<NoticeDetailPage />} />
+          <Route path="/project/:id/notices/:noticeId/edit" element={<NoticeFormPage />} />
+          <Route path="/project/:id/posts/new" element={<PostFormPage />} />
+          <Route path="/project/:id/posts/:postId" element={<PostDetailPage />} />
+          <Route path="/project/:id/posts/:postId/edit" element={<PostFormPage />} />
+
+          <Route path="*" element={<Navigate to="/home" replace />} />
         </Route>
-
-        <Route path="/project/:id/notices/new" element={<NoticeFormPage />} />
-        <Route path="/project/:id/notices" element={<NoticeHistoryPage />} />
-        <Route path="/project/:id/notices/:noticeId" element={<NoticeDetailPage />} />
-        <Route path="/project/:id/notices/:noticeId/edit" element={<NoticeFormPage />} />
-        <Route path="/project/:id/posts/new" element={<PostFormPage />} />
-        <Route path="/project/:id/posts/:postId" element={<PostDetailPage />} />
-        <Route path="/project/:id/posts/:postId/edit" element={<PostFormPage />} />
-
-        <Route path="*" element={<Navigate to="/home" replace />} />
       </Routes>
     </BrowserRouter>
   )
