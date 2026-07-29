@@ -8,13 +8,26 @@ import { ApiError } from "../api/client";
 import { useAuthStore } from "./authStore";
 import type { CreateProjectRequest, CreatedProject, Project } from "../types/project";
 
+interface ProjectSettingsUpdate {
+  hasUnseenUpdate: boolean;
+  updatedAt: string;
+  seenAt?: string;
+}
+
 interface ProjectState {
   projects: Project[];
+  settingsUpdatesByProjectId: Record<string, ProjectSettingsUpdate>;
   isLoading: boolean;
   hasFetched: boolean;
   error: string | null;
   fetchProjects: (force?: boolean) => Promise<void>;
   createProject: (request: CreateProjectRequest) => Promise<CreatedProject>;
+  updateProject: (
+    projectId: string,
+    updates: Partial<Pick<Project, "name" | "type" | "expectedEndDate">>
+  ) => void;
+  markProjectSettingsUpdated: (projectId: string) => void;
+  markProjectSettingsAsSeen: (projectId: string) => void;
   reset: () => void;
 }
 
@@ -29,6 +42,7 @@ function getErrorMessage(error: unknown) {
 
 export const useProjectStore = create<ProjectState>((set, get) => ({
   projects: [],
+  settingsUpdatesByProjectId: {},
   isLoading: false,
   hasFetched: false,
   error: null,
@@ -73,10 +87,74 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
       throw error;
     }
   },
+  updateProject: (projectId, updates) =>
+    set((state) => {
+      const project = state.projects.find((item) => item.id === projectId);
+      if (!project) return state;
+
+      const normalizedUpdates = {
+        ...updates,
+        ...(updates.name !== undefined ? { name: updates.name.trim() } : {}),
+      };
+      const hasChanges = Object.entries(normalizedUpdates).some(
+        ([key, value]) => project[key as keyof Project] !== value
+      );
+      if (!hasChanges) return state;
+
+      const updatedAt = new Date().toISOString();
+      return {
+        projects: state.projects.map((item) =>
+          item.id === projectId ? { ...item, ...normalizedUpdates } : item
+        ),
+        settingsUpdatesByProjectId: {
+          ...state.settingsUpdatesByProjectId,
+          [projectId]: {
+            hasUnseenUpdate: true,
+            updatedAt,
+          },
+        },
+      };
+    }),
+  markProjectSettingsUpdated: (projectId) =>
+    set((state) => {
+      if (!state.projects.some((project) => project.id === projectId)) return state;
+      return {
+        settingsUpdatesByProjectId: {
+          ...state.settingsUpdatesByProjectId,
+          [projectId]: {
+            hasUnseenUpdate: true,
+            updatedAt: new Date().toISOString(),
+          },
+        },
+      };
+    }),
+  markProjectSettingsAsSeen: (projectId) =>
+    set((state) => {
+      if (!state.projects.some((project) => project.id === projectId)) return state;
+      const currentUpdate = state.settingsUpdatesByProjectId[projectId];
+      if (!currentUpdate?.hasUnseenUpdate) return state;
+
+      return {
+        settingsUpdatesByProjectId: {
+          ...state.settingsUpdatesByProjectId,
+          [projectId]: {
+            ...currentUpdate,
+            hasUnseenUpdate: false,
+            seenAt: new Date().toISOString(),
+          },
+        },
+      };
+    }),
   reset: () => {
     requestGeneration += 1;
     fetchPromise = null;
-    set({ projects: [], isLoading: false, hasFetched: false, error: null });
+    set({
+      projects: [],
+      settingsUpdatesByProjectId: {},
+      isLoading: false,
+      hasFetched: false,
+      error: null,
+    });
   },
 }));
 
