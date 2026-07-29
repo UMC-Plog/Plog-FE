@@ -1,14 +1,13 @@
-import { FileText, Heart, Image, Link, MessageSquare, UserRound } from 'lucide-react'
+import { FileText, Heart, Link, MessageSquare, UserRound } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { ApiError } from '../../api/client'
 import { likePost, unlikePost } from '../../api/postApi'
-import { AVATAR_PRESETS } from '../AvatarPicker'
 import { AlertModal } from '../Modal'
 import { useAuthStore } from '../../store/authStore'
-import type { Post } from '../../types/post'
+import type { PostListItemViewModel } from '../../types/post'
 
 interface PostFeedItemProps {
-  post: Post
+  post: PostListItemViewModel
   onClick: () => void
 }
 
@@ -23,19 +22,11 @@ function formatPostTime(createdAt: string) {
   return `${Math.floor(hours / 24)}일 전`
 }
 
-function formatFileSize(size?: number) {
-  if (size === undefined) return null
-  if (size < 1024 * 1024) return `${Math.ceil(size / 1024)}KB`
-  return `${(size / 1024 / 1024).toFixed(1)}MB`
-}
-
 export function PostFeedItem({ post, onClick }: PostFeedItemProps) {
   const user = useAuthStore((state) => state.user)
-  const avatarPreset = AVATAR_PRESETS.find((avatar) => avatar.id === post.author.avatarId)
-  const avatarSrc = post.author.avatarImageUrl ?? avatarPreset?.src
   const attachment = post.attachments[0]
-  const AttachmentIcon = attachment?.type === 'link' ? Link : attachment?.type === 'image' ? Image : FileText
-  const initialIsLiked = Boolean(user && post.likedUserIds?.includes(user.id))
+  const AttachmentIcon = attachment?.type === 'LINK' ? Link : FileText
+  const initialIsLiked = post.likedByMe
   const [isLiked, setIsLiked] = useState(initialIsLiked)
   const [likeCount, setLikeCount] = useState(post.likeCount)
   const [isLikeSubmitting, setIsLikeSubmitting] = useState(false)
@@ -48,19 +39,18 @@ export function PostFeedItem({ post, onClick }: PostFeedItemProps) {
     setLikeError(undefined)
     likeSubmittingRef.current = false
     setIsLikeSubmitting(false)
-  }, [initialIsLiked, post.id, post.likeCount, post.projectId])
+  }, [initialIsLiked, post.likeCount, post.postId, post.projectId])
 
   const handleLike = async () => {
     if (!user || likeSubmittingRef.current) return
 
     const numericProjectId =
-      /^[1-9]\d*$/.test(post.projectId) &&
-      Number.isSafeInteger(Number(post.projectId))
-        ? Number(post.projectId)
+      Number.isSafeInteger(post.projectId) && post.projectId > 0
+        ? post.projectId
         : null
     const numericPostId =
-      /^[1-9]\d*$/.test(post.id) && Number.isSafeInteger(Number(post.id))
-        ? Number(post.id)
+      Number.isSafeInteger(post.postId) && post.postId > 0
+        ? post.postId
         : null
 
     if (numericProjectId === null || numericPostId === null) {
@@ -106,29 +96,24 @@ export function PostFeedItem({ post, onClick }: PostFeedItemProps) {
     >
       <div className="flex items-center gap-3">
         <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-gray-100">
-          {avatarSrc ? (
-            <img src={avatarSrc} alt="" className="h-full w-full object-cover" />
-          ) : (
-            <UserRound className="h-5 w-5 text-gray-400" aria-hidden />
-          )}
+          <UserRound className="h-5 w-5 text-gray-400" aria-hidden />
         </div>
         <div className="min-w-0">
-          <p className="truncate text-body-sm font-semibold text-gray-900">{post.author.nickname}</p>
+          <p className="truncate text-body-sm font-semibold text-gray-900">
+            {post.authorNickname ?? '알 수 없는 사용자'}
+          </p>
           <p className="text-caption font-normal text-gray-400">{formatPostTime(post.createdAt)}</p>
         </div>
       </div>
 
-      <h2 className="mt-4 text-body font-semibold text-gray-900">{post.title}</h2>
+      <p className="mt-4 whitespace-pre-wrap text-body font-semibold text-gray-900">
+        {post.content}
+      </p>
 
       {attachment && (
         <div className="mt-4 flex items-center gap-3 rounded-md bg-gray-50 px-3 py-3">
           <AttachmentIcon className="h-5 w-5 shrink-0 text-primary" aria-hidden />
-          <p className="min-w-0 flex-1 truncate text-body-sm text-blue-600">{attachment.name}</p>
-          {formatFileSize(attachment.size) && (
-            <span className="shrink-0 text-caption font-normal text-gray-400">
-              {formatFileSize(attachment.size)}
-            </span>
-          )}
+          <p className="min-w-0 flex-1 truncate text-body-sm text-blue-600">{attachment.fileName}</p>
           {post.attachments.length > 1 && (
             <span className="shrink-0 text-caption font-normal text-gray-400">
               +{post.attachments.length - 1}

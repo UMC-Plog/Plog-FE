@@ -89,3 +89,67 @@ export interface PostLikeResult {
   liked: boolean
   likeCount: number
 }
+
+export interface ServerPostAttachmentResponse {
+  taskAttachmentId?: number
+  attachmentType?: ServerPostAttachmentType
+  fileId?: number
+  fileName?: string
+  linkUrl?: string | null
+  downloadUrlApi?: string | null
+}
+
+export interface ServerPostResponse {
+  postId?: number
+  projectId?: number
+  projectMemberId?: number
+  authorNickname?: string | null
+  content?: string
+  isNotice?: boolean
+  likeCount?: number
+  commentCount?: number
+  likedByMe?: boolean
+  attachments?: ServerPostAttachmentResponse[]
+  createdAt?: string
+  updatedAt?: string
+}
+
+export interface ServerPostFeedResponse {
+  notice?: ServerPostResponse | null
+  posts?: ServerPostResponse[]
+  nextCursor?: string | null
+  hasNext?: boolean
+}
+
+export interface PostFeedAttachmentViewModel {
+  id?: number
+  type: ServerPostAttachmentType
+  fileId?: number
+  fileName: string
+  linkUrl?: string | null
+  downloadUrlApi?: string | null
+}
+
+export interface PostListItemViewModel {
+  postId: number
+  projectId: number
+  projectMemberId: number
+  authorNickname: string | null
+  content: string
+  isNotice: boolean
+  likeCount: number
+  commentCount: number
+  likedByMe: boolean
+  attachments: PostFeedAttachmentViewModel[]
+  createdAt: string
+  updatedAt: string
+}
+
+export type PostDetailViewModel = PostListItemViewModel
+
+export interface PostFeedResult {
+  notice: PostListItemViewModel | null
+  posts: PostListItemViewModel[]
+  nextCursor: string | null
+  hasNext: boolean
+}
