@@ -5,12 +5,14 @@ interface TopNavBarProps {
   title: string
   onBack?: () => void
   onSettingsClick?: () => void
+  hasSettingsUpdate?: boolean
 }
 
 export function TopNavBar({
   title,
   onBack,
   onSettingsClick,
+  hasSettingsUpdate = false,
 }: TopNavBarProps) {
   const navigate = useNavigate()
 
@@ -36,7 +38,15 @@ export function TopNavBar({
           onClick={onSettingsClick}
           className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-gray-600 hover:bg-gray-50"
         >
-          <Settings className="h-5 w-5" aria-hidden />
+          <span className="relative inline-flex">
+            <Settings className="h-5 w-5" aria-hidden />
+            {hasSettingsUpdate && (
+              <span
+                aria-hidden="true"
+                className="absolute -right-1 -top-1 h-1 w-1 rounded-full bg-red-600"
+              />
+            )}
+          </span>
         </button>
       ) : (
         <span className="h-10 w-10 shrink-0" aria-hidden />
