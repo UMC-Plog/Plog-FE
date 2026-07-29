@@ -1,21 +1,22 @@
-import { useMemo, useState } from 'react'
-import { Plus } from 'lucide-react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { ClipboardList, Plus } from 'lucide-react'
 import { useParams } from 'react-router-dom'
+import { fetchProjectTasks } from '../../api/task'
 import { Button } from '../../components/Button'
+import { EmptyState } from '../../components/EmptyState'
+import { AlertModal } from '../../components/Modal'
 import { KanbanColumn } from '../../components/task/KanbanColumn'
-import { TaskCardDetailModal } from '../../components/task/TaskCardDetailModal'
-import { TaskCardFormModal } from '../../components/task/TaskCardFormModal'
-import { ConfirmDialog } from '../../components/ConfirmDialog'
 import { ProgressBar } from '../../components/ProgressBar'
 import { cn } from '../../lib/utils'
-import { useAuthStore } from '../../store/authStore'
-import { useTaskStore } from '../../store/taskStore'
-import type { Task, TaskStatus } from '../../types/task'
-import { isTaskDueSoon } from '../../utils/taskDate'
+import type {
+  ServerTaskSummaryResponse,
+  ServerTaskStatus,
+  TaskListItemViewModel,
+} from '../../types/task'
 
 type TaskFilter = 'all' | 'mine' | 'dueSoon'
 
-const TASK_STATUSES: TaskStatus[] = ['todo', 'inProgress', 'done']
+const TASK_STATUSES: ServerTaskStatus[] = ['TODO', 'IN_PROGRESS', 'DONE']
 
 const FILTERS: Array<{ value: TaskFilter; label: string }> = [
   { value: 'all', label: '전체' },
@@ -23,36 +24,101 @@ const FILTERS: Array<{ value: TaskFilter; label: string }> = [
   { value: 'dueSoon', label: '마감임박' },
 ]
 
+function parseProjectId(value: string) {
+  if (!/^[1-9]\d*$/.test(value)) return null
+  const projectId = Number(value)
+  return Number.isSafeInteger(projectId) ? projectId : null
+}
+
+function mapTaskSummary(response: ServerTaskSummaryResponse): TaskListItemViewModel {
+  const { taskId, title, category, cardStatus, endDate, isOverdue, assignee, attachmentCount } =
+    response
+
+  if (
+    typeof taskId !== 'number' ||
+    typeof title !== 'string' ||
+    !category ||
+    !cardStatus ||
+    typeof endDate !== 'string' ||
+    typeof isOverdue !== 'boolean' ||
+    typeof assignee?.projectMemberId !== 'number' ||
+    typeof assignee.nickname !== 'string' ||
+    typeof attachmentCount !== 'number'
+  ) {
+    throw new Error('업무 목록 응답 형식이 올바르지 않습니다.')
+  }
+
+  return {
+    id: taskId,
+    title,
+    category,
+    status: cardStatus,
+    dueDate: endDate,
+    isOverdue,
+    assignee: {
+      projectMemberId: assignee.projectMemberId,
+      nickname: assignee.nickname,
+      profilePreset: assignee.profilePreset,
+    },
+    attachmentCount,
+  }
+}
+
+function getErrorMessage(error: unknown) {
+  return error instanceof Error
+    ? error.message
+    : '네트워크 상태를 확인한 뒤 다시 시도해 주세요.'
+}
+
 export default function ProjectTaskPage() {
-  const { id: projectId = '' } = useParams()
-  const user = useAuthStore((state) => state.user)
-  const storedTasks = useTaskStore((state) => state.tasks)
-  const updateTaskStatus = useTaskStore((state) => state.updateTaskStatus)
-  const deleteTask = useTaskStore((state) => state.deleteTask)
+  const { id: projectIdParam = '' } = useParams<{ id: string }>()
+  const projectId = useMemo(() => parseProjectId(projectIdParam), [projectIdParam])
+  const requestIdRef = useRef(0)
+  const [tasks, setTasks] = useState<TaskListItemViewModel[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [filter, setFilter] = useState<TaskFilter>('all')
-  const [isFormOpen, setIsFormOpen] = useState(false)
-  const [formMode, setFormMode] = useState<'create' | 'edit'>('create')
-  const [editingTask, setEditingTask] = useState<Task | null>(null)
-  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null)
-  const [isDetailOpen, setIsDetailOpen] = useState(false)
-  const [isDeleteOpen, setIsDeleteOpen] = useState(false)
+  const [notice, setNotice] = useState<'create' | 'detail' | 'filter' | null>(null)
 
-  const projectTasks = useMemo(
-    () => storedTasks.filter((task) => task.projectId === projectId),
-    [projectId, storedTasks]
-  )
-  const selectedTask = projectTasks.find((task) => task.id === selectedTaskId) ?? null
+  const loadTasks = useCallback(async () => {
+    const requestId = ++requestIdRef.current
 
-  const filteredTasks = useMemo(() => {
-    if (filter === 'mine') {
-      return user ? projectTasks.filter((task) => task.assignee.id === user.id) : []
+    if (projectId === null) {
+      setTasks([])
+      setError('올바른 프로젝트 ID가 아니어서 업무 목록을 불러올 수 없습니다.')
+      setIsLoading(false)
+      return
     }
-    if (filter === 'dueSoon') return projectTasks.filter((task) => isTaskDueSoon(task))
-    return projectTasks
-  }, [filter, projectTasks, user])
 
-  const completedCount = projectTasks.filter((task) => task.status === 'done').length
-  const totalCount = projectTasks.length
+    setIsLoading(true)
+    setError(null)
+
+    try {
+      const response = await fetchProjectTasks(projectId)
+      if (!Array.isArray(response.content)) {
+        throw new Error('업무 목록 응답 형식이 올바르지 않습니다.')
+      }
+      const nextTasks = response.content.map(mapTaskSummary)
+      if (requestId === requestIdRef.current) setTasks(nextTasks)
+    } catch (loadError: unknown) {
+      if (requestId === requestIdRef.current) {
+        setTasks([])
+        setError(getErrorMessage(loadError))
+      }
+    } finally {
+      if (requestId === requestIdRef.current) setIsLoading(false)
+    }
+  }, [projectId])
+
+  useEffect(() => {
+    void loadTasks()
+    return () => {
+      requestIdRef.current += 1
+    }
+  }, [loadTasks])
+
+  const completedCount = tasks.filter((task) => task.status === 'DONE').length
+  const totalCount = tasks.length
 
   return (
     <div className="min-w-0 px-4 py-4">
@@ -76,7 +142,13 @@ export default function ProjectTaskPage() {
             <button
               key={item.value}
               type="button"
-              onClick={() => setFilter(item.value)}
+              onClick={() => {
+                if (item.value === 'all') {
+                  setFilter('all')
+                  return
+                }
+                setNotice('filter')
+              }}
               aria-pressed={filter === item.value}
               className={cn(
                 'h-8 shrink-0 rounded-full border px-3 text-caption transition-colors',
@@ -96,82 +168,63 @@ export default function ProjectTaskPage() {
           fullWidth={false}
           icon={<Plus className="h-4 w-4" aria-hidden />}
           className="shrink-0 text-white"
-          onClick={() => {
-            setFormMode('create')
-            setEditingTask(null)
-            setIsFormOpen(true)
-          }}
+          onClick={() => setNotice('create')}
         >
           업무 등록
         </Button>
       </div>
 
-      <div className="-mx-4 mt-4 overflow-x-auto px-4 pb-4">
-        <div className="flex min-w-max items-start gap-3">
-          {TASK_STATUSES.map((status) => (
-            <KanbanColumn
-              key={status}
-              status={status}
-              tasks={filteredTasks.filter((task) => task.status === status)}
-              onTaskClick={(task) => {
-                setSelectedTaskId(task.id)
-                setIsDetailOpen(true)
-              }}
-            />
-          ))}
+      {isLoading ? (
+        <p className="py-16 text-center text-body-sm text-gray-400">업무를 불러오는 중이에요.</p>
+      ) : error ? (
+        <div className="py-12 text-center">
+          <p className="text-body-sm text-error">{error}</p>
+          <Button
+            type="button"
+            size="sm"
+            fullWidth={false}
+            className="mt-4 text-white"
+            onClick={() => void loadTasks()}
+          >
+            다시 시도
+          </Button>
         </div>
-      </div>
-
-      <TaskCardFormModal
-        open={isFormOpen}
-        mode={formMode}
-        task={editingTask}
-        projectId={projectId}
-        onClose={() => setIsFormOpen(false)}
-        onSaved={(task) => {
-          if (formMode === 'edit') {
-            setSelectedTaskId(task.id)
-            setIsDetailOpen(true)
-          }
-        }}
-      />
-
-      <TaskCardDetailModal
-        open={isDetailOpen}
-        task={selectedTask}
-        onClose={() => setIsDetailOpen(false)}
-        onEdit={(task) => {
-          setEditingTask(task)
-          setFormMode('edit')
-          setIsDetailOpen(false)
-          setIsFormOpen(true)
-        }}
-        onDelete={() => setIsDeleteOpen(true)}
-        onStatusChange={(task, status) => {
-          updateTaskStatus(projectId, task.id, status)
-          if (status === 'done') setIsDetailOpen(false)
-        }}
-      />
-
-      <ConfirmDialog
-        open={isDeleteOpen}
-        title="업무카드를 삭제하시겠어요?"
-        highlight={selectedTask ? (
-          <div className="w-full rounded-md bg-gray-100 px-4 py-3 text-center text-body-sm font-semibold text-gray-700">
-            “{selectedTask.title}”
+      ) : tasks.length === 0 ? (
+        <EmptyState
+          icon={<ClipboardList className="h-12 w-12" aria-hidden />}
+          title="아직 등록된 업무가 없어요"
+          description="업무가 등록되면 상태별로 확인할 수 있어요"
+        />
+      ) : (
+        <div className="-mx-4 mt-4 overflow-x-auto px-4 pb-4">
+          <div className="flex min-w-max items-start gap-3">
+            {TASK_STATUSES.map((status) => (
+              <KanbanColumn
+                key={status}
+                status={status}
+                tasks={tasks.filter((task) => task.status === status)}
+                onTaskClick={() => setNotice('detail')}
+              />
+            ))}
           </div>
-        ) : undefined}
-        description="삭제된 업무카드는 복구할 수 없어요"
-        confirmText="삭제하기"
-        cancelText="취소"
-        destructive
-        onCancel={() => setIsDeleteOpen(false)}
-        onConfirm={() => {
-          if (selectedTask) deleteTask(projectId, selectedTask.id)
-          setIsDeleteOpen(false)
-          setIsDetailOpen(false)
-          setSelectedTaskId(null)
-        }}
+        </div>
+      )}
+
+      <AlertModal
+        open={notice !== null}
+        title={
+          notice === 'filter'
+            ? '필터 연동 준비 중이에요'
+            : notice === 'detail'
+              ? '업무 상세 연동 준비 중이에요'
+              : '업무 등록 연동 준비 중이에요'
+        }
+        description={
+          notice === 'filter'
+            ? '이번 단계에서는 전체 업무만 확인할 수 있어요.'
+            : '서버 API 연동 후 사용할 수 있어요.'
+        }
+        onConfirm={() => setNotice(null)}
       />
     </div>
   )
