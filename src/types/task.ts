@@ -73,6 +73,18 @@ export type ServerProfilePreset =
   | 'GHOST'
   | 'TIGER'
 
+export interface ServerProjectActiveMemberResponse {
+  projectMemberId?: number
+  nickname?: string
+  profilePreset?: ServerProfilePreset | null
+}
+
+export interface ProjectActiveMember {
+  projectMemberId: number
+  nickname: string
+  profilePreset: ServerProfilePreset | null
+}
+
 export type ServerTaskAttachmentType = 'FILE' | 'LINK'
 
 export interface ServerTaskAttachmentRequest {
@@ -94,7 +106,7 @@ export interface ServerAttachmentResponse {
 
 export interface ServerAssigneeResponse {
   projectMemberId?: number
-  nickname?: string
+  nickname?: string | null
   profilePreset?: ServerProfilePreset | null
 }
 
@@ -122,7 +134,7 @@ export interface TaskListItemViewModel {
   isOverdue: boolean
   assignee: {
     projectMemberId: number
-    nickname: string
+    nickname: string | null
     profilePreset?: ServerProfilePreset | null
   }
   attachmentCount: number
@@ -133,7 +145,7 @@ export interface TaskDetailViewModel {
   title: string
   assignee: {
     projectMemberId: number
-    nickname: string
+    nickname: string | null
     profilePreset?: ServerProfilePreset | null
   }
   category: ServerTaskCategory

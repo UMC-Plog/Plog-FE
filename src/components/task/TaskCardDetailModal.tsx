@@ -131,7 +131,7 @@ export function TaskCardDetailModal({
                   <UserRound className="h-4 w-4 text-gray-400" aria-hidden />
                 )}
               </span>
-              {task.assignee.nickname}
+              {task.assignee.nickname ?? '알 수 없는 사용자'}
             </dd>
           </div>
           <div>

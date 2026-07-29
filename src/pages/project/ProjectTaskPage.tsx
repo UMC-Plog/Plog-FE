@@ -7,8 +7,10 @@ import { EmptyState } from '../../components/EmptyState'
 import { AlertModal } from '../../components/Modal'
 import { KanbanColumn } from '../../components/task/KanbanColumn'
 import { TaskCardDetailModal } from '../../components/task/TaskCardDetailModal'
+import { TaskCardFormModal } from '../../components/task/TaskCardFormModal'
 import { ProgressBar } from '../../components/ProgressBar'
 import { cn } from '../../lib/utils'
+import { useProjectStore } from '../../store/projectStore'
 import type {
   ServerProfilePreset,
   ServerTaskCategory,
@@ -94,7 +96,7 @@ function mapTaskSummary(response: ServerTaskSummaryResponse): TaskListItemViewMo
     typeof endDate !== 'string' ||
     typeof isOverdue !== 'boolean' ||
     typeof assignee?.projectMemberId !== 'number' ||
-    typeof assignee.nickname !== 'string' ||
+    (typeof assignee.nickname !== 'string' && assignee.nickname !== null) ||
     typeof attachmentCount !== 'number'
   ) {
     throw new Error('업무 목록 응답 형식이 올바르지 않습니다.')
@@ -138,7 +140,7 @@ function mapTaskDetail(
     taskId !== requestedTaskId ||
     typeof title !== 'string' ||
     typeof assignee?.projectMemberId !== 'number' ||
-    typeof assignee.nickname !== 'string' ||
+    (typeof assignee.nickname !== 'string' && assignee.nickname !== null) ||
     !isServerTaskCategory(category) ||
     !isServerTaskStatus(cardStatus) ||
     typeof endDate !== 'string' ||
@@ -212,11 +214,15 @@ export default function ProjectTaskPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [filter, setFilter] = useState<TaskFilter>('all')
-  const [notice, setNotice] = useState<'create' | 'filter' | 'detailAction' | null>(null)
+  const [notice, setNotice] = useState<'filter' | 'detailAction' | null>(null)
   const [selectedTaskId, setSelectedTaskId] = useState<number | null>(null)
   const [detail, setDetail] = useState<TaskDetailViewModel | null>(null)
   const [isDetailLoading, setIsDetailLoading] = useState(false)
   const [detailError, setDetailError] = useState<string | null>(null)
+  const [isCreateOpen, setIsCreateOpen] = useState(false)
+  const project = useProjectStore((state) =>
+    state.projects.find((item) => item.id === projectIdParam)
+  )
 
   const loadTasks = useCallback(async () => {
     const requestId = ++requestIdRef.current
@@ -347,7 +353,7 @@ export default function ProjectTaskPage() {
           fullWidth={false}
           icon={<Plus className="h-4 w-4" aria-hidden />}
           className="shrink-0 text-white"
-          onClick={() => setNotice('create')}
+          onClick={() => setIsCreateOpen(true)}
         >
           업무 등록
         </Button>
@@ -401,14 +407,22 @@ export default function ProjectTaskPage() {
         onUnavailableAction={() => setNotice('detailAction')}
       />
 
+      {projectId !== null && (
+        <TaskCardFormModal
+          open={isCreateOpen}
+          projectId={projectId}
+          projectType={project?.type}
+          onClose={() => setIsCreateOpen(false)}
+          onCreated={() => void loadTasks()}
+        />
+      )}
+
       <AlertModal
         open={notice !== null}
         title={
           notice === 'filter'
             ? '필터 연동 준비 중이에요'
-            : notice === 'detailAction'
-              ? '업무 변경 기능 준비 중이에요'
-              : '업무 등록 연동 준비 중이에요'
+            : '업무 변경 기능 준비 중이에요'
         }
         description={
           notice === 'filter'

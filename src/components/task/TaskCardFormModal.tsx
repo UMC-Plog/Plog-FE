@@ -1,242 +1,310 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
-import { FileText, Info, Link, Paperclip, X } from 'lucide-react'
+import { UserRound } from 'lucide-react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { ApiError } from '../../api/client'
+import {
+  createTask,
+  fetchActiveProjectMembers,
+} from '../../api/task'
+import { AVATAR_PRESETS } from '../AvatarPicker'
 import { Button } from '../Button'
 import { Input } from '../Input'
 import { BottomSheet } from '../Modal'
-import {
-  isAttachmentSizeValid,
-  MAX_ATTACHMENT_SIZE_ERROR,
-} from '../../lib/attachment'
 import { cn } from '../../lib/utils'
-import { useProjectStore } from '../../store/projectStore'
-import { useTaskStore } from '../../store/taskStore'
+import type { ProjectType } from '../../types/project'
 import type {
-  Task,
-  TaskAssignee,
-  TaskAttachment,
-  TaskCategory,
-  TaskStatus,
+  ProjectActiveMember,
+  ServerProfilePreset,
+  ServerTaskCategory,
+  ServerTaskStatus,
 } from '../../types/task'
 
 interface TaskCardFormModalProps {
   open: boolean
-  mode: 'create' | 'edit'
-  task?: Task | null
-  projectId: string
+  projectId: number
+  projectType?: ProjectType
   onClose: () => void
-  onSaved?: (task: Task) => void
+  onCreated: () => void
 }
 
-const STATUS_OPTIONS: Array<{ value: TaskStatus; label: string }> = [
-  { value: 'todo', label: '예정' },
-  { value: 'inProgress', label: '진행 중' },
-  { value: 'done', label: '완료' },
+const STATUS_OPTIONS: Array<{ value: ServerTaskStatus; label: string }> = [
+  { value: 'TODO', label: '예정' },
+  { value: 'IN_PROGRESS', label: '진행 중' },
+  { value: 'DONE', label: '완료' },
 ]
 
-const CATEGORY_OPTIONS: Array<{ value: TaskCategory; label: string }> = [
-  { value: 'document', label: '문서' },
-  { value: 'design', label: '디자인' },
-  { value: 'planning', label: '기획' },
-  { value: 'development', label: '개발' },
-  { value: 'test', label: '테스트/수정' },
+const DEVELOP_CATEGORIES: Array<{
+  value: ServerTaskCategory
+  label: string
+}> = [
+  { value: 'PLANNING', label: '기획' },
+  { value: 'DESIGN', label: '디자인' },
+  { value: 'DEVELOP', label: '개발' },
+  { value: 'TEST_FIX', label: '테스트·수정' },
+  { value: 'PRESENTATION_DOC', label: '발표 자료' },
+  { value: 'ETC', label: '기타' },
 ]
 
-const ALLOWED_FILE_EXTENSIONS = ['pdf', 'pptx', 'docx', 'zip', 'jpg', 'jpeg', 'png', 'gif', 'webp']
+const GENERAL_CATEGORIES: Array<{
+  value: ServerTaskCategory
+  label: string
+}> = [
+  { value: 'RESEARCH', label: '자료 조사' },
+  { value: 'MATERIAL_PRODUCTION', label: '자료 제작' },
+  { value: 'PRESENTATION', label: '발표' },
+  { value: 'SCHEDULE_MANAGEMENT', label: '일정 관리' },
+  { value: 'ETC', label: '기타' },
+]
 
-function formatFileSize(size: number) {
-  if (size < 1024 * 1024) return `${Math.ceil(size / 1024)}KB`
-  return `${(size / 1024 / 1024).toFixed(1)}MB`
+const PRESET_ID: Record<ServerProfilePreset, string> = {
+  OTTER: 'otter',
+  PENGUIN: 'penguin',
+  FROG: 'frog',
+  KOALA: 'koala',
+  PANDA: 'panda',
+  SMILEY: 'smile',
+  GHOST: 'ghost',
+  TIGER: 'tiger',
 }
 
-function getLinkName(value: string) {
-  try {
-    return new URL(value).hostname
-  } catch {
-    return value
-  }
+function getErrorMessage(error: unknown) {
+  return error instanceof ApiError
+    ? error.message
+    : '네트워크 상태를 확인한 뒤 다시 시도해 주세요.'
 }
 
 export function TaskCardFormModal({
   open,
-  mode,
-  task,
   projectId,
+  projectType,
   onClose,
-  onSaved,
+  onCreated,
 }: TaskCardFormModalProps) {
-  const project = useProjectStore((state) =>
-    state.projects.find((item) => item.id === projectId)
-  )
-  const createTask = useTaskStore((state) => state.createTask)
-  const updateTask = useTaskStore((state) => state.updateTask)
-  const fileInputRef = useRef<HTMLInputElement>(null)
+  const requestIdRef = useRef(0)
+  const submittingRef = useRef(false)
+  const [members, setMembers] = useState<ProjectActiveMember[]>([])
+  const [isMembersLoading, setIsMembersLoading] = useState(false)
+  const [membersError, setMembersError] = useState<string>()
   const [title, setTitle] = useState('')
-  const [assigneeId, setAssigneeId] = useState('')
-  const [status, setStatus] = useState<TaskStatus>('todo')
-  const [category, setCategory] = useState<TaskCategory>('planning')
-  const [dueDate, setDueDate] = useState('')
+  const [projectMemberId, setProjectMemberId] = useState<number | null>(null)
+  const [status, setStatus] = useState<ServerTaskStatus>('TODO')
+  const [category, setCategory] = useState<ServerTaskCategory | ''>('')
+  const [endDate, setEndDate] = useState('')
   const [isDateFocused, setIsDateFocused] = useState(false)
-  const [attachments, setAttachments] = useState<TaskAttachment[]>([])
-  const [linkValue, setLinkValue] = useState('')
-  const [linkError, setLinkError] = useState('')
-  const [attachmentError, setAttachmentError] = useState('')
-  const [isAttachmentMenuOpen, setIsAttachmentMenuOpen] = useState(false)
-  const [isLinkInputOpen, setIsLinkInputOpen] = useState(false)
-  const [submitting, setSubmitting] = useState(false)
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [submitError, setSubmitError] = useState<string>()
 
-  const assignees = useMemo<TaskAssignee[]>(
+  const categories = useMemo(
     () =>
-      project?.members.map((member) => ({
-        id: member.id,
-        nickname: member.nickname,
-        avatarImageUrl: member.profileImageUrl,
-      })) ?? [],
-    [project]
+      projectType === 'DEVELOPMENT'
+        ? DEVELOP_CATEGORIES
+        : projectType === 'GENERAL'
+          ? GENERAL_CATEGORIES
+          : [],
+    [projectType]
   )
+
+  const loadMembers = useCallback(async () => {
+    const requestId = ++requestIdRef.current
+    setMembers([])
+    setProjectMemberId(null)
+    setIsMembersLoading(true)
+    setMembersError(undefined)
+
+    try {
+      const response = await fetchActiveProjectMembers(projectId)
+      if (requestId === requestIdRef.current) setMembers(response)
+    } catch (error: unknown) {
+      if (requestId === requestIdRef.current) {
+        setMembersError(getErrorMessage(error))
+      }
+    } finally {
+      if (requestId === requestIdRef.current) setIsMembersLoading(false)
+    }
+  }, [projectId])
 
   useEffect(() => {
-    if (!open) return
-    setTitle(mode === 'edit' && task ? task.title : '')
-    setAssigneeId(
-      mode === 'edit' &&
-        task &&
-        assignees.some((assignee) => assignee.id === task.assignee.id)
-        ? task.assignee.id
-        : ''
-    )
-    setStatus(mode === 'edit' && task ? task.status : 'todo')
-    setCategory(mode === 'edit' && task ? task.category : 'planning')
-    setDueDate(mode === 'edit' && task ? task.dueDate : '')
-    setIsDateFocused(false)
-    setAttachments(mode === 'edit' && task ? task.attachments ?? [] : [])
-    setLinkValue('')
-    setLinkError('')
-    setAttachmentError('')
-    setIsAttachmentMenuOpen(false)
-    setIsLinkInputOpen(false)
-    setSubmitting(false)
-  }, [assignees, mode, open, task])
+    if (!open) {
+      requestIdRef.current += 1
+      return
+    }
 
-  const selectedAssignee = assignees.find((assignee) => assignee.id === assigneeId)
+    setTitle('')
+    setStatus('TODO')
+    setCategory('')
+    setEndDate('')
+    setIsDateFocused(false)
+    setIsSubmitting(false)
+    setSubmitError(undefined)
+    submittingRef.current = false
+    void loadMembers()
+
+    return () => {
+      requestIdRef.current += 1
+    }
+  }, [loadMembers, open])
+
+  useEffect(() => {
+    if (category && !categories.some((option) => option.value === category)) {
+      setCategory('')
+    }
+  }, [categories, category])
+
+  const normalizedTitle = title.trim()
+  const selectedMember = members.find(
+    (member) => member.projectMemberId === projectMemberId
+  )
   const canSubmit = Boolean(
-    title.trim() && selectedAssignee && status && category && dueDate && !submitting
+    normalizedTitle.length >= 2 &&
+      selectedMember &&
+      category &&
+      status &&
+      endDate &&
+      projectType &&
+      !isMembersLoading &&
+      !isSubmitting
   )
 
-  const addLink = () => {
-    const value = linkValue.trim()
+  const submit = async () => {
+    if (
+      !canSubmit ||
+      !selectedMember ||
+      !category ||
+      submittingRef.current
+    ) {
+      return
+    }
+
+    submittingRef.current = true
+    setIsSubmitting(true)
+    setSubmitError(undefined)
+
     try {
-      const url = new URL(value)
-      if (url.protocol !== 'http:' && url.protocol !== 'https:') throw new Error()
-      setAttachments((items) => [
-        ...items,
-        { id: crypto.randomUUID(), type: 'link', name: getLinkName(value), url: value },
-      ])
-      setLinkValue('')
-      setLinkError('')
-      setIsLinkInputOpen(false)
-    } catch {
-      setLinkError('http 또는 https 주소를 입력해주세요')
-    }
-  }
-
-  const addFiles = (files: File[]) => {
-    const validFiles: File[] = []
-    const errors: string[] = []
-
-    files.forEach((file) => {
-      const extension = file.name.split('.').pop()?.toLowerCase() ?? ''
-      const hasAllowedType = file.type.startsWith('image/') || ALLOWED_FILE_EXTENSIONS.includes(extension)
-      if (!hasAllowedType) {
-        errors.push(`${file.name}: 지원하지 않는 형식이에요`)
-        return
-      }
-      if (!isAttachmentSizeValid(file)) {
-        errors.push(MAX_ATTACHMENT_SIZE_ERROR)
-        return
-      }
-      validFiles.push(file)
-    })
-
-    if (validFiles.length > 0) {
-      setAttachments((items) => [
-        ...items,
-        ...validFiles.map((file) => ({
-          id: crypto.randomUUID(),
-          type: 'file' as const,
-          name: file.name,
-          size: formatFileSize(file.size),
-        })),
-      ])
-    }
-    setAttachmentError(errors[0] ?? '')
-  }
-
-  const submit = () => {
-    if (!canSubmit || !selectedAssignee) return
-    setSubmitting(true)
-    const input = {
-      title: title.trim(),
-      description: '',
-      status,
-      category,
-      attachments,
-      dueDate,
-      assignee: selectedAssignee,
-    }
-    const savedTask = mode === 'edit' && task
-      ? updateTask(projectId, task.id, input)
-      : createTask({ ...input, projectId })
-
-    if (savedTask) {
-      onSaved?.(savedTask)
+      await createTask(projectId, {
+        title: normalizedTitle,
+        projectMemberId: selectedMember.projectMemberId,
+        category,
+        cardStatus: status,
+        endDate,
+      })
+      onCreated()
       onClose()
-    } else {
-      setSubmitting(false)
+    } catch (error: unknown) {
+      setSubmitError(getErrorMessage(error))
+      submittingRef.current = false
+      setIsSubmitting(false)
     }
   }
 
   return (
-    <BottomSheet open={open} onClose={onClose}>
+    <BottomSheet
+      open={open}
+      onClose={isSubmitting ? undefined : onClose}
+    >
       <div className="max-h-[calc(100svh-7rem)] overflow-y-auto pr-1">
-        <h2 className="text-h3 text-gray-900">
-          {mode === 'create' ? '업무카드 등록' : '업무카드 수정'}
-        </h2>
+        <h2 className="text-h3 text-gray-900">업무카드 등록</h2>
 
         <div className="mt-4 flex flex-col gap-4">
           <div>
-            <label htmlFor="task-title" className="mb-1.5 block text-body-sm font-medium text-gray-700">
+            <label
+              htmlFor="task-title"
+              className="mb-1.5 block text-body-sm font-medium text-gray-700"
+            >
               업무명 <span className="text-error">*</span>
             </label>
             <Input
               id="task-title"
               value={title}
-              onChange={(event) => setTitle(event.target.value)}
+              onChange={(event) => {
+                setTitle(event.target.value)
+                setSubmitError(undefined)
+              }}
               placeholder="수행할 업무를 입력하세요"
               maxLength={80}
+              errorText={
+                title.length > 0 && normalizedTitle.length < 2
+                  ? '업무명은 2자 이상 입력해 주세요.'
+                  : undefined
+              }
             />
           </div>
 
-          <label className="block text-body-sm font-medium text-gray-700">
-            담당자 <span className="text-error">*</span>
-            <select
-              value={assigneeId}
-              onChange={(event) => setAssigneeId(event.target.value)}
-              className={cn(
-                'mt-1.5 h-12 w-full rounded-md border border-gray-200 bg-white px-3.5 text-body focus:border-primary focus:outline-none',
-                assigneeId ? 'text-gray-900' : 'text-gray-400'
-              )}
-            >
-              <option value="" disabled>팀원을 선택해주세요</option>
-              {assignees.map((assignee) => (
-                <option key={assignee.id} value={assignee.id}>{assignee.nickname}</option>
-              ))}
-            </select>
-            {assignees.length === 0 && (
-              <span className="mt-1.5 block text-caption font-normal text-gray-400">
-                등록된 팀원이 없어요
-              </span>
+          <fieldset>
+            <legend className="text-body-sm font-medium text-gray-700">
+              담당자 <span className="text-error">*</span>
+            </legend>
+            {isMembersLoading ? (
+              <p className="mt-2 text-caption font-normal text-gray-400">
+                프로젝트 멤버를 불러오는 중이에요.
+              </p>
+            ) : membersError ? (
+              <div className="mt-2 rounded-md bg-gray-50 p-3">
+                <p className="text-caption font-normal text-error">
+                  {membersError}
+                </p>
+                <Button
+                  type="button"
+                  size="sm"
+                  fullWidth={false}
+                  className="mt-2 text-white"
+                  onClick={() => void loadMembers()}
+                >
+                  다시 시도
+                </Button>
+              </div>
+            ) : members.length === 0 ? (
+              <p className="mt-2 text-caption font-normal text-gray-400">
+                선택할 수 있는 ACTIVE 멤버가 없어요.
+              </p>
+            ) : (
+              <div className="mt-2 grid grid-cols-2 gap-2">
+                {members.map((member) => {
+                  const presetId = member.profilePreset
+                    ? PRESET_ID[member.profilePreset]
+                    : null
+                  const avatar = AVATAR_PRESETS.find(
+                    (item) => item.id === presetId
+                  )
+                  const selected =
+                    member.projectMemberId === projectMemberId
+
+                  return (
+                    <button
+                      key={member.projectMemberId}
+                      type="button"
+                      aria-pressed={selected}
+                      onClick={() =>
+                        setProjectMemberId(member.projectMemberId)
+                      }
+                      className={cn(
+                        'flex items-center gap-2 rounded-md border px-3 py-2 text-left',
+                        selected
+                          ? 'border-primary bg-primary-50'
+                          : 'border-gray-200 bg-white'
+                      )}
+                    >
+                      <span className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full bg-gray-100">
+                        {avatar ? (
+                          <img
+                            src={avatar.src}
+                            alt=""
+                            className="h-full w-full object-cover"
+                          />
+                        ) : (
+                          <UserRound
+                            className="h-4 w-4 text-gray-400"
+                            aria-hidden
+                          />
+                        )}
+                      </span>
+                      <span className="min-w-0 truncate text-body-sm text-gray-700">
+                        {member.nickname}
+                      </span>
+                    </button>
+                  )
+                })}
+              </div>
             )}
-          </label>
+          </fieldset>
 
           <fieldset>
             <legend className="text-body-sm font-medium text-gray-700">
@@ -267,159 +335,86 @@ export function TaskCardFormModal({
               담당 영역 <span className="text-error">*</span>
               <select
                 value={category}
-                onChange={(event) => setCategory(event.target.value as TaskCategory)}
-                className="mt-1.5 h-12 w-full rounded-md border border-gray-200 bg-white px-3.5 text-body text-gray-900 focus:border-primary focus:outline-none"
+                disabled={categories.length === 0}
+                onChange={(event) =>
+                  setCategory(event.target.value as ServerTaskCategory)
+                }
+                className="mt-1.5 h-12 w-full rounded-md border border-gray-200 bg-white px-3.5 text-body text-gray-900 focus:border-primary focus:outline-none disabled:bg-gray-50 disabled:text-gray-400"
               >
-                {CATEGORY_OPTIONS.map((option) => (
-                  <option key={option.value} value={option.value}>{option.label}</option>
+                <option value="" disabled>
+                  영역 선택
+                </option>
+                {categories.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
                 ))}
               </select>
+              {categories.length === 0 && (
+                <span className="mt-1.5 block text-caption font-normal text-error">
+                  프로젝트 유형을 확인할 수 없어요.
+                </span>
+              )}
             </label>
+
             <div>
-              <label htmlFor="task-due-date" className="mb-1.5 block text-body-sm font-medium text-gray-700">
+              <label
+                htmlFor="task-due-date"
+                className="mb-1.5 block text-body-sm font-medium text-gray-700"
+              >
                 마감일 <span className="text-error">*</span>
               </label>
               <Input
                 id="task-due-date"
-                type={isDateFocused || dueDate ? 'date' : 'text'}
-                value={dueDate}
+                type={isDateFocused || endDate ? 'date' : 'text'}
+                value={endDate}
                 onFocus={() => setIsDateFocused(true)}
                 onBlur={() => {
-                  if (!dueDate) setIsDateFocused(false)
+                  if (!endDate) setIsDateFocused(false)
                 }}
-                onChange={(event) => setDueDate(event.target.value)}
+                onChange={(event) => setEndDate(event.target.value)}
                 placeholder="날짜 선택"
-                className={dueDate ? 'text-gray-900' : 'text-gray-400'}
+                className={endDate ? 'text-gray-900' : 'text-gray-400'}
               />
             </div>
           </div>
 
           <div>
             <p className="text-body-sm font-medium text-gray-700">첨부 자료</p>
-            {attachments.length > 0 && (
-              <div className="mt-2 flex flex-col gap-2">
-                {attachments.map((attachment) => {
-                  const AttachmentIcon = attachment.type === 'link' ? Link : FileText
-                  return (
-                    <div key={attachment.id} className="flex items-center gap-2 rounded-md bg-gray-50 p-3">
-                      <AttachmentIcon className="h-4 w-4 shrink-0 text-primary" aria-hidden />
-                      <span className="min-w-0 flex-1 truncate text-body-sm text-gray-700">
-                        {attachment.name}
-                      </span>
-                      {attachment.size && <span className="text-caption font-normal text-gray-400">{attachment.size}</span>}
-                      <button
-                        type="button"
-                        aria-label={`${attachment.name} 첨부 삭제`}
-                        onClick={() => setAttachments((items) => items.filter((item) => item.id !== attachment.id))}
-                        className="text-gray-400 hover:text-gray-600"
-                      >
-                        <X className="h-4 w-4" aria-hidden />
-                      </button>
-                    </div>
-                  )
-                })}
-              </div>
-            )}
-
-            <button
-              type="button"
-              aria-expanded={isAttachmentMenuOpen}
-              onClick={() => {
-                setIsAttachmentMenuOpen((value) => !value)
-                setIsLinkInputOpen(false)
-                setLinkError('')
-              }}
-              className="mt-2 flex min-h-20 w-full flex-col items-center justify-center rounded-md border border-gray-200 bg-white px-4 text-center hover:border-gray-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-300"
-            >
-              <span className="text-caption font-normal text-gray-400">파일 또는 링크 첨부 (선택)</span>
-              <span className="mt-1 text-caption font-normal text-gray-400">
-                파일당 최대 50MB, PDF, PPTX, DOCX, ZIP, 이미지
+            <div className="mt-2 flex min-h-20 w-full items-center justify-center rounded-md border border-gray-200 bg-gray-50 px-4 text-center">
+              <span className="text-caption font-normal text-gray-400">
+                첨부 기능은 준비 중이에요.
               </span>
-            </button>
-
-            {isAttachmentMenuOpen && (
-              <div className="mt-2 grid grid-cols-2 gap-2 rounded-md border border-gray-200 bg-white p-2 shadow-md">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsAttachmentMenuOpen(false)
-                    fileInputRef.current?.click()
-                  }}
-                  className="flex items-center justify-center gap-2 rounded-md px-3 py-3 text-body-sm text-gray-700 hover:bg-gray-50"
-                >
-                  <Paperclip className="h-4 w-4 text-primary" aria-hidden />
-                  파일 첨부
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsAttachmentMenuOpen(false)
-                    setIsLinkInputOpen(true)
-                  }}
-                  className="flex items-center justify-center gap-2 rounded-md px-3 py-3 text-body-sm text-gray-700 hover:bg-gray-50"
-                >
-                  <Link className="h-4 w-4 text-primary" aria-hidden />
-                  링크 첨부
-                </button>
-              </div>
-            )}
-
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept=".pdf,.pptx,.docx,.zip,image/*"
-              className="hidden"
-              multiple
-              onChange={(event) => {
-                addFiles(Array.from(event.target.files ?? []))
-                event.target.value = ''
-              }}
-            />
-
-            {isLinkInputOpen && (
-              <div className="mt-2 flex items-start gap-2">
-                <Input
-                  value={linkValue}
-                  onChange={(event) => setLinkValue(event.target.value)}
-                  onKeyDown={(event) => {
-                    if (event.key === 'Enter') {
-                      event.preventDefault()
-                      addLink()
-                    }
-                  }}
-                  placeholder="https:// 링크 주소"
-                  errorText={linkError}
-                  autoFocus
-                />
-                <Button
-                  type="button"
-                  size="md"
-                  fullWidth={false}
-                  onClick={addLink}
-                  className="shrink-0 whitespace-nowrap text-white"
-                >
-                  추가
-                </Button>
-              </div>
-            )}
-
-            {attachmentError && (
-              <p className="mt-2 text-caption font-normal text-error">{attachmentError}</p>
-            )}
-
-            <p className="mt-3 flex items-start gap-2 rounded-md bg-primary-50 p-3 text-caption font-normal text-primary-700">
-              <Info className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
-              <span>파일 첨부만으로 기여도가 높아지지 않아요. 담당 업무와 연결된 산출물이 리포트에 반영됩니다.</span>
-            </p>
+            </div>
           </div>
         </div>
 
+        {submitError && (
+          <p className="mt-3 text-caption font-normal text-error">
+            {submitError}
+          </p>
+        )}
+
         <div className="mt-5 flex gap-3">
-          <Button type="button" variant="ghost" fullWidth={false} onClick={onClose} className="flex-1 bg-gray-100 text-gray-400">
+          <Button
+            type="button"
+            variant="ghost"
+            fullWidth={false}
+            disabled={isSubmitting}
+            onClick={onClose}
+            className="flex-1 bg-gray-100 text-gray-400"
+          >
             취소
           </Button>
-          <Button type="button" fullWidth={false} disabled={!canSubmit} onClick={submit} className="flex-[2] text-white">
-            {mode === 'create' ? '업무 등록' : '저장'}
+          <Button
+            type="button"
+            fullWidth={false}
+            loading={isSubmitting}
+            disabled={!canSubmit}
+            onClick={() => void submit()}
+            className="flex-[2] text-white"
+          >
+            {isSubmitting ? '등록 중' : '업무 등록'}
           </Button>
         </div>
       </div>

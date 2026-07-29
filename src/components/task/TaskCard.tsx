@@ -84,7 +84,7 @@ export function TaskCard({ task, onClick }: TaskCardProps) {
           )}
         </div>
         <span className="min-w-0 truncate text-caption font-normal text-gray-500">
-          {task.assignee.nickname}
+          {task.assignee.nickname ?? '알 수 없는 사용자'}
         </span>
       </div>
     </button>
