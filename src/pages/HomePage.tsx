@@ -50,6 +50,9 @@ function getInitialViewMode(): ProjectViewMode {
 export default function HomePage() {
   const navigate = useNavigate();
   const projects = useProjectStore((state) => state.projects);
+  const isLoading = useProjectStore((state) => state.isLoading);
+  const error = useProjectStore((state) => state.error);
+  const fetchProjects = useProjectStore((state) => state.fetchProjects);
   const [statusFilter, setStatusFilter] = useState<ProjectStatusFilterValue>("ALL");
   const [viewMode, setViewMode] = useState<ProjectViewMode>(getInitialViewMode);
 
@@ -91,7 +94,26 @@ export default function HomePage() {
         <ProjectViewToggle value={viewMode} onChange={setViewMode} />
       </div>
 
-      {filteredProjects.length > 0 ? (
+      {isLoading && projects.length === 0 ? (
+        <div className="flex min-h-[320px] items-center justify-center" role="status" aria-label="프로젝트 목록 불러오는 중">
+          <span className="h-9 w-9 animate-spin rounded-full border-4 border-blue-100 border-t-blue-500" />
+        </div>
+      ) : error && projects.length === 0 ? (
+        <EmptyState
+          icon={<FolderOpen size={48} aria-hidden="true" />}
+          title="프로젝트를 불러오지 못했어요"
+          description="네트워크 상태를 확인한 뒤 다시 시도해 주세요"
+          action={
+            <Button
+              type="button"
+              fullWidth={false}
+              onClick={() => void fetchProjects(true).catch(() => undefined)}
+            >
+              다시 시도
+            </Button>
+          }
+        />
+      ) : filteredProjects.length > 0 ? (
         <div
           className={cn(
             "mt-[18px] px-[22px]",
@@ -125,6 +147,7 @@ export default function HomePage() {
           }
         />
       )}
+
     </div>
   );
 }

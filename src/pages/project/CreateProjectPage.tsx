@@ -11,13 +11,14 @@ import {
 import { useNavigate } from "react-router-dom";
 import { Button } from "../../components/Button";
 import { Input } from "../../components/Input";
-import { BottomSheet, Modal } from "../../components/Modal";
+import { AlertModal, BottomSheet, Modal } from "../../components/Modal";
 import { isFutureDate } from "../../lib/projectDate";
 import { cn } from "../../lib/utils";
 import inviteLinkIcon from "../../assets/invite-link-icon.svg";
-import { useAuthStore } from "../../store/authStore";
+import { toApiProjectType } from "../../api/projectApi";
+import { ApiError } from "../../api/client";
 import { useProjectStore } from "../../store/projectStore";
-import type { Project, ProjectType } from "../../types/project";
+import type { CreatedProject, ProjectType } from "../../types/project";
 
 type CreationStep = "info" | "tools";
 type ToolKey = "github" | "figma" | "notion";
@@ -31,11 +32,6 @@ const TOOL_OPTIONS: Array<{
   { key: "figma", name: "Figma", description: "파일 업로드 추적" },
   { key: "notion", name: "Notion", description: "문서 작성 기록" },
 ];
-
-function createProjectId() {
-  const uniqueId = crypto.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`;
-  return `project-${uniqueId}`;
-}
 
 function ProjectCreationProgress({ step }: { step: CreationStep }) {
   const isInfoStep = step === "info";
@@ -207,8 +203,7 @@ function CreatedProjectBackdrop({ projectName }: { projectName: string }) {
 
 export function CreateProjectPage() {
   const navigate = useNavigate();
-  const addProject = useProjectStore((state) => state.addProject);
-  const user = useAuthStore((state) => state.user);
+  const createProject = useProjectStore((state) => state.createProject);
   const today = useMemo(() => new Date(), []);
   const years = useMemo(
     () => Array.from({ length: 6 }, (_, index) => today.getFullYear() + index),
@@ -227,7 +222,9 @@ export function CreateProjectPage() {
     figma: false,
     notion: true,
   });
-  const [createdProject, setCreatedProject] = useState<Project | null>(null);
+  const [createdProject, setCreatedProject] = useState<CreatedProject | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const creationStartedRef = useRef(false);
   const copyResetTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -273,32 +270,29 @@ export function CreateProjectPage() {
     if (infoValid) setStep("tools");
   };
 
-  const handleCreate = () => {
+  const handleCreate = async () => {
     if (!infoValid || !projectType || creationStartedRef.current) return;
     creationStartedRef.current = true;
+    setIsSubmitting(true);
+    setSubmitError(null);
 
-    const id = createProjectId();
-    const project: Project = {
-      id,
-      name: normalizedName,
-      type: projectType,
-      status: "IN_PROGRESS",
-      progress: 0,
-      expectedEndDate,
-      members: user
-        ? [
-            {
-              id: user.id,
-              nickname: user.nickname || user.realName,
-              profileImageUrl: user.avatarImageUrl ?? undefined,
-            },
-          ]
-        : [],
-      invitationLink: `${window.location.origin}/invite/${id}`,
-    };
-
-    addProject(project);
-    setCreatedProject(project);
+    try {
+      const project = await createProject({
+        projectName: normalizedName,
+        projectType: toApiProjectType(projectType),
+        endDay: expectedEndDate,
+      });
+      setCreatedProject(project);
+    } catch (error: unknown) {
+      setSubmitError(
+        error instanceof ApiError
+          ? error.message
+          : "네트워크 상태를 확인한 뒤 다시 시도해 주세요."
+      );
+      creationStartedRef.current = false;
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleEnterProject = () => {
@@ -429,7 +423,9 @@ export function CreateProjectPage() {
             </div>
 
             <div className="mt-auto pt-6">
-              <Button type="button" size="lg" onClick={handleCreate}>프로젝트 시작하기</Button>
+              <Button type="button" size="lg" onClick={handleCreate} loading={isSubmitting}>
+                프로젝트 시작하기
+              </Button>
             </div>
           </div>
         )}
@@ -472,6 +468,13 @@ export function CreateProjectPage() {
           </div>
         )}
       </Modal>
+
+      <AlertModal
+        open={Boolean(submitError)}
+        title="프로젝트를 생성하지 못했어요"
+        description={submitError ?? undefined}
+        onConfirm={() => setSubmitError(null)}
+      />
     </div>
   );
 }
