@@ -1,7 +1,9 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { cn } from '../../lib/utils';
-import { usePeerEvaluationStore } from '../../store/peerEvaluationStore';
+import { createSelfFeedback, fetchMySelfFeedback, updateSelfFeedback } from '../../api/evaluation';
+import { ApiError } from '../../api/client';
+import { AlertModal } from '../../components/Modal';
 
 const FIELDS = [
   {
@@ -29,7 +31,25 @@ const FIELDS = [
     label: '협업 과정에서 맡았던 역할',
     placeholder: '팀 내에서 맡은 역할을 설명해 주세요',
   },
-];
+] as const;
+
+// 백엔드는 서술형 입력 5개를 각각 받지 않고 content 하나만 받아서, 라벨로 구분해 하나의 텍스트로 합쳐 보낸다.
+function buildContent(values: Record<string, string>) {
+  return FIELDS.map((field) => `[${field.label}]\n${values[field.id] ?? ''}`).join('\n\n');
+}
+
+function parseContent(content: string): Record<string, string> {
+  const labelToId = Object.fromEntries(FIELDS.map((f) => [f.label, f.id]));
+  const result: Record<string, string> = {};
+  const sections = content.split(/\n(?=\[.+\]\n)/);
+  for (const section of sections) {
+    const match = section.match(/^\[(.+)\]\n([\s\S]*)$/);
+    if (!match) continue;
+    const id = labelToId[match[1]];
+    if (id) result[id] = match[2].trim();
+  }
+  return result;
+}
 
 // ── SVG 아이콘 ───────────────────────────────────────────────────────────────
 
@@ -56,27 +76,55 @@ function InfoIcon() {
 export default function SelfFeedbackPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const completeSelfFeedback = usePeerEvaluationStore((s) => s.completeSelfFeedback);
-  const savedValues = usePeerEvaluationStore((s) =>
-    id ? s.byProject[id]?.selfFeedback?.values : undefined
-  );
-
   const [values, setValues] = useState<Record<string, string>>(
-    Object.fromEntries(FIELDS.map((f) => [f.id, savedValues?.[f.id] ?? ''])),
+    Object.fromEntries(FIELDS.map((f) => [f.id, ''])),
   );
+  const [isExisting, setIsExisting] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
 
-  const canComplete = FIELDS.every((field) => values[field.id]?.trim().length > 0);
+  useEffect(() => {
+    const projectId = Number(id);
+    if (!Number.isFinite(projectId)) return;
+    let cancelled = false;
+    fetchMySelfFeedback(projectId)
+      .then((res) => {
+        if (cancelled) return;
+        setIsExisting(true);
+        setValues((prev) => ({ ...prev, ...parseContent(res.content) }));
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        // 404 = 아직 자기 피드백을 작성하지 않은 정상 상태. 그 외는 실제 조회 실패이므로 알려야 한다.
+        if (err instanceof ApiError && err.status === 404) return;
+        setNotice('기존 자기 피드백을 불러오지 못했어요. 새로고침 후 다시 시도해 주세요.');
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [id]);
+
+  const canComplete = FIELDS.every((field) => values[field.id]?.trim().length > 0) && !submitting;
 
   const setValue = (fieldId: string, value: string) =>
     setValues((prev) => ({ ...prev, [fieldId]: value }));
 
-  const handleComplete = () => {
+  const handleComplete = async () => {
     if (!id || !canComplete) return;
-    completeSelfFeedback(
-      id,
-      Object.fromEntries(Object.entries(values).map(([key, value]) => [key, value.trim()])),
-    );
-    navigate(`/project/${id}/peer-eval`);
+    const projectId = Number(id);
+    const trimmed = Object.fromEntries(Object.entries(values).map(([key, value]) => [key, value.trim()]));
+    const content = buildContent(trimmed);
+
+    setSubmitting(true);
+    try {
+      const submit = isExisting ? updateSelfFeedback : createSelfFeedback;
+      await submit(projectId, content);
+      navigate(`/project/${id}/peer-eval`);
+    } catch (err) {
+      setNotice(err instanceof ApiError ? err.message : '제출에 실패했어요. 다시 시도해 주세요.');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -147,6 +195,8 @@ export default function SelfFeedbackPage() {
           완료
         </button>
       </div>
+
+      <AlertModal open={Boolean(notice)} title={notice ?? ''} onConfirm={() => setNotice(null)} />
     </div>
   );
 }

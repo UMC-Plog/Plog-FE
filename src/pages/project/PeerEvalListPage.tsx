@@ -1,9 +1,9 @@
-import { type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { cn } from '../../lib/utils';
-import { useAuthStore } from '../../store/authStore';
-import { useProjectStore } from '../../store/projectStore';
-import { usePeerEvaluationStore } from '../../store/peerEvaluationStore';
+import { fetchEvaluationTargets, fetchMySelfFeedback, type TargetMember } from '../../api/evaluation';
+import { ApiError } from '../../api/client';
+import { AlertModal } from '../../components/Modal';
 
 // ── SVG 아이콘 ──────────────────────────────────────────────────────────────
 
@@ -66,26 +66,49 @@ function ProgressBar({ value, max }: { value: number; max: number }) {
 export default function PeerEvalListPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const user = useAuthStore((s) => s.user);
-  const project = useProjectStore((s) => s.projects.find((p) => p.id === id));
-  const projectState = usePeerEvaluationStore((s) =>
-    id ? s.getProjectState(id) : { evaluations: {}, selfFeedback: null, submitted: false, submittedAt: null, partial: false }
-  );
-  const submitFinal = usePeerEvaluationStore((s) => s.submitFinal);
+  const [targets, setTargets] = useState<TargetMember[]>([]);
+  const [selfDone, setSelfDone] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [notice, setNotice] = useState<string | null>(null);
 
-  // 평가 대상은 나를 제외한 팀원 전체 (익명성 정책: 닉네임 기준으로만 표시)
-  const peers = (project?.members ?? []).filter(
-    (member) => member.id !== user?.id && member.nickname !== user?.nickname,
-  );
-  const selfDone = projectState.selfFeedback?.done ?? false;
+  useEffect(() => {
+    const projectId = Number(id);
+    if (!Number.isFinite(projectId)) return;
+    let cancelled = false;
+    Promise.all([
+      fetchEvaluationTargets(projectId),
+      fetchMySelfFeedback(projectId)
+        .then(() => true)
+        .catch((err) => {
+          // 404 = 아직 자기 피드백을 작성하지 않은 정상 상태. 그 외는 실제 조회 실패로 취급해 위 catch로 넘긴다.
+          if (err instanceof ApiError && err.status === 404) return false;
+          throw err;
+        }),
+    ])
+      .then(([targetsRes, selfDoneRes]) => {
+        if (cancelled) return;
+        setTargets(targetsRes.targets);
+        setSelfDone(selfDoneRes);
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          setNotice(err instanceof ApiError ? err.message : '평가 정보를 불러오지 못했어요. 다시 시도해 주세요.');
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [id]);
 
-  const doneCount = peers.filter((peer) => projectState.evaluations[peer.id]?.done).length + (selfDone ? 1 : 0);
-  const totalCount = peers.length + 1;
-  const allDone = doneCount === totalCount;
+  const doneCount = targets.filter((t) => t.isEvaluated).length + (selfDone ? 1 : 0);
+  const totalCount = targets.length + 1;
+  const allDone = totalCount > 0 && doneCount === totalCount;
 
   const handleSubmit = () => {
     if (!allDone || !id) return;
-    submitFinal(id);
     navigate(`/project/${id}/report`, { state: { justSubmitted: true } });
   };
 
@@ -122,65 +145,60 @@ export default function PeerEvalListPage() {
 
         {/* 팀원 카드 목록 */}
         <div className="flex flex-col gap-3 py-3">
-          {peers.map((peer) => {
-            const done = projectState.evaluations[peer.id]?.done ?? false;
-            return (
+          {loading ? (
+            <p className="text-body-sm text-gray-400 text-center py-6">불러오는 중...</p>
+          ) : (
+            targets.map((target) => (
               <div
-                key={peer.id}
+                key={target.projectMemberId}
                 className="bg-white border border-gray-100 rounded-2xl shadow-md px-5 py-4 flex items-center gap-3"
               >
-                {peer.profileImageUrl ? (
-                  <img
-                    src={peer.profileImageUrl}
-                    alt={peer.nickname}
-                    className="size-8 rounded-full object-cover shrink-0"
-                  />
-                ) : (
-                  <PersonIcon />
-                )}
-                <span className="flex-1 text-title text-gray-900">{peer.nickname}</span>
-                {done ? (
+                <PersonIcon />
+                <span className="flex-1 text-title text-gray-900">{target.nickname}</span>
+                {target.isEvaluated ? (
                   <span className="bg-success/10 text-success rounded-full px-3.5 py-2 text-body-sm shrink-0">
                     완료
                   </span>
                 ) : (
                   <button
                     type="button"
-                    onClick={() => navigate(`/project/${id}/peer-eval/${peer.id}/star`)}
+                    onClick={() => navigate(`/project/${id}/peer-eval/${target.projectMemberId}/star`)}
                     className="bg-primary text-gray-25 rounded-full px-3.5 py-2 text-body-sm hover:bg-primary-600 transition-colors shrink-0"
                   >
                     평가하기
                   </button>
                 )}
               </div>
-            );
-          })}
+            ))
+          )}
 
           {/* 자기 피드백 카드 */}
-          <div className="bg-white border border-gray-100 rounded-2xl shadow-md px-5 py-4 flex items-start gap-3">
-            <PersonIcon />
-            <div className="flex-1">
-              <div className="flex items-center justify-between">
-                <span className="text-title text-gray-900">자기 피드백</span>
-                {selfDone ? (
-                  <span className="bg-success/10 text-success rounded-full px-3.5 py-2 text-body-sm shrink-0">
-                    완료
-                  </span>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() => navigate(`/project/${id}/peer-eval/self`)}
-                    className="bg-primary text-gray-25 rounded-full px-3.5 py-2 text-body-sm hover:bg-primary-600 transition-colors shrink-0"
-                  >
-                    작성하기
-                  </button>
-                )}
+          {!loading && (
+            <div className="bg-white border border-gray-100 rounded-2xl shadow-md px-5 py-4 flex items-start gap-3">
+              <PersonIcon />
+              <div className="flex-1">
+                <div className="flex items-center justify-between">
+                  <span className="text-title text-gray-900">자기 피드백</span>
+                  {selfDone ? (
+                    <span className="bg-success/10 text-success rounded-full px-3.5 py-2 text-body-sm shrink-0">
+                      완료
+                    </span>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => navigate(`/project/${id}/peer-eval/self`)}
+                      className="bg-primary text-gray-25 rounded-full px-3.5 py-2 text-body-sm hover:bg-primary-600 transition-colors shrink-0"
+                    >
+                      작성하기
+                    </button>
+                  )}
+                </div>
+                <p className="text-caption text-gray-400 mt-2">
+                  활동 로그로 파악하기 어려운 기여 맥락 작성
+                </p>
               </div>
-              <p className="text-caption text-gray-400 mt-2">
-                활동 로그로 파악하기 어려운 기여 맥락 작성
-              </p>
             </div>
-          </div>
+          )}
         </div>
 
         {/* 완료 상태 안내 박스 */}
@@ -211,6 +229,8 @@ export default function PeerEvalListPage() {
           {allDone ? '최종 제출하기' : '모든 평가 완료 후 제출 가능합니다'}
         </button>
       </div>
+
+      <AlertModal open={Boolean(notice)} title={notice ?? ''} onConfirm={() => setNotice(null)} />
     </div>
   );
 }
