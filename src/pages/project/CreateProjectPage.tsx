@@ -9,10 +9,12 @@ import {
   X,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import QRCode from "qrcode";
 import { Button } from "../../components/Button";
 import { Input } from "../../components/Input";
 import { AlertModal, BottomSheet, Modal } from "../../components/Modal";
 import { isFutureDate } from "../../lib/projectDate";
+import { createProjectInvitationUrl } from "../../lib/projectInvitation";
 import { cn } from "../../lib/utils";
 import inviteLinkIcon from "../../assets/invite-link-icon.svg";
 import { toApiProjectType } from "../../api/projectApi";
@@ -138,18 +140,6 @@ function ToolLogo({ tool }: { tool: (typeof TOOL_OPTIONS)[number] }) {
   );
 }
 
-function QrPlaceholder() {
-  return (
-    <svg viewBox="0 0 21 21" role="img" aria-label="QR 코드 자리표시자" className="h-52 w-52">
-      <rect width="21" height="21" fill="white" />
-      <path
-        fill="black"
-        d="M1 1h7v7H1V1Zm2 2v3h3V3H3Zm10-2h7v7h-7V1Zm2 2v3h3V3h-3ZM1 13h7v7H1v-7Zm2 2v3h3v-3H3Zm7-14h2v2h-2V1Zm0 3h3v2h-1v2h-2V4Zm-1 5h2v2h2V9h2v2h2V9h3v3h-2v2h2v2h-3v-2h-2v2h2v4h-2v-2h-3v2H9v-3h2v-2H9v-2h2v-2H9V9Zm4-2h2v2h-2V7Zm4 0h3v2h-3V7ZM8 11h2v2H8v-2Zm-7-1h3v2H1v-2Zm4 0h2v3H5v-3Zm-4 4h2v-2H1v2Zm7 0h2v2H8v-2Zm10 3h2v3h-2v-3Z"
-      />
-    </svg>
-  );
-}
-
 function CreatedProjectBackdrop({ projectName }: { projectName: string }) {
   const tabs = ["피드", "채팅", "업무", "리포트"];
   const bottomTabs = [
@@ -226,8 +216,16 @@ export function CreateProjectPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
+  const [qrError, setQrError] = useState(false);
   const creationStartedRef = useRef(false);
   const copyResetTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const invitationUrl = createdProject
+    ? createProjectInvitationUrl(
+        createdProject.invitationLink,
+        createdProject.invitationCode
+      )
+    : "";
 
   useEffect(
     () => () => {
@@ -235,6 +233,34 @@ export function CreateProjectPage() {
     },
     []
   );
+
+  useEffect(() => {
+    if (!createdProject) {
+      setQrDataUrl(null);
+      setQrError(false);
+      return;
+    }
+
+    let isActive = true;
+    setQrDataUrl(null);
+    setQrError(false);
+
+    void QRCode.toDataURL(invitationUrl, {
+      width: 208,
+      margin: 1,
+      errorCorrectionLevel: "M",
+    })
+      .then((dataUrl) => {
+        if (isActive) setQrDataUrl(dataUrl);
+      })
+      .catch(() => {
+        if (isActive) setQrError(true);
+      });
+
+    return () => {
+      isActive = false;
+    };
+  }, [createdProject, invitationUrl]);
 
   const normalizedName = projectName.trim();
   const nameValid = normalizedName.length >= 2 && normalizedName.length <= 20;
@@ -304,7 +330,7 @@ export function CreateProjectPage() {
     if (copyResetTimerRef.current) clearTimeout(copyResetTimerRef.current);
 
     try {
-      await navigator.clipboard.writeText(createdProject.invitationLink);
+      await navigator.clipboard.writeText(invitationUrl);
       setCopied(true);
       copyResetTimerRef.current = setTimeout(() => {
         setCopied(false);
@@ -454,7 +480,23 @@ export function CreateProjectPage() {
             </div>
 
             <div className="mt-4 flex min-h-64 items-center justify-center rounded-lg bg-gray-25 p-5">
-              <QrPlaceholder />
+              {qrDataUrl ? (
+                <img
+                  src={qrDataUrl}
+                  alt={`${createdProject.name} 프로젝트 초대 QR 코드`}
+                  className="h-52 w-52"
+                />
+              ) : qrError ? (
+                <p className="text-body-sm text-gray-500">
+                  QR 코드를 불러오지 못했어요.
+                </p>
+              ) : (
+                <span
+                  className="h-9 w-9 animate-spin rounded-full border-4 border-blue-100 border-t-blue-500"
+                  role="status"
+                  aria-label="QR 코드 생성 중"
+                />
+              )}
             </div>
 
             <button

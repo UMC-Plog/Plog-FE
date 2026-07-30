@@ -15,6 +15,9 @@ import type {
   ProjectListItemResponse,
   ProjectListResponse,
   ProjectIntegrationDisconnectResponse,
+  ProjectInvitationPreviewResponse,
+  ProjectJoinRequest,
+  ProjectJoinResponse,
   ProjectLeaveResponse,
   ProjectMember,
   ProjectSettingsResponse,
@@ -169,6 +172,7 @@ export function mapCreatedProjectResponse(response: CreateProjectResponse): Crea
     id: String(response.projectId),
     myProjectMemberId: response.myProjectMemberId,
     name: response.projectName,
+    invitationCode: response.invite.inviteCode,
     invitationLink: response.invite.inviteUrl,
   };
 }
@@ -199,6 +203,21 @@ export async function getProjects(): Promise<Project[]> {
 
 export function createProject(request: CreateProjectRequest) {
   return apiRequest<CreateProjectResponse>("/api/projects", {
+    method: "POST",
+    body: request,
+  });
+}
+
+export function getProjectInvitationPreview(inviteCode: string) {
+  return apiRequest<ProjectInvitationPreviewResponse>(
+    `/api/projects/invitations/${encodeURIComponent(inviteCode)}`
+  );
+}
+
+export function joinProject(inviteCode: string) {
+  const request: ProjectJoinRequest = { inviteCode };
+
+  return apiRequest<ProjectJoinResponse>("/api/projects/join", {
     method: "POST",
     body: request,
   });
