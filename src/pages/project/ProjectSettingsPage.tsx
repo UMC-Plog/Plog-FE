@@ -7,6 +7,7 @@ import notionIcon from "../../assets/integrations/notion.png";
 import docsIcon from "../../assets/integrations/google-docs.svg";
 import slidesIcon from "../../assets/integrations/google-slides.svg";
 import { useProjectStore } from "../../store/projectStore";
+import type { ProjectType } from "../../types/project";
 
 // logo: Figma 실측 - 32px 흰 타일 안에 들어가는 로고 크기 (GitHub 애셋은 타일 자체라 32)
 const INTEGRATIONS = [
@@ -20,6 +21,12 @@ const INTEGRATIONS = [
 const YEARS = ["2025", "2026", "2027", "2028"];
 const MONTHS = Array.from({ length: 12 }, (_, index) => String(index + 1).padStart(2, "0"));
 const DAYS = Array.from({ length: 31 }, (_, index) => String(index + 1).padStart(2, "0"));
+
+/** "2026-06-15" -> ["2026", "06", "15"]. 값이 없으면 셀렉트 첫 항목으로 떨어뜨린다. */
+function splitEndDate(value: string | undefined): [string, string, string] {
+  const [year, month, day] = (value ?? "").split("-");
+  return [year || YEARS[0], month || MONTHS[0], day || DAYS[0]];
+}
 
 function SelectBox({
   value,
@@ -53,25 +60,36 @@ export function ProjectSettingsPage() {
   const project = useProjectStore((state) => state.projects.find((item) => item.id === id));
   const updateProject = useProjectStore((state) => state.updateProject);
   const markProjectSettingsAsSeen = useProjectStore((state) => state.markProjectSettingsAsSeen);
-  const initialDate = project?.expectedEndDate?.split("-") ?? ["2026", "06", "15"];
-  const [name, setName] = useState(project?.name || "테스트 프로젝트");
-  const [type, setType] = useState(project?.type || "DEVELOPMENT");
-  const [year, setYear] = useState(initialDate[0] || "2026");
-  const [month, setMonth] = useState(initialDate[1] || "06");
-  const [day, setDay] = useState(initialDate[2] || "15");
+  const [name, setName] = useState(project?.name ?? "");
+  const [type, setType] = useState<ProjectType>(project?.type ?? "DEVELOPMENT");
+  const [year, setYear] = useState(() => splitEndDate(project?.expectedEndDate)[0]);
+  const [month, setMonth] = useState(() => splitEndDate(project?.expectedEndDate)[1]);
+  const [day, setDay] = useState(() => splitEndDate(project?.expectedEndDate)[2]);
 
   useEffect(() => {
     markProjectSettingsAsSeen(id);
   }, [id, markProjectSettingsAsSeen]);
 
+  // 프로젝트 목록은 ProjectDataLoader가 비동기로 채우므로, 새로고침/딥링크로 들어오면
+  // 첫 렌더에는 project가 없다. useState 초기값은 재평가되지 않으니 도착 시점에 폼을 맞춰준다.
+  useEffect(() => {
+    if (!project) return;
+    const [nextYear, nextMonth, nextDay] = splitEndDate(project.expectedEndDate);
+    setName(project.name);
+    setType(project.type);
+    setYear(nextYear);
+    setMonth(nextMonth);
+    setDay(nextDay);
+  }, [project]);
+
   const handleSave = () => {
-    if (project) {
-      updateProject(project.id, {
-        name: name.trim() || project.name,
-        type,
-        expectedEndDate: `${year}-${month}-${day}`,
-      });
-    }
+    // 아직 로드되지 않았으면 저장하지 않는다 (빈 폼으로 덮어쓰는 것 방지)
+    if (!project) return;
+    updateProject(project.id, {
+      name: name.trim() || project.name,
+      type,
+      expectedEndDate: `${year}-${month}-${day}`,
+    });
     navigate(`/project/${id}/feed`);
   };
 
@@ -99,7 +117,7 @@ export function ProjectSettingsPage() {
           <div className="relative mt-[11px]">
             <select
               value={type}
-              onChange={(event) => setType(event.target.value as "DEVELOPMENT" | "GENERAL")}
+              onChange={(event) => setType(event.target.value as ProjectType)}
               className="h-14 w-full appearance-none rounded-[14px] border border-gray-200 bg-transparent px-[18px] text-[15px] text-gray-900 outline-none focus:border-blue-500"
             >
               <option value="DEVELOPMENT">개발 프로젝트</option>
@@ -188,7 +206,8 @@ export function ProjectSettingsPage() {
         <button
           type="button"
           onClick={handleSave}
-          className="h-14 rounded-[14px] bg-blue-500 text-[16px] font-semibold text-white"
+          disabled={!project}
+          className="h-14 rounded-[14px] bg-blue-500 text-[16px] font-semibold text-white disabled:bg-gray-200 disabled:text-gray-400"
         >
           저장
         </button>
