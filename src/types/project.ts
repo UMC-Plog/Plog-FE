@@ -12,6 +12,7 @@ export interface ProjectMember {
 
 export interface Project {
   id: string;
+  myProjectMemberId?: number;
   name: string;
   type: ProjectType;
   status: ProjectStatus;
@@ -87,4 +88,5 @@ export interface CreatedProject {
   id: string;
   name: string;
   invitationLink: string;
+  myProjectMemberId: number;
 }

@@ -73,6 +73,7 @@ export function mapCreatedProjectResponse(response: CreateProjectResponse): Crea
     id: String(response.projectId),
     name: response.projectName,
     invitationLink: response.invite.inviteUrl,
+    myProjectMemberId: response.myProjectMemberId,
   };
 }
 

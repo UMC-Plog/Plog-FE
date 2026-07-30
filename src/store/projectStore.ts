@@ -77,6 +77,16 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
 
       try {
         await get().fetchProjects(true);
+        set((state) => ({
+          projects: state.projects.map((project) =>
+            project.id === createdProject.id
+              ? {
+                  ...project,
+                  myProjectMemberId: createdProject.myProjectMemberId,
+                }
+              : project
+          ),
+        }));
       } catch {
         // 생성은 성공했으며, 다음 앱 화면 진입 시 공통 로더가 목록 조회를 재시도한다.
       }

@@ -5,6 +5,7 @@ import {
   deleteTask,
   fetchProjectTasks,
   fetchTaskDetail,
+  fetchTasksByMember,
   updateTaskStatus,
 } from '../../api/task'
 import { Button } from '../../components/Button'
@@ -211,18 +212,49 @@ function getErrorMessage(error: unknown) {
     : '네트워크 상태를 확인한 뒤 다시 시도해 주세요.'
 }
 
+function isDueSoon(task: TaskListItemViewModel, today = new Date()) {
+  if (task.status === 'DONE' || task.isOverdue) return false
+
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(task.dueDate)
+  if (!match) return false
+
+  const year = Number(match[1])
+  const month = Number(match[2])
+  const day = Number(match[3])
+  const endDate = new Date(year, month - 1, day)
+  if (
+    endDate.getFullYear() !== year ||
+    endDate.getMonth() !== month - 1 ||
+    endDate.getDate() !== day
+  ) {
+    return false
+  }
+
+  const todayValue = Date.UTC(
+    today.getFullYear(),
+    today.getMonth(),
+    today.getDate()
+  )
+  const endDateValue = Date.UTC(year, month - 1, day)
+  const daysUntilDue = (endDateValue - todayValue) / 86_400_000
+  return daysUntilDue >= 0 && daysUntilDue <= 3
+}
+
 export default function ProjectTaskPage() {
   const { id: projectIdParam = '' } = useParams<{ id: string }>()
   const projectId = useMemo(() => parseProjectId(projectIdParam), [projectIdParam])
   const requestIdRef = useRef(0)
+  const memberRequestIdRef = useRef(0)
+  const activeFilterRef = useRef<TaskFilter>('all')
   const detailRequestIdRef = useRef(0)
   const statusUpdatingRef = useRef(false)
   const deletingRef = useRef(false)
-  const [tasks, setTasks] = useState<TaskListItemViewModel[]>([])
+  const [allTasks, setAllTasks] = useState<TaskListItemViewModel[]>([])
+  const [myTasks, setMyTasks] = useState<TaskListItemViewModel[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [filter, setFilter] = useState<TaskFilter>('all')
-  const [notice, setNotice] = useState<'filter' | 'detailAction' | null>(null)
+  const [notice, setNotice] = useState<'detailAction' | null>(null)
   const [selectedTaskId, setSelectedTaskId] = useState<number | null>(null)
   const [detail, setDetail] = useState<TaskDetailViewModel | null>(null)
   const [isDetailLoading, setIsDetailLoading] = useState(false)
@@ -237,19 +269,29 @@ export default function ProjectTaskPage() {
   const project = useProjectStore((state) =>
     state.projects.find((item) => item.id === projectIdParam)
   )
+  const currentProjectMemberId =
+    project?.myProjectMemberId !== undefined &&
+    Number.isSafeInteger(project.myProjectMemberId) &&
+    project.myProjectMemberId > 0
+      ? project.myProjectMemberId
+      : null
 
-  const loadTasks = useCallback(async () => {
+  const loadAllTasks = useCallback(async (surfaceFilter: TaskFilter | null = null) => {
     const requestId = ++requestIdRef.current
 
     if (projectId === null) {
-      setTasks([])
-      setError('올바른 프로젝트 ID가 아니어서 업무 목록을 불러올 수 없습니다.')
-      setIsLoading(false)
+      setAllTasks([])
+      if (surfaceFilter && activeFilterRef.current === surfaceFilter) {
+        setError('올바른 프로젝트 ID가 아니어서 업무 목록을 불러올 수 없습니다.')
+        setIsLoading(false)
+      }
       return
     }
 
-    setIsLoading(true)
-    setError(null)
+    if (surfaceFilter && activeFilterRef.current === surfaceFilter) {
+      setIsLoading(true)
+      setError(null)
+    }
 
     try {
       const response = await fetchProjectTasks(projectId)
@@ -257,23 +299,120 @@ export default function ProjectTaskPage() {
         throw new Error('업무 목록 응답 형식이 올바르지 않습니다.')
       }
       const nextTasks = response.content.map(mapTaskSummary)
-      if (requestId === requestIdRef.current) setTasks(nextTasks)
+      if (requestId === requestIdRef.current) setAllTasks(nextTasks)
     } catch (loadError: unknown) {
-      if (requestId === requestIdRef.current) {
-        setTasks([])
+      if (
+        requestId === requestIdRef.current &&
+        surfaceFilter &&
+        activeFilterRef.current === surfaceFilter
+      ) {
         setError(getErrorMessage(loadError))
       }
     } finally {
-      if (requestId === requestIdRef.current) setIsLoading(false)
+      if (
+        requestId === requestIdRef.current &&
+        surfaceFilter &&
+        activeFilterRef.current === surfaceFilter
+      ) {
+        setIsLoading(false)
+      }
     }
   }, [projectId])
 
+  const loadMyTasks = useCallback(async (
+    projectMemberId: number,
+    surface = true
+  ) => {
+    const requestId = ++memberRequestIdRef.current
+    if (projectId === null) return
+
+    if (surface && activeFilterRef.current === 'mine') {
+      setIsLoading(true)
+      setError(null)
+    }
+
+    try {
+      const response = await fetchTasksByMember(projectId, projectMemberId)
+      if (!Array.isArray(response.content)) {
+        throw new Error('업무 목록 응답 형식이 올바르지 않습니다.')
+      }
+      const nextTasks = response.content.map(mapTaskSummary)
+      if (requestId === memberRequestIdRef.current) setMyTasks(nextTasks)
+    } catch (loadError: unknown) {
+      if (
+        requestId === memberRequestIdRef.current &&
+        surface &&
+        activeFilterRef.current === 'mine'
+      ) {
+        setError(getErrorMessage(loadError))
+      }
+    } finally {
+      if (
+        requestId === memberRequestIdRef.current &&
+        surface &&
+        activeFilterRef.current === 'mine'
+      ) {
+        setIsLoading(false)
+      }
+    }
+  }, [projectId])
+
+  const loadTasks = useCallback(async () => {
+    const activeFilter = activeFilterRef.current
+    if (activeFilter === 'mine') {
+      if (currentProjectMemberId === null) {
+        await loadAllTasks()
+        setError(
+          '현재 사용자의 프로젝트 멤버 ID를 확인할 수 없어 내 업무를 불러올 수 없습니다.'
+        )
+        setIsLoading(false)
+        return
+      }
+      await Promise.all([
+        loadAllTasks(),
+        loadMyTasks(currentProjectMemberId),
+      ])
+      return
+    }
+    await loadAllTasks(activeFilter)
+  }, [currentProjectMemberId, loadAllTasks, loadMyTasks])
+
   useEffect(() => {
-    void loadTasks()
+    activeFilterRef.current = 'all'
+    setFilter('all')
+    setMyTasks([])
+    void loadAllTasks('all')
     return () => {
       requestIdRef.current += 1
+      memberRequestIdRef.current += 1
     }
-  }, [loadTasks])
+  }, [loadAllTasks])
+
+  const selectFilter = useCallback((nextFilter: TaskFilter) => {
+    if (nextFilter === activeFilterRef.current) return
+
+    activeFilterRef.current = nextFilter
+    setFilter(nextFilter)
+    setError(null)
+    setIsLoading(true)
+
+    if (nextFilter === 'mine') {
+      requestIdRef.current += 1
+      if (currentProjectMemberId === null) {
+        memberRequestIdRef.current += 1
+        setError(
+          '현재 사용자의 프로젝트 멤버 ID를 확인할 수 없어 내 업무를 불러올 수 없습니다.'
+        )
+        setIsLoading(false)
+        return
+      }
+      void loadMyTasks(currentProjectMemberId)
+      return
+    }
+
+    memberRequestIdRef.current += 1
+    void loadAllTasks(nextFilter)
+  }, [currentProjectMemberId, loadAllTasks, loadMyTasks])
 
   const loadTaskDetail = useCallback(async (taskId: number) => {
     const requestId = ++detailRequestIdRef.current
@@ -404,8 +543,14 @@ export default function ProjectTaskPage() {
     }
   }, [closeTaskDetail, deleteTarget, loadTasks, projectId])
 
-  const completedCount = tasks.filter((task) => task.status === 'DONE').length
-  const totalCount = tasks.length
+  const visibleTasks =
+    filter === 'mine'
+      ? myTasks
+      : filter === 'dueSoon'
+        ? allTasks.filter((task) => isDueSoon(task))
+        : allTasks
+  const completedCount = allTasks.filter((task) => task.status === 'DONE').length
+  const totalCount = allTasks.length
 
   return (
     <div className="min-w-0 px-4 py-4">
@@ -429,13 +574,7 @@ export default function ProjectTaskPage() {
             <button
               key={item.value}
               type="button"
-              onClick={() => {
-                if (item.value === 'all') {
-                  setFilter('all')
-                  return
-                }
-                setNotice('filter')
-              }}
+              onClick={() => selectFilter(item.value)}
               aria-pressed={filter === item.value}
               className={cn(
                 'h-8 shrink-0 rounded-full border px-3 text-caption transition-colors',
@@ -476,11 +615,23 @@ export default function ProjectTaskPage() {
             다시 시도
           </Button>
         </div>
-      ) : tasks.length === 0 ? (
+      ) : visibleTasks.length === 0 ? (
         <EmptyState
           icon={<ClipboardList className="h-12 w-12" aria-hidden />}
-          title="아직 등록된 업무가 없어요"
-          description="업무가 등록되면 상태별로 확인할 수 있어요"
+          title={
+            filter === 'mine'
+              ? '내게 배정된 업무가 없어요'
+              : filter === 'dueSoon'
+                ? '마감임박 업무가 없어요'
+                : '아직 등록된 업무가 없어요'
+          }
+          description={
+            filter === 'mine'
+              ? '담당자로 지정된 업무가 생기면 여기에서 확인할 수 있어요'
+              : filter === 'dueSoon'
+                ? '마감일까지 3일 이하로 남은 미완료 업무가 없어요'
+                : '업무가 등록되면 상태별로 확인할 수 있어요'
+          }
         />
       ) : (
         <div className="-mx-4 mt-4 overflow-x-auto px-4 pb-4">
@@ -489,7 +640,7 @@ export default function ProjectTaskPage() {
               <KanbanColumn
                 key={status}
                 status={status}
-                tasks={tasks.filter((task) => task.status === status)}
+                tasks={visibleTasks.filter((task) => task.status === status)}
                 onTaskClick={(task) => openTaskDetail(task.id)}
               />
             ))}
@@ -557,16 +708,8 @@ export default function ProjectTaskPage() {
 
       <AlertModal
         open={notice !== null}
-        title={
-          notice === 'filter'
-            ? '필터 연동 준비 중이에요'
-            : '업무 변경 기능 준비 중이에요'
-        }
-        description={
-          notice === 'filter'
-            ? '이번 단계에서는 전체 업무만 확인할 수 있어요.'
-            : '서버 API 연동 후 사용할 수 있어요.'
-        }
+        title="업무 변경 기능 준비 중이에요"
+        description="서버 API 연동 후 사용할 수 있어요."
         onConfirm={() => setNotice(null)}
       />
       <AlertModal
