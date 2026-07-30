@@ -19,13 +19,11 @@ import { uploadFile } from '../../api/file'
 import {
   createFileFingerprint,
   formatFileSize,
-  getAttachmentDraftSummary,
   validateExternalHttpsUrl,
 } from '../../lib/attachment'
 import {
   MAX_ATTACHMENTS,
   type AttachmentDraft,
-  type AttachmentDraftSummary,
   type NewFileAttachmentDraft,
 } from '../../types/attachment'
 import type { FileUploadUsage } from '../../types/file'
@@ -39,7 +37,6 @@ interface AttachmentPickerProps {
   usage: FileUploadUsage
   maxAttachments?: number
   disabled?: boolean
-  onStatusChange?: (summary: AttachmentDraftSummary) => void
   variant?: 'default' | 'post' | 'task'
 }
 
@@ -71,7 +68,6 @@ export function AttachmentPicker({
   usage,
   maxAttachments = MAX_ATTACHMENTS,
   disabled = false,
-  onStatusChange,
   variant = 'default',
 }: AttachmentPickerProps) {
   const inputId = useId()
@@ -98,10 +94,6 @@ export function AttachmentPicker({
       generations.clear()
     }
   }, [])
-
-  useEffect(() => {
-    onStatusChange?.(getAttachmentDraftSummary(value, maxAttachments))
-  }, [maxAttachments, onStatusChange, value])
 
   const commit = useCallback((next: AttachmentDraft[]) => {
     draftsRef.current = next

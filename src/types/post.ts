@@ -1,14 +1,6 @@
 import type { ProfilePreset } from '../lib/profilePreset'
 import type { AttachmentRequest } from './attachment'
 
-export interface PostAttachment {
-  id: string
-  name: string
-  type: 'file' | 'link' | 'image'
-  size?: number
-  url?: string
-}
-
 export type ServerPostAttachmentType = 'FILE' | 'LINK'
 
 export type ServerPostAttachmentRequest = AttachmentRequest

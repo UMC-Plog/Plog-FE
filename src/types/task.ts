@@ -1,13 +1,5 @@
 import type { NewAttachmentRequest } from './attachment'
 
-export interface TaskAttachment {
-  id: string
-  type: 'file' | 'link'
-  name: string
-  url?: string
-  size?: string
-}
-
 export type ServerTaskStatus = 'TODO' | 'IN_PROGRESS' | 'DONE'
 
 export type ServerTaskCategory =

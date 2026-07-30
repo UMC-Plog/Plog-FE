@@ -2,7 +2,6 @@ import { ApiError, BASE_URL, apiRequest } from './client'
 import { validateExternalHttpsUrl } from '../lib/attachment'
 import type {
   AttachmentDownloadResponse,
-  OpenableAttachment,
   ServerAttachmentDownloadResponse,
 } from '../types/attachment'
 
@@ -130,15 +129,4 @@ export async function downloadFileAttachment(downloadUrlApi?: string | null) {
     popup.close()
     throw error
   }
-}
-
-export function openAttachment(attachment: OpenableAttachment) {
-  if (attachment.attachmentType === 'LINK') {
-    if (!attachment.linkUrl) {
-      throw new ApiError('INVALID_LINK_URL', '첨부 링크 주소가 없습니다.')
-    }
-    openExternalLink(attachment.linkUrl)
-    return
-  }
-  return downloadFileAttachment(attachment.downloadUrlApi)
 }

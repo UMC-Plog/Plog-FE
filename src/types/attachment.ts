@@ -97,16 +97,6 @@ export interface AttachmentDownloadResponse {
   expiresInSeconds: number
 }
 
-export type OpenableAttachment =
-  | {
-      attachmentType: 'FILE'
-      downloadUrlApi?: string | null
-    }
-  | {
-      attachmentType: 'LINK'
-      linkUrl?: string | null
-    }
-
 export type NormalizedAttachment =
   | NormalizedFileAttachment
   | NormalizedLinkAttachment
