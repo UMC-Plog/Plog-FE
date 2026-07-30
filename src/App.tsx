@@ -33,6 +33,7 @@ import PeerEvalListPage from './pages/project/PeerEvalListPage'
 import PeerEvalStarPage from './pages/project/PeerEvalStarPage'
 import PeerEvalKeywordPage from './pages/project/PeerEvalKeywordPage'
 import SelfFeedbackPage from './pages/project/SelfFeedbackPage'
+import PeerEvalAccountSelectPage from './pages/project/PeerEvalAccountSelectPage'
 import { ProjectDataLoader } from './components/ProjectDataLoader'
 import { ProjectInvitationPage } from './pages/project/ProjectInvitationPage'
 
@@ -73,6 +74,7 @@ function App() {
           {/* Peer 평가 플로우 — ProjectTabBar 밖 독립 화면 */}
           <Route path="/project/:id/peer-eval" element={<PeerEvalListPage />} />
           <Route path="/project/:id/peer-eval/self" element={<SelfFeedbackPage />} />
+          <Route path="/project/:id/peer-eval/accounts/:provider" element={<PeerEvalAccountSelectPage />} />
           <Route path="/project/:id/peer-eval/:memberId/star" element={<PeerEvalStarPage />} />
           <Route path="/project/:id/peer-eval/:memberId/keyword" element={<PeerEvalKeywordPage />} />
 

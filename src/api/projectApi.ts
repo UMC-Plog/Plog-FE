@@ -10,8 +10,11 @@ import type {
   CreateProjectRequest,
   CreateProjectResponse,
   CreatedProject,
+  IntegrationActorMappingListResponse,
+  IntegrationActorMappingResponse,
   Project,
   ProjectApiType,
+  ProjectIntegrationStatusResponse,
   ProjectListItemResponse,
   ProjectListResponse,
   ProjectIntegrationDisconnectResponse,
@@ -244,6 +247,25 @@ export function leaveProject(projectId: string) {
   return apiRequest<ProjectLeaveResponse>(`/api/projects/${projectId}/members/me`, {
     method: "DELETE",
   });
+}
+
+export function getProjectIntegrations(projectId: string) {
+  return apiRequest<ProjectIntegrationStatusResponse>(
+    `/api/projects/${projectId}/integrations`
+  );
+}
+
+export function getIntegrationActorMappings(projectId: string, provider: string) {
+  return apiRequest<IntegrationActorMappingListResponse>(
+    `/api/projects/${projectId}/integrations/${provider}/actor-mappings`
+  );
+}
+
+export function saveMyActorMapping(projectId: string, provider: string, actorKey: string) {
+  return apiRequest<IntegrationActorMappingResponse>(
+    `/api/projects/${projectId}/integrations/${provider}/actor-mappings/me`,
+    { method: "PUT", body: { actorKey } }
+  );
 }
 
 export function disconnectProjectIntegration(projectId: string, provider: string) {
