@@ -3,9 +3,10 @@ import { useEffect, useState } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { AlertModal } from '../../components/Modal'
 import { cn } from '../../lib/utils'
-import { getDaysFromToday, getProjectDeadline, isFutureDate } from '../../lib/projectDate'
+import { getProjectDeadline, isFutureDate } from '../../lib/projectDate'
 import { useProjectStore } from '../../store/projectStore'
-import { usePeerEvaluationStore } from '../../store/peerEvaluationStore'
+import { fetchEvaluationTargets, fetchMySelfFeedback } from '../../api/evaluation'
+import { searchReports, type ReportSearchResponse } from '../../api/report'
 
 // Figma의 radius/shadow 값(12/16/18/22/11px)이 기존 디자인 토큰(sm6/md10/lg14/xl20)과
 // 맞지 않아 이 화면만 임의값으로 정확히 맞춤 — 팀 논의 후 토큰 확장 필요
@@ -32,33 +33,51 @@ export default function ProjectReportPage() {
   const project = useProjectStore((state) =>
     state.projects.find((item) => item.id === projectId)
   )
-  const peerEvalState = usePeerEvaluationStore((state) =>
-    projectId ? state.getProjectState(projectId) : null
-  )
-  const submitFinal = usePeerEvaluationStore((state) => state.submitFinal)
 
-  // task API/store 연동 전에는 프로젝트 완료 상태와 마감일로 판정한다.
-  // 추후 서버의 peerEvaluationAvailable 값을 이 조건 대신 사용하면 된다.
-  const status: EvaluationStatus = peerEvalState?.submitted
-    ? 'submitted'
-    : project?.status === 'COMPLETED' && !isFutureDate(project.expectedEndDate)
-    ? 'unlocked'
-    : 'locked'
+  const [evalComplete, setEvalComplete] = useState(false)
+  const [report, setReport] = useState<ReportSearchResponse | null>(null)
+
+  // Peer평가/자기피드백 전원 완료 여부와, 이미 생성된 리포트가 있는지를 실제 API로 확인한다.
+  useEffect(() => {
+    const numericProjectId = Number(projectId)
+    if (!Number.isFinite(numericProjectId) || !project) return
+    let cancelled = false
+
+    Promise.all([
+      fetchEvaluationTargets(numericProjectId),
+      fetchMySelfFeedback(numericProjectId)
+        .then(() => true)
+        .catch(() => false),
+    ])
+      .then(([targetsRes, selfDone]) => {
+        if (cancelled) return
+        const allDone =
+          targetsRes.targets.length > 0 &&
+          targetsRes.targets.every((t) => t.isEvaluated) &&
+          selfDone
+        setEvalComplete(allDone)
+      })
+      .catch(() => undefined)
+
+    searchReports({ keyword: project.name, size: 1 })
+      .then((res) => {
+        if (!cancelled) setReport(res.content[0] ?? null)
+      })
+      .catch(() => undefined)
+
+    return () => {
+      cancelled = true
+    }
+  }, [projectId, project])
+
+  const status: EvaluationStatus =
+    evalComplete || report?.reportStatus === 'COMPLETED'
+      ? 'submitted'
+      : project?.status === 'COMPLETED' && !isFutureDate(project.expectedEndDate)
+      ? 'unlocked'
+      : 'locked'
 
   const [showPublishedModal, setShowPublishedModal] = useState(false)
-
-  // Timeout 처리: 마감일로부터 7일이 지나도록 전원 제출이 안 됐어도,
-  // 한 명이라도 제출한 게 있으면 그 데이터만으로 리포트를 자동(부분) 발행한다.
-  useEffect(() => {
-    if (!project || !projectId || !peerEvalState || peerEvalState.submitted) return
-    const pastGracePeriod = getDaysFromToday(project.expectedEndDate) <= -7
-    const hasAnySubmission =
-      Object.values(peerEvalState.evaluations).some((evaluation) => evaluation.done) ||
-      (peerEvalState.selfFeedback?.done ?? false)
-    if (pastGracePeriod && hasAnySubmission) {
-      submitFinal(projectId, { partial: true })
-    }
-  }, [project, projectId, peerEvalState, submitFinal])
 
   // Peer 평가 목록에서 "최종 제출하기"로 막 넘어온 경우에만 발행 모달을 한 번 띄움
   useEffect(() => {
@@ -75,12 +94,13 @@ export default function ProjectReportPage() {
     navigate(`/project/${projectId}/peer-eval`)
   }
 
-  const submittedAt = formatReportDate(peerEvalState?.submittedAt ?? null)
+  const submittedAt = formatReportDate(report?.completedAt ?? null)
+  const reportGenerating = status === 'submitted' && report?.reportStatus !== 'COMPLETED'
   const reports: ReportItem[] =
-    status === 'submitted'
+    status === 'submitted' && report?.reportStatus === 'COMPLETED'
       ? [
-          { id: 'r1', tier: 'basic', title: `${project?.name ?? ''} 기여도 분석 리포트`, createdAt: submittedAt },
-          { id: 'r2', tier: 'premium', title: '개인 기여도 리포트', createdAt: submittedAt, locked: true },
+          { id: String(report.reportId), tier: 'basic', title: `${project?.name ?? ''} 기여도 분석 리포트`, createdAt: submittedAt },
+          { id: 'premium', tier: 'premium', title: '개인 기여도 리포트', createdAt: submittedAt, locked: true },
         ]
       : []
   const hasReports = reports.length > 0
@@ -137,24 +157,15 @@ export default function ProjectReportPage() {
         </button>
       )}
 
-      {status === 'submitted' && peerEvalState?.partial && (
-        <div className="mt-3 flex items-start gap-2 rounded-12 bg-warning/10 px-4 py-3">
-          <Info className="mt-0.5 h-4 w-4 shrink-0 text-warning" aria-hidden />
-          <p className="text-caption font-medium text-warning">
-            마감일로부터 7일이 지나 일부 팀원 평가 없이 발행됐어요. 미제출 팀원은 분석에서 제한돼요.
-          </p>
-        </div>
-      )}
-
       {hasReports ? (
         <div className="mt-3 flex flex-col gap-3">
-          {reports.map((report) => (
+          {reports.map((item) => (
             <div
-              key={report.id}
+              key={item.id}
               className="relative h-[106px] w-full rounded-16 border border-primary-500 shadow-card"
             >
               <div className="absolute left-[21px] right-[102px] top-1/2 flex -translate-y-1/2 flex-col gap-2">
-                {report.tier === 'basic' ? (
+                {item.tier === 'basic' ? (
                   <span className="w-fit rounded-full border border-gray-200 px-2.5 py-1.5 text-caption font-medium text-gray-400">
                     BASIC
                   </span>
@@ -164,24 +175,31 @@ export default function ProjectReportPage() {
                     Premium
                   </span>
                 )}
-                <p className="text-body text-gray-900">{report.title}</p>
+                <p className="text-body text-gray-900">{item.title}</p>
                 <p className="pb-0.5 text-caption font-medium text-gray-400">
-                  생성일: {report.createdAt}
+                  생성일: {item.createdAt}
                 </p>
               </div>
 
               <button
                 type="button"
-                disabled={report.locked}
+                disabled={item.locked}
                 className={cn(
                   'absolute right-6 top-1/2 h-10 -translate-y-1/2 rounded-11 px-4 text-body',
-                  report.locked ? 'bg-gray-100 text-gray-400' : 'bg-primary-500 text-gray-25'
+                  item.locked ? 'bg-gray-100 text-gray-400' : 'bg-primary-500 text-gray-25'
                 )}
               >
                 열기
               </button>
             </div>
           ))}
+        </div>
+      ) : reportGenerating ? (
+        <div className="mt-[72px] flex flex-col items-center gap-4">
+          <p className="text-title font-medium text-gray-500">리포트를 생성하고 있어요</p>
+          <p className="whitespace-pre-line text-center text-body-sm text-gray-400">
+            {'모든 평가가 완료되었어요\n잠시 후 리포트가 발행됩니다'}
+          </p>
         </div>
       ) : (
         <div className="mt-[72px] flex flex-col items-center gap-4">
