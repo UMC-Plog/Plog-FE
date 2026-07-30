@@ -13,6 +13,7 @@ interface ConfirmDialogProps {
   /** true면 확인 버튼이 danger(빨강) 스타일로 표시됨 (삭제, 탈퇴 등 되돌릴 수 없는 동작) */
   destructive?: boolean;
   confirmDisabled?: boolean;
+  confirmLoading?: boolean;
   onConfirm: () => void;
   onCancel: () => void;
 }
@@ -28,6 +29,7 @@ export function ConfirmDialog({
   cancelText = "취소",
   destructive = false,
   confirmDisabled = false,
+  confirmLoading = false,
   onConfirm,
   onCancel,
 }: ConfirmDialogProps) {
@@ -51,6 +53,7 @@ export function ConfirmDialog({
             variant="ghost"
             size="md"
             fullWidth={false}
+            disabled={confirmDisabled}
             onClick={onCancel}
             className="flex-1 bg-gray-100 text-gray-400 hover:bg-gray-200"
           >
@@ -62,6 +65,7 @@ export function ConfirmDialog({
             size="md"
             fullWidth={false}
             disabled={confirmDisabled}
+            loading={confirmLoading}
             onClick={onConfirm}
             className="flex-1 text-white"
           >

@@ -1,13 +1,24 @@
 import { CalendarDays, Paperclip, UserRound } from 'lucide-react'
 import { AVATAR_PRESETS } from '../AvatarPicker'
 import { cn } from '../../lib/utils'
-import type { Task } from '../../types/task'
-import { isTaskDueSoon, isTaskOverdue, parseTaskDate } from '../../utils/taskDate'
-import { TASK_BADGE_BASE_CLASS, TASK_CATEGORY_CONFIG } from './taskCategoryConfig'
+import type { ServerProfilePreset, TaskListItemViewModel } from '../../types/task'
+import { parseTaskDate } from '../../utils/taskDate'
+import { SERVER_TASK_CATEGORY_CONFIG, TASK_BADGE_BASE_CLASS } from './taskCategoryConfig'
 
 interface TaskCardProps {
-  task: Task
-  onClick?: (task: Task) => void
+  task: TaskListItemViewModel
+  onClick?: (task: TaskListItemViewModel) => void
+}
+
+const PROFILE_PRESET_TO_AVATAR_ID: Record<ServerProfilePreset, string> = {
+  OTTER: 'otter',
+  PENGUIN: 'penguin',
+  FROG: 'frog',
+  KOALA: 'koala',
+  PANDA: 'panda',
+  SMILEY: 'smile',
+  GHOST: 'ghost',
+  TIGER: 'tiger',
 }
 
 function formatDueDate(value: string) {
@@ -16,11 +27,11 @@ function formatDueDate(value: string) {
 }
 
 export function TaskCard({ task, onClick }: TaskCardProps) {
-  const category = TASK_CATEGORY_CONFIG[task.category]
-  const overdue = isTaskOverdue(task)
-  const dueSoon = isTaskDueSoon(task)
-  const avatarPreset = AVATAR_PRESETS.find((avatar) => avatar.id === task.assignee.avatarId)
-  const avatarSrc = task.assignee.avatarImageUrl ?? avatarPreset?.src
+  const category = SERVER_TASK_CATEGORY_CONFIG[task.category]
+  const avatarId = task.assignee.profilePreset
+    ? PROFILE_PRESET_TO_AVATAR_ID[task.assignee.profilePreset]
+    : undefined
+  const avatarSrc = AVATAR_PRESETS.find((avatar) => avatar.id === avatarId)?.src
 
   return (
     <button
@@ -29,7 +40,7 @@ export function TaskCard({ task, onClick }: TaskCardProps) {
       className={cn(
         'w-full rounded-lg border bg-white p-4 text-left shadow-sm transition-colors',
         'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-300',
-        overdue ? 'border-error' : 'border-gray-100',
+        task.isOverdue ? 'border-error' : 'border-gray-100',
         onClick && 'hover:border-primary-200'
       )}
     >
@@ -56,12 +67,11 @@ export function TaskCard({ task, onClick }: TaskCardProps) {
         <span
           className={cn(
             'flex items-center gap-1',
-            overdue && 'font-semibold text-error',
-            dueSoon && 'font-semibold text-warning'
+            task.isOverdue && 'font-semibold text-error'
           )}
         >
           <CalendarDays className="h-4 w-4" aria-hidden />
-          {overdue ? '마감초과' : formatDueDate(task.dueDate)}
+          {task.isOverdue ? '마감초과' : formatDueDate(task.dueDate)}
         </span>
       </div>
 
@@ -74,7 +84,7 @@ export function TaskCard({ task, onClick }: TaskCardProps) {
           )}
         </div>
         <span className="min-w-0 truncate text-caption font-normal text-gray-500">
-          {task.assignee.nickname}
+          {task.assignee.nickname ?? '알 수 없는 사용자'}
         </span>
       </div>
     </button>

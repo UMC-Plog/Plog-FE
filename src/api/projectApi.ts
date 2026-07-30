@@ -150,6 +150,20 @@ export function mapProjectResponseToProject(response: ProjectListItemResponse): 
   };
 }
 
+function assertProjectListItem(response: ProjectListItemResponse) {
+  if (
+    !Number.isSafeInteger(response.projectId) ||
+    response.projectId <= 0 ||
+    !Number.isSafeInteger(response.myProjectMemberId) ||
+    response.myProjectMemberId <= 0
+  ) {
+    throw new ApiError(
+      "INVALID_PROJECT_LIST_RESPONSE",
+      "프로젝트 목록 응답 형식이 올바르지 않습니다."
+    );
+  }
+}
+
 export function mapCreatedProjectResponse(response: CreateProjectResponse): CreatedProject {
   return {
     id: String(response.projectId),
@@ -170,6 +184,7 @@ export async function getProjects(): Promise<Project[]> {
     );
     validateProjectListResponse(response);
 
+    response.content.forEach(assertProjectListItem);
     projects.push(...response.content.map(mapProjectResponseToProject));
     hasNext = response.hasNext === true;
     page += 1;
