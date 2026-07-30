@@ -1,5 +1,5 @@
-import { FileText, Image, Link, UserRound, X } from 'lucide-react'
-import { useEffect, useRef, useState } from 'react'
+import { UserRound } from 'lucide-react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { AVATAR_PRESETS } from '../../../components/AvatarPicker'
 import { Button } from '../../../components/Button'
@@ -13,19 +13,56 @@ import {
   updatePost as requestUpdatePost,
 } from '../../../api/postApi'
 import {
-  isAttachmentSizeValid,
-  MAX_ATTACHMENT_SIZE_ERROR,
+  getAttachmentDraftSummary,
+  toAttachmentRequests,
 } from '../../../lib/attachment'
 import { useAuthStore } from '../../../store/authStore'
 import { useProjectStore } from '../../../store/projectStore'
 import type {
-  PostAttachment,
   PostDetailViewModel,
   ServerPostUpdateRequest,
 } from '../../../types/post'
 import { PostAuthorAvatar } from '../../../components/post/PostAuthorAvatar'
+import { AttachmentPicker } from '../../../components/attachment/AttachmentPicker'
+import type { AttachmentDraft } from '../../../types/attachment'
 
-const POST_ATTACHMENTS_ENABLED = false
+function mapExistingAttachments(
+  post: PostDetailViewModel
+): AttachmentDraft[] {
+  return post.attachments.map((attachment) =>
+    attachment.type === 'FILE'
+      ? {
+          localId: `server-${attachment.id}`,
+          source: 'SERVER',
+          attachmentType: 'FILE',
+          attachmentId: attachment.id,
+          fileId: attachment.fileId,
+          fileName: attachment.fileName,
+          fileSize: attachment.fileSize,
+          downloadUrlApi: attachment.downloadUrlApi,
+        }
+      : {
+          localId: `server-${attachment.id}`,
+          source: 'SERVER',
+          attachmentType: 'LINK',
+          attachmentId: attachment.id,
+          fileName: attachment.fileName,
+          linkUrl: attachment.linkUrl!,
+        }
+  )
+}
+
+function getAttachmentSignature(drafts: AttachmentDraft[]) {
+  return drafts
+    .map((draft) => {
+      if (draft.source === 'SERVER') return `SERVER:${draft.attachmentId}`
+      if (draft.attachmentType === 'LINK') {
+        return `LINK:${draft.fileName}:${draft.linkUrl}`
+      }
+      return `FILE:${draft.fileKey ?? draft.fingerprint}`
+    })
+    .join('|')
+}
 
 export default function PostFormPage() {
   const { id: projectId, postId } = useParams<{ id: string; postId: string }>()
@@ -35,19 +72,15 @@ export default function PostFormPage() {
     state.projects.find((project) => project.id === projectId)
   )
   const isEditMode = Boolean(postId)
-  const fileInputRef = useRef<HTMLInputElement>(null)
-  const imageInputRef = useRef<HTMLInputElement>(null)
   const submittingRef = useRef(false)
   const [existingPost, setExistingPost] = useState<PostDetailViewModel>()
   const [isEditLoading, setIsEditLoading] = useState(isEditMode)
   const [editLoadError, setEditLoadError] = useState<string>()
   const [title, setTitle] = useState('')
   const [content, setContent] = useState('')
-  const [attachments, setAttachments] = useState<PostAttachment[]>([])
-  const [isLinkInputOpen, setIsLinkInputOpen] = useState(false)
-  const [linkUrl, setLinkUrl] = useState('')
-  const [linkError, setLinkError] = useState<string>()
-  const [attachmentError, setAttachmentError] = useState<string>()
+  const [attachments, setAttachments] = useState<AttachmentDraft[]>([])
+  const [initialAttachmentSignature, setInitialAttachmentSignature] =
+    useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [contentTouched, setContentTouched] = useState(false)
   const [titleTouched, setTitleTouched] = useState(false)
@@ -62,6 +95,13 @@ export default function PostFormPage() {
     '알 수 없는 사용자'
   const normalizedTitle = title.trim()
   const normalizedContent = content.trim()
+  const attachmentSummary = useMemo(
+    () => getAttachmentDraftSummary(attachments),
+    [attachments]
+  )
+  const attachmentSignature = getAttachmentSignature(attachments)
+  const attachmentsChanged =
+    isEditMode && attachmentSignature !== initialAttachmentSignature
   const numericProjectId =
     projectId && /^[1-9]\d*$/.test(projectId) && Number.isSafeInteger(Number(projectId))
       ? Number(projectId)
@@ -92,12 +132,15 @@ export default function PostFormPage() {
       normalizedTitle.length <= 100 &&
       normalizedContent.length >= 1 &&
       normalizedContent.length <= 5000 &&
+      !attachmentSummary.hasPendingUploads &&
+      !attachmentSummary.hasUploadErrors &&
       numericProjectId !== null &&
       (!isEditMode ||
         (numericPostId !== null &&
           existingPost &&
           (normalizedTitle !== existingPost.title ||
-            normalizedContent !== existingPost.content)))
+            normalizedContent !== existingPost.content ||
+            attachmentsChanged)))
   )
 
   useEffect(() => {
@@ -117,6 +160,11 @@ export default function PostFormPage() {
         setExistingPost(response)
         setTitle(response.title)
         setContent(response.content)
+        const existingAttachments = mapExistingAttachments(response)
+        setAttachments(existingAttachments)
+        setInitialAttachmentSignature(
+          getAttachmentSignature(existingAttachments)
+        )
       })
       .catch((error: unknown) => {
         if (!active) return
@@ -147,48 +195,6 @@ export default function PostFormPage() {
     goToFeed()
   }
 
-  const addFiles = (files: FileList | null, type: 'file' | 'image') => {
-    if (!files) return
-    const selectedFiles = Array.from(files)
-    const validFiles = selectedFiles.filter(isAttachmentSizeValid)
-    const nextAttachments = validFiles.map<PostAttachment>((file) => ({
-      id: crypto.randomUUID(),
-      name: file.name,
-      type,
-      size: file.size,
-    }))
-    if (nextAttachments.length > 0) {
-      setAttachments((current) => [...current, ...nextAttachments])
-    }
-    setAttachmentError(
-      validFiles.length === selectedFiles.length
-        ? undefined
-        : MAX_ATTACHMENT_SIZE_ERROR
-    )
-  }
-
-  const addLink = () => {
-    try {
-      const url = new URL(linkUrl.trim())
-      if (!['http:', 'https:'].includes(url.protocol)) throw new Error()
-
-      setAttachments((current) => [
-        ...current,
-        {
-          id: crypto.randomUUID(),
-          name: url.hostname,
-          type: 'link',
-          url: url.toString(),
-        },
-      ])
-      setLinkUrl('')
-      setLinkError(undefined)
-      setIsLinkInputOpen(false)
-    } catch {
-      setLinkError('http 또는 https로 시작하는 주소를 입력해 주세요')
-    }
-  }
-
   const handleSubmit = async () => {
     if (!canSubmit || !projectId || submittingRef.current) return
     submittingRef.current = true
@@ -211,15 +217,22 @@ export default function PostFormPage() {
         if (normalizedContent !== existingPost.content) {
           payload.content = normalizedContent
         }
+        if (attachmentsChanged) {
+          payload.attachments = toAttachmentRequests(attachments)
+        }
         await requestUpdatePost(numericProjectId, numericPostId, payload)
         navigate(`/project/${projectId}/posts/${numericPostId}`, {
           replace: true,
         })
         return
       }
+      const attachmentRequests = toAttachmentRequests(attachments)
       await requestCreatePost(numericProjectId, {
         title: normalizedTitle,
         content: normalizedContent,
+        ...(attachmentRequests.length > 0
+          ? { attachments: attachmentRequests }
+          : {}),
       })
       navigate(`/project/${projectId}/feed`, { replace: true })
     } catch (error: unknown) {
@@ -324,52 +337,18 @@ export default function PostFormPage() {
           </p>
         )}
 
-        {POST_ATTACHMENTS_ENABLED && isEditMode && (
-          <>
-        <div className="mt-4 flex items-center gap-5 border-b border-gray-200 pb-3">
-          <button type="button" onClick={() => fileInputRef.current?.click()} className="flex items-center gap-1.5 text-caption font-normal text-gray-500">
-            <FileText className="h-4 w-4" aria-hidden /> 파일
-          </button>
-          <button type="button" onClick={() => setIsLinkInputOpen((isOpen) => !isOpen)} className="flex items-center gap-1.5 text-caption font-normal text-gray-500">
-            <Link className="h-4 w-4" aria-hidden /> 링크
-          </button>
-          <button type="button" onClick={() => imageInputRef.current?.click()} className="flex items-center gap-1.5 text-caption font-normal text-gray-500">
-            <Image className="h-4 w-4" aria-hidden /> 이미지
-          </button>
-          <input ref={fileInputRef} type="file" multiple className="hidden" onChange={(event) => { addFiles(event.target.files, 'file'); event.target.value = '' }} />
-          <input ref={imageInputRef} type="file" accept="image/*" multiple className="hidden" onChange={(event) => { addFiles(event.target.files, 'image'); event.target.value = '' }} />
+        <div className="mt-5">
+          <AttachmentPicker
+            value={attachments}
+            onChange={(nextAttachments) => {
+              setAttachments(nextAttachments)
+              setSubmitError(undefined)
+            }}
+            usage="POST"
+            variant="post"
+            disabled={isSubmitting}
+          />
         </div>
-
-        {attachmentError && (
-          <p className="mt-2 text-caption font-normal text-error">{attachmentError}</p>
-        )}
-
-        {isLinkInputOpen && (
-          <div className="mt-3 flex items-start gap-2">
-            <Input aria-label="첨부 링크" type="url" placeholder="https://example.com" value={linkUrl} onChange={(event) => { setLinkUrl(event.target.value); setLinkError(undefined) }} errorText={linkError} />
-            <Button type="button" size="md" fullWidth={false} disabled={!linkUrl.trim()} onClick={addLink} className="shrink-0 whitespace-nowrap text-white">추가</Button>
-          </div>
-        )}
-
-        {attachments.length > 0 && (
-          <div className="mt-4 space-y-2">
-            {attachments.map((attachment) => {
-              const AttachmentIcon = attachment.type === 'link' ? Link : attachment.type === 'image' ? Image : FileText
-              return (
-                <div key={attachment.id} className="flex items-center gap-3 rounded-md bg-gray-50 px-3 py-3">
-                  <AttachmentIcon className="h-5 w-5 shrink-0 text-primary" aria-hidden />
-                  <p className="min-w-0 flex-1 truncate text-body-sm text-blue-600">{attachment.name}</p>
-                  {attachment.size !== undefined && <span className="shrink-0 text-caption font-normal text-gray-400">{attachment.size < 1024 * 1024 ? `${Math.ceil(attachment.size / 1024)}KB` : `${(attachment.size / 1024 / 1024).toFixed(1)}MB`}</span>}
-                  <button type="button" aria-label={`${attachment.name} 첨부 제거`} onClick={() => setAttachments((current) => current.filter((item) => item.id !== attachment.id))} className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-white text-gray-400 hover:text-gray-600">
-                    <X className="h-4 w-4" aria-hidden />
-                  </button>
-                </div>
-              )
-            })}
-          </div>
-        )}
-          </>
-        )}
       </main>
     </Layout>
   )

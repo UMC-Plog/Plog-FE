@@ -1,10 +1,4 @@
-export interface TaskAttachment {
-  id: string
-  type: 'file' | 'link'
-  name: string
-  url?: string
-  size?: string
-}
+import type { NewAttachmentRequest } from './attachment'
 
 export type ServerTaskStatus = 'TODO' | 'IN_PROGRESS' | 'DONE'
 
@@ -44,13 +38,7 @@ export interface ProjectActiveMember {
 
 export type ServerTaskAttachmentType = 'FILE' | 'LINK'
 
-export interface ServerTaskAttachmentRequest {
-  attachmentType: ServerTaskAttachmentType
-  fileName: string
-  fileSize?: number
-  linkUrl?: string
-  fileKey?: string
-}
+export type ServerTaskAttachmentRequest = NewAttachmentRequest
 
 export interface ServerAttachmentResponse {
   taskAttachmentId?: number
@@ -115,6 +103,7 @@ export interface TaskDetailViewModel {
   attachments: Array<{
     id: number
     type: ServerTaskAttachmentType
+    fileId?: number
     fileName: string
     linkUrl?: string | null
     downloadUrlApi?: string | null
@@ -160,6 +149,10 @@ export interface ServerTaskUpdateRequest {
   category?: ServerTaskCategory
   endDate?: string
 }
+
+export type ServerTaskAttachmentAddRequest = NewAttachmentRequest
+
+export type ServerTaskAttachmentAddResponse = ServerAttachmentResponse
 
 export interface ServerTaskUpdateResponse {
   taskId?: number

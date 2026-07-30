@@ -2,19 +2,28 @@ import { UserRound } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ApiError } from '../../api/client'
 import {
+  addTaskAttachment,
   createTask,
+  deleteTaskAttachment,
   fetchActiveProjectMembers,
   updateTask,
   updateTaskStatus,
 } from '../../api/task'
+import { AttachmentPicker } from '../attachment/AttachmentPicker'
 import { AVATAR_PRESETS } from '../AvatarPicker'
 import { Button } from '../Button'
 import { Input } from '../Input'
 import { BottomSheet } from '../Modal'
 import { cn } from '../../lib/utils'
+import {
+  getAttachmentDraftSummary,
+  toNewAttachmentRequests,
+} from '../../lib/attachment'
 import type { ProjectType } from '../../types/project'
+import type { AttachmentDraft } from '../../types/attachment'
 import type {
   ProjectActiveMember,
+  ServerAttachmentResponse,
   ServerProfilePreset,
   ServerTaskCategory,
   ServerTaskStatus,
@@ -37,6 +46,7 @@ interface TaskEditBaseline {
   category: ServerTaskCategory
   status: ServerTaskStatus
   endDate: string
+  attachmentIds: number[]
 }
 
 const STATUS_OPTIONS: Array<{ value: ServerTaskStatus; label: string }> = [
@@ -85,6 +95,52 @@ function getErrorMessage(error: unknown) {
     : '네트워크 상태를 확인한 뒤 다시 시도해 주세요.'
 }
 
+function mapTaskAttachments(task: TaskDetailViewModel): AttachmentDraft[] {
+  return task.attachments.map((attachment) =>
+    attachment.type === 'FILE'
+      ? {
+          localId: `task-server-${attachment.id}`,
+          source: 'SERVER',
+          attachmentType: 'FILE',
+          attachmentId: attachment.id,
+          fileId: attachment.fileId,
+          fileName: attachment.fileName,
+          downloadUrlApi: attachment.downloadUrlApi,
+        }
+      : {
+          localId: `task-server-${attachment.id}`,
+          source: 'SERVER',
+          attachmentType: 'LINK',
+          attachmentId: attachment.id,
+          fileName: attachment.fileName,
+          linkUrl: attachment.linkUrl!,
+        }
+  )
+}
+
+function mapAddedTaskAttachment(
+  attachment: ServerAttachmentResponse
+): AttachmentDraft {
+  return attachment.attachmentType === 'FILE'
+    ? {
+        localId: `task-server-${attachment.taskAttachmentId!}`,
+        source: 'SERVER',
+        attachmentType: 'FILE',
+        attachmentId: attachment.taskAttachmentId!,
+        fileId: attachment.fileId,
+        fileName: attachment.fileName!,
+        downloadUrlApi: attachment.downloadUrlApi,
+      }
+    : {
+        localId: `task-server-${attachment.taskAttachmentId!}`,
+        source: 'SERVER',
+        attachmentType: 'LINK',
+        attachmentId: attachment.taskAttachmentId!,
+        fileName: attachment.fileName!,
+        linkUrl: attachment.linkUrl!,
+      }
+}
+
 export function TaskCardFormModal({
   open,
   projectId,
@@ -104,6 +160,7 @@ export function TaskCardFormModal({
   const [status, setStatus] = useState<ServerTaskStatus>('TODO')
   const [category, setCategory] = useState<ServerTaskCategory | ''>('')
   const [endDate, setEndDate] = useState('')
+  const [attachments, setAttachments] = useState<AttachmentDraft[]>([])
   const [isDateFocused, setIsDateFocused] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState<string>()
@@ -148,6 +205,7 @@ export function TaskCardFormModal({
     setStatus(task?.status ?? 'TODO')
     setCategory(task?.category ?? '')
     setEndDate(task?.dueDate ?? '')
+    setAttachments(task ? mapTaskAttachments(task) : [])
     setEditBaseline(
       task
         ? {
@@ -156,6 +214,9 @@ export function TaskCardFormModal({
             category: task.category,
             status: task.status,
             endDate: task.dueDate,
+            attachmentIds: task.attachments.map(
+              (attachment) => attachment.id
+            ),
           }
         : null
     )
@@ -190,7 +251,23 @@ export function TaskCardFormModal({
   const hasStatusChanges = Boolean(
     editBaseline && status !== editBaseline.status
   )
-  const hasChanges = hasGeneralChanges || hasStatusChanges
+  const currentServerAttachmentIds = attachments.flatMap((attachment) =>
+    attachment.source === 'SERVER' ? [attachment.attachmentId] : []
+  )
+  const hasAttachmentChanges = Boolean(
+    editBaseline &&
+      (attachments.some((attachment) => attachment.source === 'NEW') ||
+        editBaseline.attachmentIds.some(
+          (attachmentId) =>
+            !currentServerAttachmentIds.includes(attachmentId)
+        ))
+  )
+  const attachmentSummary = useMemo(
+    () => getAttachmentDraftSummary(attachments),
+    [attachments]
+  )
+  const hasChanges =
+    hasGeneralChanges || hasStatusChanges || hasAttachmentChanges
   const canSubmit = Boolean(
     normalizedTitle.length >= 2 &&
       selectedMember &&
@@ -200,6 +277,8 @@ export function TaskCardFormModal({
       projectType &&
       (!isEditMode || hasChanges) &&
       !isMembersLoading &&
+      !attachmentSummary.hasPendingUploads &&
+      !attachmentSummary.hasUploadErrors &&
       !isSubmitting
   )
 
@@ -251,6 +330,9 @@ export function TaskCardFormModal({
             await updateTaskStatus(projectId, task.id, {
               cardStatus: status,
             })
+            setEditBaseline((current) =>
+              current ? { ...current, status } : current
+            )
           } catch (error: unknown) {
             if (generalUpdateSucceeded) {
               onSaved()
@@ -264,13 +346,82 @@ export function TaskCardFormModal({
             throw error
           }
         }
+
+        if (hasAttachmentChanges) {
+          const removedAttachmentIds = editBaseline.attachmentIds.filter(
+            (attachmentId) =>
+              !currentServerAttachmentIds.includes(attachmentId)
+          )
+          const newAttachments = attachments.filter(
+            (attachment) => attachment.source === 'NEW'
+          )
+          try {
+            for (const attachmentId of removedAttachmentIds) {
+              await deleteTaskAttachment(
+                projectId,
+                task.id,
+                attachmentId
+              )
+              setEditBaseline((current) =>
+                current
+                  ? {
+                      ...current,
+                      attachmentIds: current.attachmentIds.filter(
+                        (id) => id !== attachmentId
+                      ),
+                    }
+                  : current
+              )
+            }
+            for (const draft of newAttachments) {
+              const [request] = toNewAttachmentRequests([draft])
+              if (!request) continue
+              const added = await addTaskAttachment(
+                projectId,
+                task.id,
+                request
+              )
+              const mappedAttachment = mapAddedTaskAttachment(added)
+              setAttachments((current) =>
+                current.map((attachment) =>
+                  attachment.localId === draft.localId
+                    ? mappedAttachment
+                    : attachment
+                )
+              )
+              setEditBaseline((current) =>
+                current
+                  ? {
+                      ...current,
+                      attachmentIds: [
+                        ...current.attachmentIds,
+                        added.taskAttachmentId!,
+                      ],
+                    }
+                  : current
+              )
+            }
+          } catch (error: unknown) {
+            onSaved()
+            setSubmitError(
+              `일부 첨부 변경에 실패했습니다. 최신 업무를 다시 확인해 주세요. ${getErrorMessage(error)}`
+            )
+            submittingRef.current = false
+            setIsSubmitting(false)
+            return
+          }
+        }
       } else {
+        const attachmentRequests = toNewAttachmentRequests(attachments)
         await createTask(projectId, {
           title: normalizedTitle,
           projectMemberId: selectedMember.projectMemberId,
           category,
           cardStatus: status,
           endDate,
+          ...(attachmentRequests.length > 0
+            ? { attachments: attachmentRequests }
+            : {}),
         })
       }
       onSaved()
@@ -473,10 +624,17 @@ export function TaskCardFormModal({
 
           <div>
             <p className="text-body-sm font-medium text-gray-700">첨부 자료</p>
-            <div className="mt-2 flex min-h-20 w-full items-center justify-center rounded-md border border-gray-200 bg-gray-50 px-4 text-center">
-              <span className="text-caption font-normal text-gray-400">
-                첨부 기능은 준비 중이에요.
-              </span>
+            <div className="mt-2">
+              <AttachmentPicker
+                value={attachments}
+                onChange={(nextAttachments) => {
+                  setAttachments(nextAttachments)
+                  setSubmitError(undefined)
+                }}
+                usage="TASK"
+                variant="task"
+                disabled={isSubmitting}
+              />
             </div>
           </div>
         </div>
