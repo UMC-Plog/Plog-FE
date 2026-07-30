@@ -119,6 +119,7 @@ export interface ProjectIntegrationDisconnectResponse {
   linkType: ProjectIntegrationType;
 }
 
+
 export interface CreateProjectResponse {
   projectId: number;
   projectName: string;

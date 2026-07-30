@@ -16,6 +16,10 @@ import docsIcon from "../../assets/integrations/google-docs.svg";
 import slidesIcon from "../../assets/integrations/google-slides.svg";
 import { Modal } from "../../components/Modal";
 import { useProjectStore } from "../../store/projectStore";
+import {
+  useIntegrationStore,
+  type IntegrationProvider,
+} from "../../store/integrationStore";
 import type {
   ProjectIntegrationType,
   ProjectSettingsResponse,
@@ -198,6 +202,7 @@ export function ProjectSettingsPage() {
   const { id = "" } = useParams();
   const navigate = useNavigate();
   const fetchProjects = useProjectStore((state) => state.fetchProjects);
+  const mockIntegrationAccounts = useIntegrationStore((state) => state.accounts);
   const [settings, setSettings] = useState<ProjectSettingsResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -464,16 +469,27 @@ export function ProjectSettingsPage() {
           <p className="mt-1 text-[12px] font-normal text-gray-400">워크스페이스를 소유한 팀원만 연동할 수 있어요.</p>
           <div className="mt-2 rounded-[16px] border border-gray-100 bg-white/10 px-[18px] shadow-card">
             {INTEGRATIONS.map((integration) => {
-              const connected = settings.externalConnections.some(
+              const serverConnected = settings.externalConnections.some(
                 (connection) => connection.linkType === integration.type && connection.isLinked
               );
+              const storeProvider: IntegrationProvider =
+                integration.id === "docs"
+                  ? "googleDocs"
+                  : integration.id === "slides"
+                    ? "googleSlides"
+                    : integration.id;
+              const mockConnected = mockIntegrationAccounts[storeProvider];
+              const connected = serverConnected || mockConnected;
               return (
                 <button
                   key={integration.id}
                   type="button"
                   onClick={() =>
                     navigate(`/project/${id}/settings/integrations/${integration.id}`, {
-                      state: { isConnected: connected },
+                      state: {
+                        isConnected: connected,
+                        isMockConnected: mockConnected && !serverConnected,
+                      },
                     })
                   }
                   className="flex h-[61px] w-full items-center"
