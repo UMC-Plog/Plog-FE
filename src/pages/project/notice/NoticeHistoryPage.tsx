@@ -91,12 +91,23 @@ export default function NoticeHistoryPage() {
     }
   }, [loadNotices])
 
+  const canManageNotice = useCallback(
+    (notice: PostListItemViewModel) =>
+      currentProject !== undefined &&
+      Number.isSafeInteger(currentProject.myProjectMemberId) &&
+      currentProject.myProjectMemberId > 0 &&
+      currentProject.myProjectMemberId === notice.projectMemberId,
+    [currentProject]
+  )
+
   const handleEdit = (notice: PostListItemViewModel) => {
+    if (!canManageNotice(notice)) return
     setOpenMenuPostId(null)
     navigate(`/project/${notice.projectId}/notices/${notice.postId}/edit`)
   }
 
   const handleDelete = (notice: PostListItemViewModel) => {
+    if (!canManageNotice(notice)) return
     setOpenMenuPostId(null)
     setDeleteError(undefined)
     setPendingDeleteNotice(notice)
@@ -106,6 +117,7 @@ export default function NoticeHistoryPage() {
     if (
       numericProjectId === null ||
       !pendingDeleteNotice ||
+      !canManageNotice(pendingDeleteNotice) ||
       deletingRef.current
     ) {
       return
@@ -174,9 +186,7 @@ export default function NoticeHistoryPage() {
                 key={notice.postId}
                 notice={notice}
                 isMenuOpen={openMenuPostId === notice.postId}
-                canEdit={
-                  currentProject?.myProjectMemberId === notice.projectMemberId
-                }
+                canManage={canManageNotice(notice)}
                 isDeleting={
                   isDeleting && pendingDeleteNotice?.postId === notice.postId
                 }

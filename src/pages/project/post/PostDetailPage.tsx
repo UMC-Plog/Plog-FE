@@ -20,6 +20,7 @@ import { TopNavBar } from '../../../components/TopNavBar'
 import type { PostDetailViewModel } from '../../../types/post'
 import type { PostCommentViewModel } from '../../../types/post'
 import { PostAuthorAvatar } from '../../../components/post/PostAuthorAvatar'
+import { useProjectStore } from '../../../store/projectStore'
 
 function formatPostTime(createdAt: string) {
   const createdTime = Date.parse(createdAt)
@@ -59,6 +60,9 @@ export default function PostDetailPage() {
   const navigate = useNavigate()
   const numericProjectId = parsePositiveSafeInteger(projectId)
   const numericPostId = parsePositiveSafeInteger(postId)
+  const currentProject = useProjectStore((state) =>
+    state.projects.find((project) => project.id === projectId)
+  )
   const [post, setPost] = useState<PostDetailViewModel>()
   const [isLoading, setIsLoading] = useState(true)
   const [detailError, setDetailError] = useState<string>()
@@ -80,6 +84,18 @@ export default function PostDetailPage() {
   const detailRequestRef = useRef(0)
   const commentSubmittingRef = useRef(false)
   const commentIdsRef = useRef(new Set<number>())
+  const currentProjectMemberId =
+    currentProject &&
+    Number.isSafeInteger(currentProject.myProjectMemberId) &&
+    currentProject.myProjectMemberId > 0
+      ? currentProject.myProjectMemberId
+      : null
+  const isPostAuthor =
+    post !== undefined &&
+    currentProjectMemberId !== null &&
+    currentProjectMemberId === post.projectMemberId
+  const canEditPost = isPostAuthor
+  const canDeletePost = isPostAuthor
 
   const loadDetail = useCallback(async () => {
     const requestId = ++detailRequestRef.current
@@ -166,6 +182,7 @@ export default function PostDetailPage() {
   }
 
   const handleEdit = () => {
+    if (!canEditPost) return
     setIsMenuOpen(false)
     if (post && projectId && postId) {
       navigate(`/project/${projectId}/posts/${postId}/edit`)
@@ -173,7 +190,7 @@ export default function PostDetailPage() {
   }
 
   const handleDelete = () => {
-    if (!post) return
+    if (!post || !canDeletePost) return
     setIsMenuOpen(false)
     setDeleteError(undefined)
     setIsDeleteDialogOpen(true)
@@ -182,6 +199,7 @@ export default function PostDetailPage() {
   const handleConfirmDelete = async () => {
     if (
       !post ||
+      !canDeletePost ||
       numericProjectId === null ||
       numericPostId === null ||
       deletingRef.current
@@ -336,35 +354,41 @@ export default function PostDetailPage() {
             </p>
           </div>
 
-          <div ref={menuRef} className="relative">
-            <button
-              type="button"
-              aria-label="게시글 메뉴 열기"
-              aria-expanded={isMenuOpen}
-              onClick={() => setIsMenuOpen((isOpen) => !isOpen)}
-              className="flex h-10 w-10 items-center justify-center rounded-full text-gray-500 hover:bg-gray-50"
-            >
-              <Ellipsis className="h-5 w-5" aria-hidden />
-            </button>
-            {isMenuOpen && (
-              <div className="absolute right-0 top-10 z-20 w-24 overflow-hidden rounded-lg border border-gray-100 bg-white shadow-lg">
-                <button
-                  type="button"
-                  onClick={handleEdit}
-                  className="w-full px-4 py-3 text-left text-body-sm text-gray-700 hover:bg-gray-50"
-                >
-                  수정
-                </button>
-                <button
-                  type="button"
-                  onClick={handleDelete}
-                  className="w-full border-t border-gray-100 px-4 py-3 text-left text-body-sm text-gray-700 hover:bg-gray-50"
-                >
-                  삭제
-                </button>
-              </div>
-            )}
-          </div>
+          {(canEditPost || canDeletePost) && (
+            <div ref={menuRef} className="relative">
+              <button
+                type="button"
+                aria-label="게시글 메뉴 열기"
+                aria-expanded={isMenuOpen}
+                onClick={() => setIsMenuOpen((isOpen) => !isOpen)}
+                className="flex h-10 w-10 items-center justify-center rounded-full text-gray-500 hover:bg-gray-50"
+              >
+                <Ellipsis className="h-5 w-5" aria-hidden />
+              </button>
+              {isMenuOpen && (
+                <div className="absolute right-0 top-10 z-20 w-24 overflow-hidden rounded-lg border border-gray-100 bg-white shadow-lg">
+                  {canEditPost && (
+                    <button
+                      type="button"
+                      onClick={handleEdit}
+                      className="w-full px-4 py-3 text-left text-body-sm text-gray-700 hover:bg-gray-50"
+                    >
+                      수정
+                    </button>
+                  )}
+                  {canDeletePost && (
+                    <button
+                      type="button"
+                      onClick={handleDelete}
+                      className="w-full border-t border-gray-100 px-4 py-3 text-left text-body-sm text-gray-700 hover:bg-gray-50"
+                    >
+                      삭제
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         <article className="mt-5 rounded-lg bg-white p-5 shadow-md">

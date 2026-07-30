@@ -6,7 +6,7 @@ import { PostAuthorAvatar } from '../post/PostAuthorAvatar'
 interface NoticeHistoryItemProps {
   notice: PostListItemViewModel
   isMenuOpen: boolean
-  canEdit: boolean
+  canManage: boolean
   isDeleting: boolean
   onToggleMenu: () => void
   onCloseMenu: () => void
@@ -37,7 +37,7 @@ function formatNoticeTime(createdAt: string) {
 export function NoticeHistoryItem({
   notice,
   isMenuOpen,
-  canEdit,
+  canManage,
   isDeleting,
   onToggleMenu,
   onCloseMenu,
@@ -88,24 +88,24 @@ export function NoticeHistoryItem({
           </p>
         </div>
 
-        <div ref={menuRef} className="relative">
-          <button
-            type="button"
-            aria-label={`${notice.title} 공지 메뉴 ${isMenuOpen ? '닫기' : '열기'}`}
-            aria-expanded={isMenuOpen}
-            disabled={isDeleting}
-            onClick={(event) => {
-              event.stopPropagation()
-              onToggleMenu()
-            }}
-            className="flex h-10 w-10 items-center justify-center rounded-full text-gray-500 hover:bg-gray-50"
-          >
-            <Ellipsis className="h-5 w-5" aria-hidden />
-          </button>
+        {canManage && (
+          <div ref={menuRef} className="relative">
+            <button
+              type="button"
+              aria-label={`${notice.title} 공지 메뉴 ${isMenuOpen ? '닫기' : '열기'}`}
+              aria-expanded={isMenuOpen}
+              disabled={isDeleting}
+              onClick={(event) => {
+                event.stopPropagation()
+                onToggleMenu()
+              }}
+              className="flex h-10 w-10 items-center justify-center rounded-full text-gray-500 hover:bg-gray-50"
+            >
+              <Ellipsis className="h-5 w-5" aria-hidden />
+            </button>
 
-          {isMenuOpen && (
-            <div className="absolute right-0 top-10 z-30 w-24 overflow-hidden rounded-lg border border-gray-100 bg-white shadow-lg">
-              {canEdit && (
+            {isMenuOpen && (
+              <div className="absolute right-0 top-10 z-30 w-24 overflow-hidden rounded-lg border border-gray-100 bg-white shadow-lg">
                 <button
                   type="button"
                   onClick={(event) => {
@@ -116,23 +116,21 @@ export function NoticeHistoryItem({
                 >
                   수정
                 </button>
-              )}
-              <button
-                type="button"
-                disabled={isDeleting}
-                onClick={(event) => {
-                  event.stopPropagation()
-                  handleDelete()
-                }}
-                className={`w-full px-4 py-3 text-left text-body-sm text-gray-700 hover:bg-gray-50 disabled:text-gray-300 ${
-                  canEdit ? 'border-t border-gray-100' : ''
-                }`}
-              >
-                {isDeleting ? '삭제 중' : '삭제'}
-              </button>
-            </div>
-          )}
-        </div>
+                <button
+                  type="button"
+                  disabled={isDeleting}
+                  onClick={(event) => {
+                    event.stopPropagation()
+                    handleDelete()
+                  }}
+                  className="w-full border-t border-gray-100 px-4 py-3 text-left text-body-sm text-gray-700 hover:bg-gray-50 disabled:text-gray-300"
+                >
+                  {isDeleting ? '삭제 중' : '삭제'}
+                </button>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       <div className="mt-3 rounded-[20px] bg-white px-5 py-6 shadow-md">
