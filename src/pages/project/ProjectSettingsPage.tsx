@@ -202,7 +202,9 @@ export function ProjectSettingsPage() {
   const { id = "" } = useParams();
   const navigate = useNavigate();
   const fetchProjects = useProjectStore((state) => state.fetchProjects);
-  const mockIntegrationAccounts = useIntegrationStore((state) => state.accounts);
+  const mockIntegrationAccounts = useIntegrationStore(
+    (state) => state.projectAccounts[id]
+  );
   const [settings, setSettings] = useState<ProjectSettingsResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -478,7 +480,7 @@ export function ProjectSettingsPage() {
                   : integration.id === "slides"
                     ? "googleSlides"
                     : integration.id;
-              const mockConnected = mockIntegrationAccounts[storeProvider];
+              const mockConnected = mockIntegrationAccounts?.[storeProvider] ?? false;
               const connected = serverConnected || mockConnected;
               return (
                 <button
