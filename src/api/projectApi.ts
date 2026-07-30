@@ -221,6 +221,16 @@ export function updateProjectSettings(
   );
 }
 
+/**
+ * 방장이 다른 활성 팀원을 남겨둔 채 나가려 할 때 서버가 400으로 내려주는 코드.
+ * 마지막 활성 멤버인 방장은 권한 이전 없이 나갈 수 있고, 이때 프로젝트도 함께 삭제된다.
+ */
+export const OWNER_MUST_TRANSFER_CODE = "OWNER_MUST_TRANSFER";
+
+export function isOwnerMustTransferError(error: unknown) {
+  return error instanceof ApiError && error.code === OWNER_MUST_TRANSFER_CODE;
+}
+
 export function leaveProject(projectId: string) {
   return apiRequest<ProjectLeaveResponse>(`/api/projects/${projectId}/members/me`, {
     method: "DELETE",
