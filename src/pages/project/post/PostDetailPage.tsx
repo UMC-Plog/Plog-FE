@@ -1,9 +1,11 @@
-import { ArrowRight, Ellipsis, FileText, Heart, Link, MessageSquare, UserRound } from 'lucide-react'
+import { ArrowRight, Ellipsis, FileText, Heart, Link, MessageSquare } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { ApiError } from '../../../api/client'
 import {
   deletePost as requestDeletePost,
+  createPostComment,
+  fetchPostComments,
   fetchPostDetail,
   likePost,
   unlikePost,
@@ -16,9 +18,14 @@ import { Layout } from '../../../components/Layout'
 import { AlertModal } from '../../../components/Modal'
 import { TopNavBar } from '../../../components/TopNavBar'
 import type { PostDetailViewModel } from '../../../types/post'
+import type { PostCommentViewModel } from '../../../types/post'
+import { PostAuthorAvatar } from '../../../components/post/PostAuthorAvatar'
 
 function formatPostTime(createdAt: string) {
-  const minutes = Math.floor((Date.now() - new Date(createdAt).getTime()) / 60000)
+  const createdTime = Date.parse(createdAt)
+  if (Number.isNaN(createdTime)) return '시간 정보 없음'
+
+  const minutes = Math.floor((Date.now() - createdTime) / 60000)
   if (minutes < 1) return '방금 전'
   if (minutes < 60) return `${minutes}분 전`
 
@@ -26,6 +33,17 @@ function formatPostTime(createdAt: string) {
   if (hours < 24) return `${hours}시간 전`
 
   return `${Math.floor(hours / 24)}일 전`
+}
+
+function sortCommentsNewestFirst(comments: PostCommentViewModel[]) {
+  return [...comments].sort((left, right) => {
+    const leftTime = Date.parse(left.createdAt)
+    const rightTime = Date.parse(right.createdAt)
+    const safeLeftTime = Number.isNaN(leftTime) ? Number.NEGATIVE_INFINITY : leftTime
+    const safeRightTime = Number.isNaN(rightTime) ? Number.NEGATIVE_INFINITY : rightTime
+
+    return safeRightTime - safeLeftTime || right.commentId - left.commentId
+  })
 }
 
 function parsePositiveSafeInteger(value: string | undefined) {
@@ -52,10 +70,16 @@ export default function PostDetailPage() {
   const [likeCount, setLikeCount] = useState(0)
   const [isLikeSubmitting, setIsLikeSubmitting] = useState(false)
   const [likeError, setLikeError] = useState<string>()
+  const [comments, setComments] = useState<PostCommentViewModel[]>([])
+  const [commentValue, setCommentValue] = useState('')
+  const [commentError, setCommentError] = useState<string>()
+  const [isCommentSubmitting, setIsCommentSubmitting] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
   const deletingRef = useRef(false)
   const likeSubmittingRef = useRef(false)
   const detailRequestRef = useRef(0)
+  const commentSubmittingRef = useRef(false)
+  const commentIdsRef = useRef(new Set<number>())
 
   const loadDetail = useCallback(async () => {
     const requestId = ++detailRequestRef.current
@@ -66,6 +90,9 @@ export default function PostDetailPage() {
     setIsDeleteDialogOpen(false)
     setDeleteError(undefined)
     setLikeError(undefined)
+    setComments([])
+    commentIdsRef.current = new Set()
+    setCommentError(undefined)
     deletingRef.current = false
     likeSubmittingRef.current = false
     setIsDeleting(false)
@@ -84,6 +111,26 @@ export default function PostDetailPage() {
       setPost(response)
       setIsLiked(response.likedByMe)
       setLikeCount(response.likeCount)
+      try {
+        const nextComments = await fetchPostComments(
+          numericProjectId,
+          numericPostId
+        )
+        if (requestId === detailRequestRef.current) {
+          commentIdsRef.current = new Set(
+            nextComments.map((comment) => comment.commentId)
+          )
+          setComments(sortCommentsNewestFirst(nextComments))
+        }
+      } catch (error: unknown) {
+        if (requestId === detailRequestRef.current) {
+          setCommentError(
+            error instanceof ApiError
+              ? error.message
+              : '댓글을 불러오지 못했습니다.'
+          )
+        }
+      }
     } catch (error: unknown) {
       if (requestId !== detailRequestRef.current) return
       setDetailError(
@@ -198,6 +245,45 @@ export default function PostDetailPage() {
     }
   }
 
+  const handleCreateComment = async () => {
+    const normalized = commentValue.trim()
+    if (
+      numericProjectId === null ||
+      numericPostId === null ||
+      !normalized ||
+      normalized.length > 1000 ||
+      commentSubmittingRef.current
+    ) return
+
+    commentSubmittingRef.current = true
+    setIsCommentSubmitting(true)
+    setCommentError(undefined)
+    try {
+      const comment = await createPostComment(
+        numericProjectId,
+        numericPostId,
+        { content: normalized }
+      )
+      if (commentIdsRef.current.has(comment.commentId)) {
+        setCommentValue('')
+        return
+      }
+      commentIdsRef.current.add(comment.commentId)
+      setComments((current) => [comment, ...current])
+      setCommentValue('')
+      setPost((current) =>
+        current ? { ...current, commentCount: current.commentCount + 1 } : current
+      )
+    } catch (error: unknown) {
+      setCommentError(
+        error instanceof ApiError ? error.message : '댓글을 등록하지 못했습니다.'
+      )
+    } finally {
+      commentSubmittingRef.current = false
+      setIsCommentSubmitting(false)
+    }
+  }
+
   if (isLoading) {
     return (
       <Layout>
@@ -240,9 +326,7 @@ export default function PostDetailPage() {
 
       <main className="flex-1 px-5 pb-24 pt-5">
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-gray-100">
-            <UserRound className="h-5 w-5 text-gray-400" aria-hidden />
-          </div>
+          <PostAuthorAvatar profilePreset={post.profilePreset} />
           <div className="min-w-0 flex-1">
             <p className="truncate text-body-sm font-semibold text-gray-900">
               {post.authorNickname ?? '알 수 없는 사용자'}
@@ -287,6 +371,9 @@ export default function PostDetailPage() {
           {post.isNotice && (
             <p className="mb-3 text-caption font-semibold text-blue-600">공지</p>
           )}
+          <h1 className="mb-3 text-title font-bold text-gray-900">
+            {post.title}
+          </h1>
           <p className="whitespace-pre-wrap text-body-sm text-gray-700">
             {post.content}
           </p>
@@ -339,26 +426,74 @@ export default function PostDetailPage() {
           </div>
         </article>
 
-        <p className="py-6 text-center text-body-sm text-gray-400">
-          댓글 기능은 준비 중이에요.
-        </p>
+        <section className="py-6" aria-label="댓글">
+          {comments.length === 0 ? (
+            <p className="text-center text-body-sm text-gray-400">
+              아직 댓글이 없어요.
+            </p>
+          ) : (
+            <ul className="space-y-4">
+              {comments.map((comment) => (
+                <li key={comment.commentId} className="flex gap-3">
+                  <PostAuthorAvatar
+                    profilePreset={comment.profilePreset}
+                    className="h-8 w-8"
+                  />
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center">
+                      <p className="text-body-sm font-semibold text-gray-900">
+                        {comment.authorNickname ?? '알 수 없는 사용자'}
+                      </p>
+                    </div>
+                    <p className="mt-1 whitespace-pre-wrap break-words text-body-sm text-gray-700">
+                      {comment.content}
+                    </p>
+                  </div>
+                  <span className="shrink-0 text-caption font-normal text-gray-400">
+                    {formatPostTime(comment.createdAt)}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+          {commentError && (
+            <p className="mt-4 text-center text-caption font-normal text-error">
+              {commentError}
+            </p>
+          )}
+        </section>
       </main>
 
       <div className="fixed bottom-0 left-1/2 z-30 w-full max-w-mobile -translate-x-1/2 border-t border-gray-200 bg-white px-4 py-3">
         <div className="flex items-center gap-2">
           <Input
             aria-label="댓글 입력"
-            placeholder="댓글 기능은 준비 중이에요."
-            value=""
-            disabled
-            readOnly
+            placeholder="댓글을 입력해 주세요."
+            value={commentValue}
+            maxLength={1000}
+            disabled={isCommentSubmitting}
+            onChange={(event) => {
+              setCommentValue(event.target.value)
+              setCommentError(undefined)
+            }}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter' && !event.nativeEvent.isComposing) {
+                event.preventDefault()
+                void handleCreateComment()
+              }
+            }}
             className="rounded-full border-0 bg-gray-100"
           />
           <button
             type="button"
             aria-label="댓글 전송"
-            disabled
-            className="flex h-12 w-12 shrink-0 items-center justify-center rounded-md bg-gray-200 text-gray-400"
+            disabled={
+              isCommentSubmitting ||
+              !commentValue.trim() ||
+              commentValue.trim().length > 1000
+            }
+            onClick={() => void handleCreateComment()}
+            className="flex h-12 w-12 shrink-0 items-center justify-center rounded-md bg-blue-500 text-white disabled:bg-gray-200 disabled:text-gray-400"
           >
             <ArrowRight className="h-5 w-5" aria-hidden />
           </button>

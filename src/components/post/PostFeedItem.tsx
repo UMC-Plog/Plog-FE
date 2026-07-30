@@ -1,10 +1,11 @@
-import { FileText, Heart, Link, MessageSquare, UserRound } from 'lucide-react'
+import { FileText, Heart, Link, MessageSquare } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { ApiError } from '../../api/client'
 import { likePost, unlikePost } from '../../api/postApi'
 import { AlertModal } from '../Modal'
 import { useAuthStore } from '../../store/authStore'
 import type { PostListItemViewModel } from '../../types/post'
+import { PostAuthorAvatar } from './PostAuthorAvatar'
 
 interface PostFeedItemProps {
   post: PostListItemViewModel
@@ -95,9 +96,7 @@ export function PostFeedItem({ post, onClick }: PostFeedItemProps) {
       className="w-full cursor-pointer rounded-lg bg-white p-4 text-left shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-300"
     >
       <div className="flex items-center gap-3">
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-gray-100">
-          <UserRound className="h-5 w-5 text-gray-400" aria-hidden />
-        </div>
+        <PostAuthorAvatar profilePreset={post.profilePreset} />
         <div className="min-w-0">
           <p className="truncate text-body-sm font-semibold text-gray-900">
             {post.authorNickname ?? '알 수 없는 사용자'}
@@ -106,7 +105,10 @@ export function PostFeedItem({ post, onClick }: PostFeedItemProps) {
         </div>
       </div>
 
-      <p className="mt-4 whitespace-pre-wrap text-body font-semibold text-gray-900">
+      <h2 className="mt-4 text-body font-semibold text-gray-900">
+        {post.title}
+      </h2>
+      <p className="mt-1 whitespace-pre-wrap text-body-sm text-gray-700">
         {post.content}
       </p>
 

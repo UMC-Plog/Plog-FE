@@ -177,7 +177,7 @@ export default function ProjectFeedPage() {
             >
               <Volume2 className="h-4 w-4 shrink-0" aria-hidden />
               <p className="min-w-0 truncate">
-                <span className="font-semibold">[공지]</span> {notice.content}
+                <span className="font-semibold">[공지]</span> {notice.title}
               </p>
             </button>
           )}

@@ -1,5 +1,5 @@
 import { FileText, Image, Link, UserRound, X } from 'lucide-react'
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { AVATAR_PRESETS } from '../../../components/AvatarPicker'
 import { Button } from '../../../components/Button'
@@ -7,51 +7,75 @@ import { Input } from '../../../components/Input'
 import { Layout } from '../../../components/Layout'
 import { TextArea } from '../../../components/TextArea'
 import { ApiError } from '../../../api/client'
-import { createPost as requestCreatePost } from '../../../api/postApi'
+import {
+  createPost as requestCreatePost,
+  fetchPostDetail,
+  updatePost as requestUpdatePost,
+} from '../../../api/postApi'
 import {
   isAttachmentSizeValid,
   MAX_ATTACHMENT_SIZE_ERROR,
 } from '../../../lib/attachment'
-import { TEMP_PROJECT_NAME } from '../../../lib/project'
 import { useAuthStore } from '../../../store/authStore'
-import { usePostStore } from '../../../store/postStore'
-import type { PostAttachment } from '../../../types/post'
+import { useProjectStore } from '../../../store/projectStore'
+import type {
+  PostAttachment,
+  PostDetailViewModel,
+  ServerPostUpdateRequest,
+} from '../../../types/post'
+import { PostAuthorAvatar } from '../../../components/post/PostAuthorAvatar'
+
+const POST_ATTACHMENTS_ENABLED = false
 
 export default function PostFormPage() {
   const { id: projectId, postId } = useParams<{ id: string; postId: string }>()
   const navigate = useNavigate()
   const user = useAuthStore((state) => state.user)
-  const posts = usePostStore((state) => state.posts)
-  const updatePost = usePostStore((state) => state.updatePost)
-  const existingPost = posts.find(
-    (post) => post.id === postId && post.projectId === projectId
+  const currentProject = useProjectStore((state) =>
+    state.projects.find((project) => project.id === projectId)
   )
   const isEditMode = Boolean(postId)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const imageInputRef = useRef<HTMLInputElement>(null)
   const submittingRef = useRef(false)
-  const [title, setTitle] = useState(existingPost?.title ?? '')
-  const [content, setContent] = useState(existingPost?.content ?? '')
-  const [attachments, setAttachments] = useState<PostAttachment[]>(
-    existingPost?.attachments ?? []
-  )
+  const [existingPost, setExistingPost] = useState<PostDetailViewModel>()
+  const [isEditLoading, setIsEditLoading] = useState(isEditMode)
+  const [editLoadError, setEditLoadError] = useState<string>()
+  const [title, setTitle] = useState('')
+  const [content, setContent] = useState('')
+  const [attachments, setAttachments] = useState<PostAttachment[]>([])
   const [isLinkInputOpen, setIsLinkInputOpen] = useState(false)
   const [linkUrl, setLinkUrl] = useState('')
   const [linkError, setLinkError] = useState<string>()
   const [attachmentError, setAttachmentError] = useState<string>()
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [contentTouched, setContentTouched] = useState(false)
+  const [titleTouched, setTitleTouched] = useState(false)
   const [submitError, setSubmitError] = useState<string>()
 
-  const author = existingPost?.author ?? user
-  const avatarPreset = AVATAR_PRESETS.find((avatar) => avatar.id === author?.avatarId)
-  const avatarSrc = author?.avatarImageUrl ?? avatarPreset?.src
-  const authorName = existingPost?.author.nickname || user?.nickname || user?.realName || '사용자'
+  const avatarPreset = AVATAR_PRESETS.find((avatar) => avatar.id === user?.avatarId)
+  const avatarSrc = user?.avatarImageUrl ?? avatarPreset?.src
+  const authorName =
+    existingPost?.authorNickname ??
+    user?.nickname ??
+    user?.realName ??
+    '알 수 없는 사용자'
+  const normalizedTitle = title.trim()
   const normalizedContent = content.trim()
   const numericProjectId =
     projectId && /^[1-9]\d*$/.test(projectId) && Number.isSafeInteger(Number(projectId))
       ? Number(projectId)
       : null
+  const numericPostId =
+    postId && /^[1-9]\d*$/.test(postId) && Number.isSafeInteger(Number(postId))
+      ? Number(postId)
+      : null
+  const titleError =
+    titleTouched && normalizedTitle.length === 0
+      ? '게시글 제목을 입력해 주세요.'
+      : normalizedTitle.length > 100
+        ? '게시글 제목은 100자 이하로 입력해 주세요.'
+        : undefined
   const contentError =
     contentTouched && normalizedContent.length === 0
       ? '게시글 내용을 입력해 주세요'
@@ -64,12 +88,51 @@ export default function PostFormPage() {
       : undefined
   const canSubmit = Boolean(
     !isSubmitting &&
-      (isEditMode
-        ? projectId && title.trim() && normalizedContent && existingPost
-        : numericProjectId !== null &&
-          normalizedContent.length >= 1 &&
-          normalizedContent.length <= 5000)
+      normalizedTitle.length >= 1 &&
+      normalizedTitle.length <= 100 &&
+      normalizedContent.length >= 1 &&
+      normalizedContent.length <= 5000 &&
+      numericProjectId !== null &&
+      (!isEditMode ||
+        (numericPostId !== null &&
+          existingPost &&
+          (normalizedTitle !== existingPost.title ||
+            normalizedContent !== existingPost.content)))
   )
+
+  useEffect(() => {
+    if (!isEditMode) return
+    if (numericProjectId === null || numericPostId === null) {
+      setEditLoadError('올바른 게시글 경로가 아닙니다.')
+      setIsEditLoading(false)
+      return
+    }
+
+    let active = true
+    setIsEditLoading(true)
+    setEditLoadError(undefined)
+    void fetchPostDetail(numericProjectId, numericPostId)
+      .then((response) => {
+        if (!active) return
+        setExistingPost(response)
+        setTitle(response.title)
+        setContent(response.content)
+      })
+      .catch((error: unknown) => {
+        if (!active) return
+        setEditLoadError(
+          error instanceof ApiError
+            ? error.message
+            : '게시글을 불러오지 못했습니다.'
+        )
+      })
+      .finally(() => {
+        if (active) setIsEditLoading(false)
+      })
+    return () => {
+      active = false
+    }
+  }, [isEditMode, numericPostId, numericProjectId])
 
   const goToFeed = () => {
     if (projectId) navigate(`/project/${projectId}/feed`)
@@ -132,16 +195,6 @@ export default function PostFormPage() {
     setIsSubmitting(true)
     setSubmitError(undefined)
 
-    if (isEditMode && postId) {
-      updatePost(projectId, postId, {
-        title: title.trim(),
-        content: normalizedContent,
-        attachments,
-      })
-      navigate(`/project/${projectId}/posts/${postId}`, { replace: true })
-      return
-    }
-
     if (numericProjectId === null) {
       setSubmitError('올바른 프로젝트 ID가 아니어서 게시글을 작성할 수 없습니다.')
       setIsSubmitting(false)
@@ -150,7 +203,22 @@ export default function PostFormPage() {
     }
 
     try {
+      if (isEditMode && numericPostId !== null && existingPost) {
+        const payload: ServerPostUpdateRequest = {}
+        if (normalizedTitle !== existingPost.title) {
+          payload.title = normalizedTitle
+        }
+        if (normalizedContent !== existingPost.content) {
+          payload.content = normalizedContent
+        }
+        await requestUpdatePost(numericProjectId, numericPostId, payload)
+        navigate(`/project/${projectId}/posts/${numericPostId}`, {
+          replace: true,
+        })
+        return
+      }
       await requestCreatePost(numericProjectId, {
+        title: normalizedTitle,
         content: normalizedContent,
       })
       navigate(`/project/${projectId}/feed`, { replace: true })
@@ -165,7 +233,7 @@ export default function PostFormPage() {
     }
   }
 
-  if (isEditMode && !existingPost) {
+  if (isEditMode && (isEditLoading || editLoadError || !existingPost)) {
     return (
       <Layout>
         <header className="grid h-12 grid-cols-3 items-center border-b border-gray-200 bg-white px-3">
@@ -175,7 +243,12 @@ export default function PostFormPage() {
           <h1 className="text-center text-body font-semibold text-gray-900">게시글 작성</h1>
         </header>
         <main className="flex flex-1 flex-col items-center justify-center px-8 text-center">
-          <p className="text-title font-bold text-gray-700">게시글을 찾을 수 없어요</p>
+          <p className="text-title font-bold text-gray-700">
+            {isEditLoading ? '게시글을 불러오는 중이에요' : '게시글을 찾을 수 없어요'}
+          </p>
+          {editLoadError && (
+            <p className="mt-2 text-body-sm text-error">{editLoadError}</p>
+          )}
           <Button type="button" size="sm" fullWidth={false} onClick={goToFeed} className="mt-6">
             피드로 돌아가기
           </Button>
@@ -199,7 +272,9 @@ export default function PostFormPage() {
       <main className="flex flex-1 flex-col px-5 py-5">
         <div className="mb-5 flex items-center gap-3">
           <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-gray-100">
-            {avatarSrc ? (
+            {existingPost ? (
+              <PostAuthorAvatar profilePreset={existingPost.profilePreset} />
+            ) : avatarSrc ? (
               <img src={avatarSrc} alt="" className="h-full w-full object-cover" />
             ) : (
               <UserRound className="h-5 w-5 text-gray-400" aria-hidden />
@@ -207,14 +282,27 @@ export default function PostFormPage() {
           </div>
           <div className="min-w-0">
             <p className="truncate text-body-sm font-semibold text-gray-900">{authorName}</p>
-            <p className="truncate text-caption font-normal text-gray-400">{TEMP_PROJECT_NAME}</p>
+            {currentProject && (
+              <p className="truncate text-caption font-normal text-gray-400">
+                {currentProject.name}
+              </p>
+            )}
           </div>
         </div>
 
         <div className="space-y-4">
-          {isEditMode && (
-            <Input aria-label="게시글 제목" placeholder="게시글 제목을 입력하세요" value={title} onChange={(event) => setTitle(event.target.value)} />
-          )}
+          <Input
+            aria-label="게시글 제목"
+            placeholder="게시글 제목을 입력하세요"
+            value={title}
+            maxLength={100}
+            errorText={titleError}
+            onBlur={() => setTitleTouched(true)}
+            onChange={(event) => {
+              setTitle(event.target.value)
+              setSubmitError(undefined)
+            }}
+          />
           <TextArea
             aria-label="게시글 내용"
             placeholder="팀원들에게 공유할 내용을 입력하세요"
@@ -236,7 +324,7 @@ export default function PostFormPage() {
           </p>
         )}
 
-        {isEditMode && (
+        {POST_ATTACHMENTS_ENABLED && isEditMode && (
           <>
         <div className="mt-4 flex items-center gap-5 border-b border-gray-200 pb-3">
           <button type="button" onClick={() => fileInputRef.current?.click()} className="flex items-center gap-1.5 text-caption font-normal text-gray-500">

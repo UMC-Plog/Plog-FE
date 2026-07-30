@@ -14,17 +14,60 @@ import type {
   PostFeedResult,
   PostListItemViewModel,
   PostDetailViewModel,
+  PostCommentViewModel,
+  ServerPostCommentCreateRequest,
+  ServerPostCommentListResponse,
+  ServerPostCommentResponse,
+  ServerPostUpdateRequest,
+  ServerPostUpdateResponse,
 } from '../types/post'
 import { ApiError, apiRequest } from './client'
+import type { ProfilePreset } from '../lib/profilePreset'
 
-export function createPost(projectId: number, payload: ServerPostCreateRequest) {
-  return apiRequest<ServerPostCreateResponse>(
+const PROFILE_PRESETS = new Set([
+  'OTTER',
+  'PENGUIN',
+  'FROG',
+  'KOALA',
+  'PANDA',
+  'SMILEY',
+  'GHOST',
+  'TIGER',
+])
+
+function isProfilePresetOrNull(
+  value: unknown
+): value is ProfilePreset | null {
+  return value === null ||
+    (typeof value === 'string' && PROFILE_PRESETS.has(value))
+}
+
+export async function createPost(
+  projectId: number,
+  payload: ServerPostCreateRequest
+) {
+  const response = await apiRequest<unknown>(
     `/api/projects/${projectId}/posts`,
     {
       method: 'POST',
       body: payload,
     }
   )
+  validatePostCreateResponse(response, projectId)
+  return response as ServerPostCreateResponse
+}
+
+export async function updatePost(
+  projectId: number,
+  postId: number,
+  payload: ServerPostUpdateRequest
+) {
+  const response = await apiRequest<unknown>(
+    `/api/projects/${projectId}/posts/${postId}`,
+    { method: 'PATCH', body: payload }
+  )
+  validatePostUpdateResponse(response, projectId, postId)
+  return response as ServerPostUpdateResponse
 }
 
 export function deletePost(projectId: number, postId: number) {
@@ -168,6 +211,88 @@ function isNonNegativeSafeInteger(value: unknown): value is number {
   return Number.isSafeInteger(value) && Number(value) >= 0
 }
 
+function validatePostCreateResponse(value: unknown, projectId: number) {
+  if (typeof value !== 'object' || value === null) {
+    throw new ApiError(
+      'INVALID_POST_CREATE_RESPONSE',
+      '게시글 작성 응답 형식이 올바르지 않습니다.'
+    )
+  }
+  const post = value as ServerPostCreateResponse
+  if (
+    !isPositiveSafeInteger(post.postId) ||
+    post.projectId !== projectId ||
+    !isPositiveSafeInteger(post.projectMemberId) ||
+    (typeof post.authorNickname !== 'string' &&
+      post.authorNickname !== null) ||
+    !isProfilePresetOrNull(post.profilePreset) ||
+    typeof post.title !== 'string' ||
+    typeof post.content !== 'string' ||
+    typeof post.isNotice !== 'boolean' ||
+    !isNonNegativeSafeInteger(post.likeCount) ||
+    !isNonNegativeSafeInteger(post.commentCount) ||
+    typeof post.likedByMe !== 'boolean' ||
+    !Array.isArray(post.attachments) ||
+    typeof post.createdAt !== 'string'
+  ) {
+    throw new ApiError(
+      'INVALID_POST_CREATE_RESPONSE',
+      '게시글 작성 응답 형식이 올바르지 않습니다.'
+    )
+  }
+  post.attachments.forEach((attachment) =>
+    validateAttachment(attachment, () => {
+      throw new ApiError(
+        'INVALID_POST_CREATE_RESPONSE',
+        '게시글 작성 응답 형식이 올바르지 않습니다.'
+      )
+    })
+  )
+}
+
+function validatePostUpdateResponse(
+  value: unknown,
+  projectId: number,
+  postId: number
+) {
+  if (typeof value !== 'object' || value === null) {
+    throw new ApiError(
+      'INVALID_POST_UPDATE_RESPONSE',
+      '게시글 수정 응답 형식이 올바르지 않습니다.'
+    )
+  }
+  const post = value as ServerPostUpdateResponse
+  if (
+    post.postId !== postId ||
+    post.projectId !== projectId ||
+    !isPositiveSafeInteger(post.projectMemberId) ||
+    (typeof post.authorNickname !== 'string' &&
+      post.authorNickname !== null) ||
+    !isProfilePresetOrNull(post.profilePreset) ||
+    typeof post.title !== 'string' ||
+    typeof post.content !== 'string' ||
+    typeof post.isNotice !== 'boolean' ||
+    !isNonNegativeSafeInteger(post.likeCount) ||
+    !isNonNegativeSafeInteger(post.commentCount) ||
+    typeof post.likedByMe !== 'boolean' ||
+    !Array.isArray(post.attachments) ||
+    typeof post.updatedAt !== 'string'
+  ) {
+    throw new ApiError(
+      'INVALID_POST_UPDATE_RESPONSE',
+      '게시글 수정 응답 형식이 올바르지 않습니다.'
+    )
+  }
+  post.attachments.forEach((attachment) =>
+    validateAttachment(attachment, () => {
+      throw new ApiError(
+        'INVALID_POST_UPDATE_RESPONSE',
+        '게시글 수정 응답 형식이 올바르지 않습니다.'
+      )
+    })
+  )
+}
+
 function validateAttachment(
   value: unknown,
   invalidResponse: InvalidResponse
@@ -184,8 +309,14 @@ function validateAttachment(
   }
 
   if (
-    attachment.taskAttachmentId !== undefined &&
-    !isPositiveSafeInteger(attachment.taskAttachmentId)
+    attachment.postAttachmentId !== undefined &&
+    !isPositiveSafeInteger(attachment.postAttachmentId)
+  ) {
+    invalidResponse()
+  }
+  if (
+    attachment.fileSize !== undefined &&
+    !isNonNegativeSafeInteger(attachment.fileSize)
   ) {
     invalidResponse()
   }
@@ -211,10 +342,11 @@ function validateAttachment(
   }
 
   return {
-    id: attachment.taskAttachmentId,
+    id: attachment.postAttachmentId,
     type: attachment.attachmentType,
     fileId: attachment.fileId,
     fileName: attachment.fileName,
+    fileSize: attachment.fileSize,
     linkUrl: attachment.linkUrl,
     downloadUrlApi: attachment.downloadUrlApi,
   }
@@ -236,6 +368,8 @@ function validatePostResponse(
     post.projectId !== expectedProjectId ||
     !isPositiveSafeInteger(post.projectMemberId) ||
     (typeof post.authorNickname !== 'string' && post.authorNickname !== null) ||
+    !isProfilePresetOrNull(post.profilePreset) ||
+    typeof post.title !== 'string' ||
     typeof post.content !== 'string' ||
     typeof post.isNotice !== 'boolean' ||
     !isNonNegativeSafeInteger(post.likeCount) ||
@@ -253,6 +387,8 @@ function validatePostResponse(
     projectId: post.projectId,
     projectMemberId: post.projectMemberId,
     authorNickname: post.authorNickname,
+    profilePreset: post.profilePreset,
+    title: post.title,
     content: post.content,
     isNotice: post.isNotice,
     likeCount: post.likeCount,
@@ -348,4 +484,93 @@ export async function fetchPostDetail(
     invalidDetailResponse,
     postId
   )
+}
+
+function invalidCommentResponse(): never {
+  throw new ApiError(
+    'INVALID_POST_COMMENT_RESPONSE',
+    '댓글 응답 형식이 올바르지 않습니다.'
+  )
+}
+
+function validateComment(
+  value: unknown,
+  projectId: number,
+  postId: number
+): PostCommentViewModel {
+  if (typeof value !== 'object' || value === null) invalidCommentResponse()
+  const comment = value as ServerPostCommentResponse
+  if (
+    !isPositiveSafeInteger(comment.commentId) ||
+    comment.postId !== postId ||
+    comment.projectId !== projectId ||
+    !isPositiveSafeInteger(comment.projectMemberId) ||
+    (typeof comment.authorNickname !== 'string' &&
+      comment.authorNickname !== null) ||
+    !isProfilePresetOrNull(comment.profilePreset) ||
+    typeof comment.content !== 'string' ||
+    typeof comment.createdAt !== 'string'
+  ) {
+    invalidCommentResponse()
+  }
+  return {
+    commentId: comment.commentId,
+    postId: comment.postId,
+    projectId: comment.projectId,
+    projectMemberId: comment.projectMemberId,
+    authorNickname: comment.authorNickname,
+    profilePreset: comment.profilePreset,
+    content: comment.content,
+    createdAt: comment.createdAt,
+  }
+}
+
+export async function fetchPostComments(projectId: number, postId: number) {
+  const response = await apiRequest<unknown>(
+    `/api/projects/${projectId}/posts/${postId}/comments`
+  )
+  if (typeof response !== 'object' || response === null) {
+    invalidCommentResponse()
+  }
+  const list = response as ServerPostCommentListResponse
+  if (list.postId !== postId || !Array.isArray(list.comments)) {
+    invalidCommentResponse()
+  }
+  return list.comments.map((comment) =>
+    validateComment(comment, projectId, postId)
+  )
+}
+
+export async function createPostComment(
+  projectId: number,
+  postId: number,
+  payload: ServerPostCommentCreateRequest
+) {
+  const response = await apiRequest<unknown>(
+    `/api/projects/${projectId}/posts/${postId}/comments`,
+    { method: 'POST', body: payload }
+  )
+  return validateComment(response, projectId, postId)
+}
+
+export async function deletePostComment(
+  projectId: number,
+  postId: number,
+  commentId: number
+) {
+  const response = await apiRequest<unknown>(
+    `/api/projects/${projectId}/posts/${postId}/comments/${commentId}`,
+    { method: 'DELETE' }
+  )
+  if (
+    typeof response !== 'object' ||
+    response === null ||
+    typeof (response as ServerPostDeleteResponse).deleted !== 'boolean'
+  ) {
+    throw new ApiError(
+      'INVALID_POST_COMMENT_DELETE_RESPONSE',
+      '댓글 삭제 응답 형식이 올바르지 않습니다.'
+    )
+  }
+  return response as ServerPostDeleteResponse
 }

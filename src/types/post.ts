@@ -1,4 +1,5 @@
 import type { AvatarPresetId } from '../components/AvatarPicker'
+import type { ProfilePreset } from '../lib/profilePreset'
 
 export interface PostAuthor {
   id: string
@@ -56,6 +57,7 @@ export interface ServerPostAttachmentRequest {
 }
 
 export interface ServerPostCreateRequest {
+  title: string
   content: string
   isNotice?: boolean
   attachments?: ServerPostAttachmentRequest[]
@@ -65,6 +67,9 @@ export interface ServerPostCreateResponse {
   postId?: number
   projectId?: number
   projectMemberId?: number
+  authorNickname?: string | null
+  profilePreset?: ProfilePreset | null
+  title?: string
   content?: string
   isNotice?: boolean
   likeCount?: number
@@ -109,10 +114,11 @@ export interface PostLikeResult {
 }
 
 export interface ServerPostAttachmentResponse {
-  taskAttachmentId?: number
+  postAttachmentId?: number
   attachmentType?: ServerPostAttachmentType
   fileId?: number
   fileName?: string
+  fileSize?: number
   linkUrl?: string | null
   downloadUrlApi?: string | null
 }
@@ -122,6 +128,8 @@ export interface ServerPostResponse {
   projectId?: number
   projectMemberId?: number
   authorNickname?: string | null
+  profilePreset?: ProfilePreset | null
+  title?: string
   content?: string
   isNotice?: boolean
   likeCount?: number
@@ -144,6 +152,7 @@ export interface PostFeedAttachmentViewModel {
   type: ServerPostAttachmentType
   fileId?: number
   fileName: string
+  fileSize?: number
   linkUrl?: string | null
   downloadUrlApi?: string | null
 }
@@ -153,6 +162,8 @@ export interface PostListItemViewModel {
   projectId: number
   projectMemberId: number
   authorNickname: string | null
+  profilePreset: ProfilePreset | null
+  title: string
   content: string
   isNotice: boolean
   likeCount: number
@@ -170,4 +181,43 @@ export interface PostFeedResult {
   posts: PostListItemViewModel[]
   nextCursor: string | null
   hasNext: boolean
+}
+
+export interface ServerPostUpdateRequest {
+  title?: string
+  content?: string
+}
+
+export interface ServerPostUpdateResponse
+  extends Omit<ServerPostResponse, 'createdAt'> {}
+
+export interface ServerPostCommentCreateRequest {
+  content: string
+}
+
+export interface ServerPostCommentResponse {
+  commentId?: number
+  postId?: number
+  projectId?: number
+  projectMemberId?: number
+  authorNickname?: string | null
+  profilePreset?: ProfilePreset | null
+  content?: string
+  createdAt?: string
+}
+
+export interface ServerPostCommentListResponse {
+  postId?: number
+  comments?: ServerPostCommentResponse[]
+}
+
+export interface PostCommentViewModel {
+  commentId: number
+  postId: number
+  projectId: number
+  projectMemberId: number
+  authorNickname: string | null
+  profilePreset: ProfilePreset | null
+  content: string
+  createdAt: string
 }

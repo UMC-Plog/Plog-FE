@@ -1,4 +1,3 @@
-import { UserRound } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { ApiError } from '../../../api/client'
@@ -8,6 +7,7 @@ import { EmptyState } from '../../../components/EmptyState'
 import { Layout } from '../../../components/Layout'
 import { TopNavBar } from '../../../components/TopNavBar'
 import type { PostListItemViewModel } from '../../../types/post'
+import { PostAuthorAvatar } from '../../../components/post/PostAuthorAvatar'
 
 function parsePositiveSafeInteger(value: string | undefined) {
   return value &&
@@ -125,9 +125,7 @@ export default function NoticeHistoryPage() {
             >
               <article>
                 <div className="flex items-center gap-3">
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-gray-100">
-                    <UserRound className="h-5 w-5 text-gray-400" aria-hidden />
-                  </div>
+                  <PostAuthorAvatar profilePreset={notice.profilePreset} />
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-body-sm font-semibold text-gray-900">
                       {notice.authorNickname ?? '알 수 없는 사용자'}
@@ -139,6 +137,9 @@ export default function NoticeHistoryPage() {
                 </div>
 
                 <div className="mt-3 rounded-lg bg-white p-5 shadow-md">
+                  <h2 className="text-title font-bold text-gray-900">
+                    {notice.title}
+                  </h2>
                   <p className="whitespace-pre-wrap break-words text-body-sm text-gray-700">
                     {notice.content}
                   </p>

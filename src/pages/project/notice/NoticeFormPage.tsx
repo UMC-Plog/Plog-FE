@@ -8,17 +8,21 @@ import { Button } from '../../../components/Button'
 import { Input } from '../../../components/Input'
 import { Layout } from '../../../components/Layout'
 import { TextArea } from '../../../components/TextArea'
-import { TEMP_PROJECT_NAME } from '../../../lib/project'
 import { useAuthStore } from '../../../store/authStore'
+import { useProjectStore } from '../../../store/projectStore'
 
 export default function NoticeFormPage() {
   const { id: projectId, noticeId } = useParams<{ id: string; noticeId: string }>()
   const navigate = useNavigate()
   const user = useAuthStore((state) => state.user)
+  const currentProject = useProjectStore((state) =>
+    state.projects.find((project) => project.id === projectId)
+  )
   const isEditMode = Boolean(noticeId)
   const [title, setTitle] = useState('')
   const [content, setContent] = useState('')
   const [contentTouched, setContentTouched] = useState(false)
+  const [titleTouched, setTitleTouched] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState<string>()
   const submittingRef = useRef(false)
@@ -27,11 +31,18 @@ export default function NoticeFormPage() {
   const avatarPreset = AVATAR_PRESETS.find((avatar) => avatar.id === author?.avatarId)
   const avatarSrc = author?.avatarImageUrl ?? avatarPreset?.src
   const authorName = user?.nickname || user?.realName || '사용자'
+  const normalizedTitle = title.trim()
   const normalizedContent = content.trim()
   const numericProjectId =
     projectId && /^[1-9]\d*$/.test(projectId) && Number.isSafeInteger(Number(projectId))
       ? Number(projectId)
       : null
+  const titleError =
+    titleTouched && normalizedTitle.length === 0
+      ? '공지 제목을 입력해 주세요.'
+      : normalizedTitle.length > 100
+        ? '공지 제목은 100자 이하로 입력해 주세요.'
+        : undefined
   const contentError =
     contentTouched && normalizedContent.length === 0
       ? '공지 내용을 입력해 주세요.'
@@ -42,6 +53,8 @@ export default function NoticeFormPage() {
     !isSubmitting &&
       !isEditMode &&
       numericProjectId !== null &&
+      normalizedTitle.length >= 1 &&
+      normalizedTitle.length <= 100 &&
       normalizedContent.length >= 1 &&
       normalizedContent.length <= 5000 &&
       user
@@ -70,6 +83,7 @@ export default function NoticeFormPage() {
 
     try {
       await requestCreatePost(numericProjectId, {
+        title: normalizedTitle,
         content: normalizedContent,
         isNotice: true,
       })
@@ -153,22 +167,26 @@ export default function NoticeFormPage() {
           </div>
           <div className="min-w-0">
             <p className="truncate text-body-sm font-semibold text-gray-900">{authorName}</p>
-            <p className="truncate text-caption font-normal text-gray-400">{TEMP_PROJECT_NAME}</p>
+            {currentProject && (
+              <p className="truncate text-caption font-normal text-gray-400">
+                {currentProject.name}
+              </p>
+            )}
           </div>
         </div>
 
         <div className="space-y-4">
           <Input
             aria-label="공지 제목"
-            placeholder={
-              isEditMode
-                ? '공지 제목을 입력하세요'
-                : '제목은 현재 서버에서 지원하지 않아요'
-            }
+            placeholder="공지 제목을 입력하세요"
             value={title}
-            locked={!isEditMode}
-            lockedHelperText="제목 저장은 백엔드 지원 후 제공될 예정입니다."
-            onChange={(event) => setTitle(event.target.value)}
+            maxLength={100}
+            errorText={titleError}
+            onBlur={() => setTitleTouched(true)}
+            onChange={(event) => {
+              setTitle(event.target.value)
+              setSubmitError(undefined)
+            }}
           />
           <TextArea
             aria-label="공지 내용"
