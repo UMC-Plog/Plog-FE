@@ -71,6 +71,54 @@ export interface ProjectInviteResponse {
   inviteUrl: string;
 }
 
+export interface ProjectSettingsInviteResponse {
+  inviteUrl: string;
+  qrUrl: string;
+}
+
+export type ProjectIntegrationType = "GITHUB" | "FIGMA" | "NOTION" | "GOOGLE";
+
+export interface ProjectExternalConnectionResponse {
+  connectionId: number;
+  linkType: ProjectIntegrationType;
+  isLinked: boolean;
+}
+
+export interface ProjectSettingsResponse {
+  projectId: number;
+  projectName: string;
+  projectType: ProjectApiType;
+  status: ProjectStatus;
+  startDay: string;
+  endDay: string;
+  invite: ProjectSettingsInviteResponse;
+  externalConnections: ProjectExternalConnectionResponse[];
+  updatedAt: string;
+}
+
+export interface UpdateProjectSettingsRequest {
+  projectName: string;
+  endDay: string;
+  projectType: ProjectApiType;
+}
+
+export interface UpdateProjectSettingsResponse {
+  projectId: number;
+  projectName: string;
+  projectType: ProjectApiType;
+  endDay: string;
+  updatedAt: string;
+}
+
+export interface ProjectLeaveResponse {
+  success: boolean;
+}
+
+export interface ProjectIntegrationDisconnectResponse {
+  projectId: number;
+  linkType: ProjectIntegrationType;
+}
+
 export interface CreateProjectResponse {
   projectId: number;
   projectName: string;

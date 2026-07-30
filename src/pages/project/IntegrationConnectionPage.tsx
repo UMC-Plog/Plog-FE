@@ -9,10 +9,14 @@ import {
   Search,
   X,
 } from "lucide-react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
+import { disconnectProjectIntegration } from "../../api/projectApi";
+import { ApiError } from "../../api/client";
+import { Modal } from "../../components/Modal";
 import { PermissionIcon } from "../../components/project/PermissionIcon";
 import type { PermissionIconName } from "../../components/project/PermissionIcon";
 import githubIcon from "../../assets/integrations/github.svg";
+import githubUnlinkIcon from "../../assets/integrations/github-unlink.svg";
 import figmaIcon from "../../assets/integrations/figma.svg";
 import notionIcon from "../../assets/integrations/notion.png";
 import docsIcon from "../../assets/integrations/google-docs.svg";
@@ -218,7 +222,13 @@ function GradientCheck() {
 export default function IntegrationConnectionPage() {
   const { id = "", provider = "github" } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const config = PROVIDERS[(provider in PROVIDERS ? provider : "github") as ProviderId];
+  const isConnected = Boolean(
+    (location.state as { isConnected?: boolean } | null)?.isConnected
+  );
+  const [isDisconnecting, setIsDisconnecting] = useState(false);
+  const [disconnectError, setDisconnectError] = useState<string | null>(null);
   const [step, setStep] = useState(1);
   const [url, setUrl] = useState("");
   const [files, setFiles] = useState(() => {
@@ -263,8 +273,78 @@ export default function IntegrationConnectionPage() {
     else setStep((value) => value + 1);
   };
 
+  const handleDisconnect = async () => {
+    if (isDisconnecting) return;
+    setIsDisconnecting(true);
+    setDisconnectError(null);
+    try {
+      const apiProvider =
+        provider === "docs" || provider === "slides" ? "google" : provider;
+      await disconnectProjectIntegration(id, apiProvider);
+      navigate(`/project/${id}/settings`, { replace: true });
+    } catch (error) {
+      setDisconnectError(
+        error instanceof ApiError
+          ? error.message
+          : "연동을 해제하지 못했어요. 다시 시도해 주세요."
+      );
+    } finally {
+      setIsDisconnecting(false);
+    }
+  };
+
   return (
     <div className="app-shell min-h-svh bg-gray-25 pb-[116px]">
+      <Modal
+        open={isConnected}
+        onClose={isDisconnecting ? undefined : () => navigate(`/project/${id}/settings`)}
+        contentClassName="max-w-[362px] rounded-[22px] px-6 pb-6 pt-8"
+      >
+        <div className="flex flex-col items-center text-center">
+          <span className="flex h-[72px] w-[72px] items-center justify-center overflow-hidden rounded-[18px] bg-white shadow-card">
+            <img
+              src={provider === "github" ? githubUnlinkIcon : config.icon}
+              alt=""
+              className="object-contain"
+              style={{
+                width: provider === "github" ? 54 : config.tileLogo,
+                height: provider === "github" ? 54 : config.tileLogo,
+              }}
+            />
+          </span>
+          <h2 className="mt-5 text-[18px] font-semibold text-gray-900">
+            {config.name} 연동을 해제하시겠습니까?
+          </h2>
+          <p className="mt-3 text-[13px] leading-5 text-gray-400">
+            연동을 해제하면 해당 서비스의 데이터를 더 이상 수집하지 않아요.
+            <br />
+            기존에 수집된 활동 기록은 보존됩니다.
+          </p>
+          {disconnectError && (
+            <p className="mt-3 text-[12px] text-error" role="alert">
+              {disconnectError}
+            </p>
+          )}
+          <div className="mt-7 grid w-full grid-cols-2 gap-4">
+            <button
+              type="button"
+              onClick={() => navigate(`/project/${id}/settings`)}
+              disabled={isDisconnecting}
+              className="h-14 rounded-[14px] bg-gray-100 text-[16px] font-semibold text-gray-400 disabled:opacity-50"
+            >
+              취소
+            </button>
+            <button
+              type="button"
+              onClick={() => void handleDisconnect()}
+              disabled={isDisconnecting}
+              className="h-14 rounded-[14px] bg-error text-[16px] font-semibold text-white disabled:opacity-60"
+            >
+              {isDisconnecting ? "해제 중..." : "연동 해제"}
+            </button>
+          </div>
+        </div>
+      </Modal>
       <header className="flex h-[52px] items-center border-b border-gray-100 px-5 shadow-sm">
         <button type="button" aria-label="뒤로가기" onClick={() => navigate(`/project/${id}/settings`)} className="mr-3 flex h-6 w-6 items-center justify-center">
           <ChevronLeft className="h-6 w-6 text-gray-700" />
