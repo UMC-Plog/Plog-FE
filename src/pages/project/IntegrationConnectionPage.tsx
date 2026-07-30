@@ -236,9 +236,11 @@ export default function IntegrationConnectionPage() {
       : provider === "slides"
         ? "googleSlides"
         : (provider as Exclude<IntegrationProvider, "googleDocs" | "googleSlides">);
-  const mockConnected = useIntegrationStore((state) => state.accounts[storeProvider]);
-  const connectMock = useIntegrationStore((state) => state.connect);
-  const disconnectMock = useIntegrationStore((state) => state.disconnect);
+  const mockConnected = useIntegrationStore(
+    (state) => state.projectAccounts[id]?.[storeProvider] ?? false
+  );
+  const connectMock = useIntegrationStore((state) => state.connectProject);
+  const disconnectMock = useIntegrationStore((state) => state.disconnectProject);
   const navigationMockConnected = Boolean(
     (location.state as { isMockConnected?: boolean } | null)?.isMockConnected
   );
@@ -321,10 +323,10 @@ export default function IntegrationConnectionPage() {
   const next = () => {
     if (currentStep === 4) {
       if (isGooglePicker) {
-        connectMock("googleDocs");
-        connectMock("googleSlides");
+        connectMock(id, "googleDocs");
+        connectMock(id, "googleSlides");
       } else {
-        connectMock(storeProvider);
+        connectMock(id, storeProvider);
       }
       navigate(`/project/${id}/settings`);
       return;
@@ -340,10 +342,10 @@ export default function IntegrationConnectionPage() {
     try {
       if (navigationMockConnected || mockConnected) {
         if (isGooglePicker) {
-          disconnectMock("googleDocs");
-          disconnectMock("googleSlides");
+          disconnectMock(id, "googleDocs");
+          disconnectMock(id, "googleSlides");
         } else {
-          disconnectMock(storeProvider);
+          disconnectMock(id, storeProvider);
         }
         navigate(`/project/${id}/settings`, { replace: true });
         return;
