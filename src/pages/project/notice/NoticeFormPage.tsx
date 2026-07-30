@@ -1,39 +1,126 @@
 import { UserRound } from 'lucide-react'
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
+import { ApiError } from '../../../api/client'
+import {
+  createPost as requestCreatePost,
+  fetchPostDetail,
+  updatePost as requestUpdatePost,
+} from '../../../api/postApi'
 import { AVATAR_PRESETS } from '../../../components/AvatarPicker'
 import { Button } from '../../../components/Button'
 import { Input } from '../../../components/Input'
 import { Layout } from '../../../components/Layout'
 import { TextArea } from '../../../components/TextArea'
-import { TEMP_PROJECT_NAME } from '../../../lib/project'
 import { useAuthStore } from '../../../store/authStore'
-import { useNoticeStore } from '../../../store/noticeStore'
+import { useProjectStore } from '../../../store/projectStore'
+import type {
+  PostDetailViewModel,
+  ServerPostUpdateRequest,
+} from '../../../types/post'
 
 export default function NoticeFormPage() {
   const { id: projectId, noticeId } = useParams<{ id: string; noticeId: string }>()
   const navigate = useNavigate()
   const user = useAuthStore((state) => state.user)
-  const notices = useNoticeStore((state) => state.notices)
-  const createNotice = useNoticeStore((state) => state.createNotice)
-  const updateNotice = useNoticeStore((state) => state.updateNotice)
-  const existingNotice = notices.find(
-    (notice) => notice.id === noticeId && notice.projectId === projectId
+  const currentProject = useProjectStore((state) =>
+    state.projects.find((project) => project.id === projectId)
   )
   const isEditMode = Boolean(noticeId)
-  const [title, setTitle] = useState(existingNotice?.title ?? '')
-  const [content, setContent] = useState(existingNotice?.content ?? '')
+  const [existingNotice, setExistingNotice] = useState<PostDetailViewModel>()
+  const [isEditLoading, setIsEditLoading] = useState(isEditMode)
+  const [editLoadError, setEditLoadError] = useState<string>()
+  const [title, setTitle] = useState('')
+  const [content, setContent] = useState('')
+  const [contentTouched, setContentTouched] = useState(false)
+  const [titleTouched, setTitleTouched] = useState(false)
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [submitError, setSubmitError] = useState<string>()
+  const submittingRef = useRef(false)
 
-  const author = existingNotice?.author ?? user
+  const author = user
   const avatarPreset = AVATAR_PRESETS.find((avatar) => avatar.id === author?.avatarId)
   const avatarSrc = author?.avatarImageUrl ?? avatarPreset?.src
-  const authorName = existingNotice?.author.nickname || user?.nickname || user?.realName || '사용자'
+  const authorName = user?.nickname || user?.realName || '사용자'
+  const normalizedTitle = title.trim()
+  const normalizedContent = content.trim()
+  const numericProjectId =
+    projectId && /^[1-9]\d*$/.test(projectId) && Number.isSafeInteger(Number(projectId))
+      ? Number(projectId)
+      : null
+  const numericNoticeId =
+    noticeId &&
+    /^[1-9]\d*$/.test(noticeId) &&
+    Number.isSafeInteger(Number(noticeId))
+      ? Number(noticeId)
+      : null
+  const titleError =
+    titleTouched && normalizedTitle.length === 0
+      ? '공지 제목을 입력해 주세요.'
+      : normalizedTitle.length > 100
+        ? '공지 제목은 100자 이하로 입력해 주세요.'
+        : undefined
+  const contentError =
+    contentTouched && normalizedContent.length === 0
+      ? '공지 내용을 입력해 주세요.'
+      : normalizedContent.length > 5000
+        ? '공지 내용은 5000자 이하로 입력해 주세요.'
+        : undefined
   const canSubmit = Boolean(
-    projectId &&
-      title.trim() &&
-      content.trim() &&
-      (isEditMode ? existingNotice : user)
+    !isSubmitting &&
+      numericProjectId !== null &&
+      normalizedTitle.length >= 1 &&
+      normalizedTitle.length <= 100 &&
+      normalizedContent.length >= 1 &&
+      normalizedContent.length <= 5000 &&
+      user &&
+      (!isEditMode ||
+        (numericNoticeId !== null &&
+          existingNotice &&
+          (normalizedTitle !== existingNotice.title ||
+            normalizedContent !== existingNotice.content)))
   )
+
+  useEffect(() => {
+    if (!isEditMode) return
+    if (numericProjectId === null || numericNoticeId === null) {
+      setEditLoadError('올바른 공지 경로가 아닙니다.')
+      setIsEditLoading(false)
+      return
+    }
+
+    let active = true
+    setIsEditLoading(true)
+    setEditLoadError(undefined)
+    void fetchPostDetail(numericProjectId, numericNoticeId)
+      .then((response) => {
+        if (!active) return
+        if (!response.isNotice) {
+          throw new ApiError(
+            'INVALID_NOTICE_DETAIL_RESPONSE',
+            '공지로 지정된 게시글이 아닙니다.'
+          )
+        }
+        setExistingNotice(response)
+        setTitle(response.title)
+        setContent(response.content)
+      })
+      .catch((error: unknown) => {
+        if (!active) return
+        setEditLoadError(
+          error instanceof ApiError
+            ? error.message
+            : '공지를 불러오지 못했습니다.'
+        )
+      })
+      .finally(() => {
+        if (active) setIsEditLoading(false)
+      })
+
+    return () => {
+      active = false
+    }
+  }, [isEditMode, numericNoticeId, numericProjectId])
 
   const handleCancel = () => {
     if (!projectId) return
@@ -44,35 +131,52 @@ export default function NoticeFormPage() {
     navigate(`/project/${projectId}/feed`)
   }
 
-  const handleSubmit = () => {
-    if (!canSubmit || !projectId) return
+  const handleSubmit = async () => {
+    if (!canSubmit || !projectId || submittingRef.current) return
 
-    if (isEditMode && noticeId) {
-      updateNotice(noticeId, {
-        title: title.trim(),
-        content: content.trim(),
-      })
-      navigate(`/project/${projectId}/notices`, { replace: true })
+    if (numericProjectId === null) {
+      setSubmitError('올바른 프로젝트 경로가 아니어서 공지를 작성할 수 없습니다.')
       return
     }
 
-    if (!user) return
+    submittingRef.current = true
+    setIsSubmitting(true)
+    setSubmitError(undefined)
 
-    createNotice({
-      projectId,
-      title: title.trim(),
-      content: content.trim(),
-      author: {
-        id: user.id,
-        nickname: authorName,
-        avatarId: user.avatarId,
-        avatarImageUrl: user.avatarImageUrl,
-      },
-    })
-    navigate(`/project/${projectId}/feed`)
+    try {
+      if (isEditMode && numericNoticeId !== null && existingNotice) {
+        const payload: ServerPostUpdateRequest = {}
+        if (normalizedTitle !== existingNotice.title) {
+          payload.title = normalizedTitle
+        }
+        if (normalizedContent !== existingNotice.content) {
+          payload.content = normalizedContent
+        }
+        await requestUpdatePost(numericProjectId, numericNoticeId, payload)
+        navigate(`/project/${numericProjectId}/notices`, {
+          replace: true,
+        })
+        return
+      }
+
+      await requestCreatePost(numericProjectId, {
+        title: normalizedTitle,
+        content: normalizedContent,
+        isNotice: true,
+      })
+      navigate(`/project/${numericProjectId}/feed`, { replace: true })
+    } catch (error: unknown) {
+      setSubmitError(
+        error instanceof ApiError
+          ? error.message
+          : '네트워크 상태를 확인한 뒤 다시 시도해 주세요.'
+      )
+      submittingRef.current = false
+      setIsSubmitting(false)
+    }
   }
 
-  if (isEditMode && !existingNotice) {
+  if (isEditMode && (isEditLoading || editLoadError || !existingNotice)) {
     return (
       <Layout>
         <header className="grid h-12 grid-cols-3 items-center border-b border-gray-200 bg-white px-3">
@@ -86,10 +190,15 @@ export default function NoticeFormPage() {
           >
             취소
           </Button>
-          <h1 className="text-center text-body font-semibold text-gray-900">공지 작성</h1>
+          <h1 className="text-center text-body font-semibold text-gray-900">공지 수정</h1>
         </header>
         <main className="flex flex-1 flex-col items-center justify-center px-8 text-center">
-          <p className="text-title font-bold text-gray-700">공지를 찾을 수 없어요</p>
+          <p className="text-title font-bold text-gray-700">
+            {isEditLoading ? '공지를 불러오는 중이에요' : '공지를 불러오지 못했어요'}
+          </p>
+          {editLoadError && (
+            <p className="mt-1.5 text-body-sm text-error">{editLoadError}</p>
+          )}
           <Button type="button" size="sm" fullWidth={false} onClick={handleCancel} className="mt-6">
             돌아가기
           </Button>
@@ -111,16 +220,18 @@ export default function NoticeFormPage() {
         >
           취소
         </Button>
-        <h1 className="text-center text-body font-semibold text-gray-900">공지 작성</h1>
+        <h1 className="text-center text-body font-semibold text-gray-900">
+          {isEditMode ? '공지 수정' : '공지 작성'}
+        </h1>
         <Button
           type="button"
           size="sm"
           fullWidth={false}
           disabled={!canSubmit}
-          onClick={handleSubmit}
+          onClick={() => void handleSubmit()}
           className="justify-self-end text-white"
         >
-          게시
+          {isSubmitting ? (isEditMode ? '수정 중' : '게시 중') : isEditMode ? '수정' : '게시'}
         </Button>
       </header>
 
@@ -135,7 +246,11 @@ export default function NoticeFormPage() {
           </div>
           <div className="min-w-0">
             <p className="truncate text-body-sm font-semibold text-gray-900">{authorName}</p>
-            <p className="truncate text-caption font-normal text-gray-400">{TEMP_PROJECT_NAME}</p>
+            {currentProject && (
+              <p className="truncate text-caption font-normal text-gray-400">
+                {currentProject.name}
+              </p>
+            )}
           </div>
         </div>
 
@@ -144,16 +259,31 @@ export default function NoticeFormPage() {
             aria-label="공지 제목"
             placeholder="공지 제목을 입력하세요"
             value={title}
-            onChange={(event) => setTitle(event.target.value)}
+            maxLength={100}
+            errorText={titleError}
+            onBlur={() => setTitleTouched(true)}
+            onChange={(event) => {
+              setTitle(event.target.value)
+              setSubmitError(undefined)
+            }}
           />
           <TextArea
             aria-label="공지 내용"
             placeholder={'공지 내용을 자세히 입력해 주세요\n팀원들이 확인해야 할 정보를 포함해 주세요'}
             value={content}
-            onChange={(event) => setContent(event.target.value)}
+            maxLength={5000}
+            errorText={contentError}
+            onBlur={() => setContentTouched(true)}
+            onChange={(event) => {
+              setContent(event.target.value)
+              setSubmitError(undefined)
+            }}
             className="min-h-60"
           />
         </div>
+        {submitError && (
+          <p className="mt-2 text-caption font-normal text-error">{submitError}</p>
+        )}
       </main>
     </Layout>
   )

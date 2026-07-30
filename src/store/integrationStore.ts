@@ -17,11 +17,11 @@ interface IntegrationState {
 }
 
 const initialAccounts: IntegrationAccounts = {
-  github: true,
-  figma: true,
+  github: false,
+  figma: false,
   notion: false,
   googleDocs: false,
-  googleSlides: true,
+  googleSlides: false,
 };
 
 export const useIntegrationStore = create<IntegrationState>()(

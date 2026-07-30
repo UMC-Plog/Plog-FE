@@ -4,10 +4,12 @@ export const BASE_URL = 'https://api.umc-plog.site'
 
 export class ApiError extends Error {
   code: string
+  status?: number
 
-  constructor(code: string, message: string) {
+  constructor(code: string, message: string, status?: number) {
     super(message)
     this.code = code
+    this.status = status
   }
 }
 
@@ -75,18 +77,18 @@ export async function apiRequest<T>(path: string, options: ApiRequestOptions = {
     if (newToken) {
       const retried = await rawRequest<T>(path, options, newToken)
       if (!retried.data.isSuccess) {
-        throw new ApiError(retried.data.code, retried.data.message)
+        throw new ApiError(retried.data.code, retried.data.message, retried.status)
       }
       return retried.data.result
     }
 
     useAuthStore.getState().logout()
     window.location.href = '/login'
-    throw new ApiError('AUTH_EXPIRED', '다시 로그인해 주세요.')
+    throw new ApiError('AUTH_EXPIRED', '다시 로그인해 주세요.', 401)
   }
 
   if (!data.isSuccess) {
-    throw new ApiError(data.code, data.message)
+    throw new ApiError(data.code, data.message, status)
   }
 
   return data.result

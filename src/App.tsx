@@ -11,7 +11,6 @@ import ProjectChatPage from './pages/project/ProjectChatPage'
 import ProjectTaskPage from './pages/project/ProjectTaskPage'
 import ProjectReportPage from './pages/project/ProjectReportPage'
 import NoticeFormPage from './pages/project/notice/NoticeFormPage'
-import NoticeDetailPage from './pages/project/notice/NoticeDetailPage'
 import NoticeHistoryPage from './pages/project/notice/NoticeHistoryPage'
 import PostFormPage from './pages/project/post/PostFormPage'
 import PostDetailPage from './pages/project/post/PostDetailPage'
@@ -25,6 +24,7 @@ import { ResetPasswordPage } from './pages/ResetPasswordPage'
 import { OAuthCallbackPage } from './pages/OAuthCallbackPage'
 import { CreateProjectPage } from './pages/project/CreateProjectPage'
 import { ProjectSettingsPage } from './pages/project/ProjectSettingsPage'
+import IntegrationConnectionPage from './pages/project/IntegrationConnectionPage'
 import { ProfileEditPage } from './pages/my/ProfileEditPage'
 import { AccountConnectionsPage } from './pages/my/AccountConnectionsPage'
 import { NotificationSettingsPage } from './pages/my/NotificationSettingsPage'
@@ -65,6 +65,7 @@ function App() {
         <Route path="/my/withdraw" element={<WithdrawPage />} />
         <Route path="/project/new" element={<CreateProjectPage />} />
         <Route path="/project/:id/settings" element={<ProjectSettingsPage />} />
+        <Route path="/project/:id/settings/integrations/:provider" element={<IntegrationConnectionPage />} />
 
           {/* Peer 평가 플로우 — ProjectTabBar 밖 독립 화면 */}
           <Route path="/project/:id/peer-eval" element={<PeerEvalListPage />} />
@@ -83,7 +84,6 @@ function App() {
 
           <Route path="/project/:id/notices/new" element={<NoticeFormPage />} />
           <Route path="/project/:id/notices" element={<NoticeHistoryPage />} />
-          <Route path="/project/:id/notices/:noticeId" element={<NoticeDetailPage />} />
           <Route path="/project/:id/notices/:noticeId/edit" element={<NoticeFormPage />} />
           <Route path="/project/:id/posts/new" element={<PostFormPage />} />
           <Route path="/project/:id/posts/:postId" element={<PostDetailPage />} />

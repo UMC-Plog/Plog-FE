@@ -1,11 +1,13 @@
-import { Ellipsis, UserRound } from 'lucide-react'
+import { Ellipsis } from 'lucide-react'
 import { useEffect, useRef } from 'react'
-import { AVATAR_PRESETS } from '../AvatarPicker'
-import type { Notice } from '../../types/notice'
+import type { PostListItemViewModel } from '../../types/post'
+import { PostAuthorAvatar } from '../post/PostAuthorAvatar'
 
 interface NoticeHistoryItemProps {
-  notice: Notice
+  notice: PostListItemViewModel
   isMenuOpen: boolean
+  canManage: boolean
+  isDeleting: boolean
   onToggleMenu: () => void
   onCloseMenu: () => void
   onEdit: () => void
@@ -35,14 +37,14 @@ function formatNoticeTime(createdAt: string) {
 export function NoticeHistoryItem({
   notice,
   isMenuOpen,
+  canManage,
+  isDeleting,
   onToggleMenu,
   onCloseMenu,
   onEdit,
   onDelete,
 }: NoticeHistoryItemProps) {
   const menuRef = useRef<HTMLDivElement>(null)
-  const avatarPreset = AVATAR_PRESETS.find((avatar) => avatar.id === notice.author.avatarId)
-  const avatarSrc = notice.author.avatarImageUrl ?? avatarPreset?.src
 
   useEffect(() => {
     if (!isMenuOpen) return
@@ -50,9 +52,16 @@ export function NoticeHistoryItem({
     const handleOutsideClick = (event: MouseEvent) => {
       if (!menuRef.current?.contains(event.target as Node)) onCloseMenu()
     }
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') onCloseMenu()
+    }
 
     document.addEventListener('mousedown', handleOutsideClick)
-    return () => document.removeEventListener('mousedown', handleOutsideClick)
+    document.addEventListener('keydown', handleEscape)
+    return () => {
+      document.removeEventListener('mousedown', handleOutsideClick)
+      document.removeEventListener('keydown', handleEscape)
+    }
   }, [isMenuOpen, onCloseMenu])
 
   const handleEdit = () => {
@@ -68,59 +77,66 @@ export function NoticeHistoryItem({
   return (
     <article className="relative">
       <div className="flex items-center gap-3">
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-gray-100">
-          {avatarSrc ? (
-            <img src={avatarSrc} alt="" className="h-full w-full object-cover" />
-          ) : (
-            <UserRound className="h-5 w-5 text-gray-400" aria-hidden />
-          )}
-        </div>
+        <PostAuthorAvatar profilePreset={notice.profilePreset} />
 
         <div className="min-w-0 flex-1">
           <p className="truncate text-body-sm font-semibold text-gray-900">
-            {notice.author.nickname}
+            {notice.authorNickname ?? '알 수 없는 사용자'}
           </p>
           <p className="text-caption font-normal text-gray-400">
             {formatNoticeTime(notice.createdAt)}
           </p>
         </div>
 
-        <div ref={menuRef} className="relative">
-          <button
-            type="button"
-            aria-label={`${notice.title} 공지 메뉴 ${isMenuOpen ? '닫기' : '열기'}`}
-            aria-expanded={isMenuOpen}
-            onClick={onToggleMenu}
-            className="flex h-10 w-10 items-center justify-center rounded-full text-gray-500 hover:bg-gray-50"
-          >
-            <Ellipsis className="h-5 w-5" aria-hidden />
-          </button>
+        {canManage && (
+          <div ref={menuRef} className="relative">
+            <button
+              type="button"
+              aria-label={`${notice.title} 공지 메뉴 ${isMenuOpen ? '닫기' : '열기'}`}
+              aria-expanded={isMenuOpen}
+              disabled={isDeleting}
+              onClick={(event) => {
+                event.stopPropagation()
+                onToggleMenu()
+              }}
+              className="flex h-10 w-10 items-center justify-center rounded-full text-gray-500 hover:bg-gray-50"
+            >
+              <Ellipsis className="h-5 w-5" aria-hidden />
+            </button>
 
-          {isMenuOpen && (
-            <div className="absolute right-0 top-10 z-30 w-24 overflow-hidden rounded-lg border border-gray-100 bg-white shadow-lg">
-              <button
-                type="button"
-                onClick={handleEdit}
-                className="w-full px-4 py-3 text-left text-body-sm text-gray-700 hover:bg-gray-50"
-              >
-                수정
-              </button>
-              <button
-                type="button"
-                onClick={handleDelete}
-                className="w-full border-t border-gray-100 px-4 py-3 text-left text-body-sm text-gray-700 hover:bg-gray-50"
-              >
-                삭제
-              </button>
-            </div>
-          )}
-        </div>
+            {isMenuOpen && (
+              <div className="absolute right-0 top-10 z-30 w-24 overflow-hidden rounded-lg border border-gray-100 bg-white shadow-lg">
+                <button
+                  type="button"
+                  onClick={(event) => {
+                    event.stopPropagation()
+                    handleEdit()
+                  }}
+                  className="w-full px-4 py-3 text-left text-body-sm text-gray-700 hover:bg-gray-50"
+                >
+                  수정
+                </button>
+                <button
+                  type="button"
+                  disabled={isDeleting}
+                  onClick={(event) => {
+                    event.stopPropagation()
+                    handleDelete()
+                  }}
+                  className="w-full border-t border-gray-100 px-4 py-3 text-left text-body-sm text-gray-700 hover:bg-gray-50 disabled:text-gray-300"
+                >
+                  {isDeleting ? '삭제 중' : '삭제'}
+                </button>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
-      <div className="mt-3 rounded-lg bg-white p-5 shadow-md">
+      <div className="mt-3 rounded-[20px] bg-white px-5 py-6 shadow-md">
         <h2 className="break-words text-title font-bold text-gray-900">{notice.title}</h2>
-        <div className="my-5 h-px bg-gray-100" />
-        <p className="whitespace-pre-wrap break-words text-body-sm text-gray-700">
+        <div className="my-6 h-px bg-gray-100" />
+        <p className="line-clamp-3 whitespace-pre-wrap break-words text-body-sm text-gray-700">
           {notice.content}
         </p>
       </div>

@@ -1,19 +1,10 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Search, Download } from 'lucide-react';
 import { PlogIcon } from '../components/PlogIcon';
 import { AlertModal } from '../components/Modal';
 import { cn } from '../lib/utils';
-import { useProjectStore } from '../store/projectStore';
-import { usePeerEvaluationStore } from '../store/peerEvaluationStore';
-
-type ReportStatus = 'done' | 'pending';
-
-interface ReportItem {
-  id: string;
-  projectName: string;
-  createdAt: string;
-  status: ReportStatus;
-}
+import { fetchReports, fetchReportPdfDownloadUrl, type ReportSearchResponse } from '../api/report';
+import { ApiError } from '../api/client';
 
 const formatReportDate = (iso: string | null) => {
   if (!iso) return ''
@@ -22,50 +13,52 @@ const formatReportDate = (iso: string | null) => {
 }
 
 // Figma: 완료 → bg #E9F8F0 / text #16A06B, 미생성 → bg #ECEFF3 / text #9AA4B2
-function StatusBadge({ status }: { status: ReportStatus }) {
-  return (
-    <span
-      className={cn(
-        'inline-flex items-center px-3 py-1 rounded-full text-caption',
-        status === 'done'
-          ? 'bg-success/10 text-success'
-          : 'bg-gray-100 text-gray-400',
-      )}
-    >
-      {status === 'done' ? '생성 완료' : '미생성'}
-    </span>
-  );
+function StatusBadge({ status }: { status: ReportSearchResponse['reportStatus'] }) {
+  if (status === 'COMPLETED') {
+    return <span className="inline-flex items-center px-3 py-1 rounded-full text-caption bg-success/10 text-success">생성 완료</span>;
+  }
+  if (status === 'GENERATING') {
+    return <span className="inline-flex items-center px-3 py-1 rounded-full text-caption bg-warning/10 text-warning">생성 중</span>;
+  }
+  return <span className="inline-flex items-center px-3 py-1 rounded-full text-caption bg-error/10 text-error">생성 실패</span>;
 }
 
 export default function ReportPage() {
   const [keyword, setKeyword] = useState('');
-  const [notice, setNotice] = useState(false);
-  const projects = useProjectStore((state) => state.projects);
-  const byProject = usePeerEvaluationStore((state) => state.byProject);
+  const [notice, setNotice] = useState<string | null>(null);
+  const [reports, setReports] = useState<ReportSearchResponse[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const reports = useMemo<ReportItem[]>(
-    () =>
-      projects.map((project) => {
-        const evalState = byProject[project.id];
-        const done = evalState?.submitted ?? false;
-        return {
-          id: project.id,
-          projectName: project.name,
-          createdAt: done ? formatReportDate(evalState?.submittedAt ?? null) : '',
-          status: done ? 'done' : 'pending',
-        };
-      }),
-    [projects, byProject],
-  );
+  useEffect(() => {
+    let cancelled = false;
+    fetchReports({ size: 100 })
+      .then((res) => {
+        if (!cancelled) setReports(res.content);
+      })
+      .catch(() => {
+        if (!cancelled) setNotice('리포트 목록을 불러오지 못했어요. 다시 시도해 주세요.');
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const handleDownload = async (report: ReportSearchResponse) => {
+    try {
+      const { downloadUrl } = await fetchReportPdfDownloadUrl(report.reportId);
+      window.open(downloadUrl, '_blank', 'noopener,noreferrer');
+    } catch (err) {
+      setNotice(err instanceof ApiError ? err.message : 'PDF 다운로드에 실패했어요. 다시 시도해 주세요.');
+    }
+  };
 
   const filtered = useMemo(() => {
     const q = keyword.trim().toLowerCase();
     if (!q) return reports;
-    return reports.filter(
-      (r) =>
-        r.projectName.toLowerCase().includes(q) ||
-        r.createdAt.includes(q),
-    );
+    return reports.filter((r) => r.projectName.toLowerCase().includes(q));
   }, [reports, keyword]);
 
   return (
@@ -101,7 +94,11 @@ export default function ReportPage() {
 
       {/* 리스트 - Figma: px-22px≈px-6, gap-12px=gap-3, pt-14px≈pt-3 */}
       <div className="flex-1 px-6 pt-3 pb-6 flex flex-col gap-3">
-        {reports.length === 0 ? (
+        {loading ? (
+          <div className="flex flex-col items-center justify-center py-16 text-center">
+            <p className="text-body-sm text-gray-400">불러오는 중...</p>
+          </div>
+        ) : reports.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 text-center">
             <p className="text-title text-gray-500">아직 리포트가 없어요</p>
             <p className="mt-1 text-body-sm text-gray-400">참여 중인 프로젝트가 생기면 여기에 표시돼요</p>
@@ -116,7 +113,7 @@ export default function ReportPage() {
           filtered.map((item) => (
             // Figma: bg-white, border gray-100, rounded-16px→rounded-2xl, shadow
             <div
-              key={item.id}
+              key={item.reportId}
               className="bg-white border border-gray-100 rounded-2xl shadow-md flex items-center px-5 py-4"
             >
               {/* 왼쪽: 프로젝트명 / 생성일 / 상태뱃지 - Figma: left-21px, gap-5px */}
@@ -126,23 +123,23 @@ export default function ReportPage() {
                   {item.projectName}
                 </p>
                 {/* Figma: 12px Medium, #9AA4B2 */}
-                {item.status === 'done' && (
+                {item.completedAt && (
                   <p className="text-caption font-medium text-gray-400">
-                    생성일: {item.createdAt}
+                    생성일: {formatReportDate(item.completedAt)}
                   </p>
                 )}
-                <StatusBadge status={item.status} />
+                <StatusBadge status={item.reportStatus} />
               </div>
 
               {/* PDF 버튼 - Figma: h-40px, px-16px, rounded-11px≈rounded-md */}
               {/* done: bg-primary #2186FB / pending: bg-gray-100 text-gray-400 */}
               <button
                 type="button"
-                disabled={item.status === 'pending'}
-                onClick={() => setNotice(true)}
+                disabled={item.reportStatus !== 'COMPLETED'}
+                onClick={() => handleDownload(item)}
                 className={cn(
                   'shrink-0 flex items-center gap-1.5 h-10 px-4 rounded-md text-body-sm transition-colors',
-                  item.status === 'done'
+                  item.reportStatus === 'COMPLETED'
                     ? 'bg-primary text-gray-25 hover:bg-primary-600 active:bg-primary-700'
                     : 'bg-gray-100 text-gray-400 cursor-not-allowed',
                 )}
@@ -156,9 +153,9 @@ export default function ReportPage() {
       </div>
 
       <AlertModal
-        open={notice}
-        title="PDF 다운로드는 준비 중이에요"
-        onConfirm={() => setNotice(false)}
+        open={Boolean(notice)}
+        title={notice ?? ''}
+        onConfirm={() => setNotice(null)}
       />
     </div>
   );

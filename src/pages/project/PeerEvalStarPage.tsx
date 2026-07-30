@@ -1,15 +1,14 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { cn } from '../../lib/utils';
-import { usePeerEvaluationStore } from '../../store/peerEvaluationStore';
-import { useProjectStore } from '../../store/projectStore';
+import { fetchEvaluationTargets, fetchPeerEvaluationDetail, type PeerEvaluationDetailResponse } from '../../api/evaluation';
 
 const CATEGORIES = [
-  { id: 'attitude', label: '협업 태도', sub: '소통 방식, 팀 분위기 기여도' },
-  { id: 'leadership', label: '리더십', sub: '업무 주도, 의사결정 참여도' },
-  { id: 'communication', label: '커뮤니케이션', sub: '피드백 제공, 논의 촉진 빈도' },
-  { id: 'output', label: '산출물 기여', sub: '결과물의 양과 질' },
-];
+  { id: 'collaborationScore', label: '협업 태도', sub: '소통 방식, 팀 분위기 기여도' },
+  { id: 'initiativeScore', label: '리더십', sub: '업무 주도, 의사결정 참여도' },
+  { id: 'communicationScore', label: '커뮤니케이션', sub: '피드백 제공, 논의 촉진 빈도' },
+  { id: 'outputScore', label: '산출물 기여', sub: '결과물의 양과 질' },
+] as const;
 
 // ── SVG 아이콘 ───────────────────────────────────────────────────────────────
 
@@ -94,23 +93,54 @@ function StarRow({
 export default function PeerEvalStarPage() {
   const { id, memberId } = useParams<{ id: string; memberId: string }>();
   const navigate = useNavigate();
-  const saveMemberScores = usePeerEvaluationStore((s) => s.saveMemberScores);
-  const savedScores = usePeerEvaluationStore((s) =>
-    id && memberId ? s.byProject[id]?.evaluations[memberId]?.scores : undefined
-  );
-  const project = useProjectStore((s) => s.projects.find((p) => p.id === id));
-  const peer = project?.members.find((m) => m.id === memberId);
-  const member = { name: peer?.nickname ?? memberId ?? '', avatarUrl: peer?.profileImageUrl ?? '' };
+  const [nickname, setNickname] = useState('');
+  const [existing, setExisting] = useState<PeerEvaluationDetailResponse | null>(null);
 
-  // Figma 기준 최초 진입 시 전 항목 미선택(0점) 상태로 시작
+  useEffect(() => {
+    const projectId = Number(id);
+    const targetMemberId = Number(memberId);
+    if (!Number.isFinite(projectId) || !Number.isFinite(targetMemberId)) return;
+    let cancelled = false;
+
+    fetchEvaluationTargets(projectId)
+      .then((res) => {
+        if (cancelled) return;
+        const target = res.targets.find((t) => t.projectMemberId === targetMemberId);
+        if (target) setNickname(target.nickname);
+      })
+      .catch(() => undefined);
+
+    fetchPeerEvaluationDetail(projectId, targetMemberId)
+      .then((detail) => {
+        if (!cancelled) setExisting(detail);
+      })
+      .catch(() => undefined);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [id, memberId]);
+
+  // Figma 기준 최초 진입 시 전 항목 미선택(0점) 상태로 시작, 기존 평가가 있으면 그 값으로 채움
   const [ratings, setRatings] = useState<Record<string, number>>(
-    Object.fromEntries(CATEGORIES.map((c) => [c.id, savedScores?.[c.id] ?? 0])),
+    Object.fromEntries(CATEGORIES.map((c) => [c.id, 0])),
   );
+
+  useEffect(() => {
+    if (!existing) return;
+    setRatings({
+      collaborationScore: existing.collaborationScore,
+      initiativeScore: existing.initiativeScore,
+      communicationScore: existing.communicationScore,
+      outputScore: existing.outputScore,
+    });
+  }, [existing]);
 
   const allRated = useMemo(() => Object.values(ratings).every((v) => v >= 1), [ratings]);
 
   // 평가자가 모든 항목에 동일 점수를 주는 것에 대한 실시간 가이드(Nudge).
   // 전 항목을 다 채웠는데 값이 전부 같으면 배너로 안내하되, 진행 자체는 막지 않는다.
+  // (최종 판단은 제출 시 서버의 isNudgeTriggered로 다시 확인됨)
   const allSame = useMemo(() => {
     const values = Object.values(ratings);
     return values.every((v) => v === values[0]);
@@ -125,8 +155,14 @@ export default function PeerEvalStarPage() {
 
   const handleNext = () => {
     if (!canProceed || !id || !memberId) return;
-    saveMemberScores(id, memberId, ratings);
-    navigate(`/project/${id}/peer-eval/${memberId}/keyword`);
+    navigate(`/project/${id}/peer-eval/${memberId}/keyword`, {
+      state: {
+        scores: ratings,
+        keywords: existing?.keyword,
+        feedback: existing?.feedback,
+        isExisting: Boolean(existing),
+      },
+    });
   };
 
   return (
@@ -140,14 +176,10 @@ export default function PeerEvalStarPage() {
       </header>
 
       <div className="flex-1 px-5 pt-6 pb-28 flex flex-col gap-5">
-        {/* 대상 팀원 — 아바타 + 이름만 표시 */}
+        {/* 대상 팀원 — 익명성 정책상 닉네임만 표시 */}
         <div className="flex items-center gap-3">
-          {member.avatarUrl ? (
-            <img src={member.avatarUrl} alt={member.name} className="size-10 rounded-full object-cover shrink-0" />
-          ) : (
-            <div className="size-10 rounded-full bg-gray-100 shrink-0" />
-          )}
-          <p className="text-title font-semibold text-gray-900">{member.name}</p>
+          <div className="size-10 rounded-full bg-gray-100 shrink-0" />
+          <p className="text-title font-semibold text-gray-900">{nickname}</p>
         </div>
 
         {/* 안내 문구 */}

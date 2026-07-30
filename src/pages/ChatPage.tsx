@@ -1,65 +1,68 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Search } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import ChatListItem, { type ChatParticipant } from '../components/ChatListItem';
 import { PlogIcon } from '../components/PlogIcon';
+import { AlertModal } from '../components/Modal';
 import { cn } from '../lib/utils';
-import { useChatStore } from '../store/chatStore';
-import { useProjectStore } from '../store/projectStore';
+import { fetchChannels, type ChatChannelResponse } from '../api/chat';
+import { AVATAR_PRESETS } from '../components/AvatarPicker';
+import { toAvatarId } from '../lib/profilePreset';
 
 interface ChatRoom {
-  id: string;
+  projectId: number;
   projectName: string;
   participants: ChatParticipant[];
-  lastSenderName: string;
   lastMessage: string;
   time: string;
   unreadCount: number;
 }
 
+const avatarUrl = (preset: string | null) => {
+  const id = toAvatarId(preset);
+  return id ? AVATAR_PRESETS.find((item) => item.id === id)?.src ?? '' : '';
+};
+
+function toChatRoom(channel: ChatChannelResponse): ChatRoom {
+  return {
+    projectId: channel.projectId,
+    projectName: channel.projectName,
+    participants: channel.participants.map((p) => ({
+      id: String(p.userId),
+      name: p.nickname,
+      avatarUrl: avatarUrl(p.profilePreset),
+    })),
+    lastMessage: channel.latestMessage ?? '아직 메시지가 없어요',
+    time: channel.latestMessageAt
+      ? new Intl.DateTimeFormat('ko-KR', { hour: '2-digit', minute: '2-digit', hour12: false }).format(new Date(channel.latestMessageAt))
+      : '',
+    unreadCount: channel.unreadMessageCount,
+  };
+}
+
 export default function ChatPage() {
   const [keyword, setKeyword] = useState('');
+  const [chats, setChats] = useState<ChatRoom[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [notice, setNotice] = useState<string | null>(null);
   const navigate = useNavigate();
-  const projects = useProjectStore((state) => state.projects);
-  const messagesByProject = useChatStore((state) => state.messagesByProject);
-  const lastReadAtByProject = useChatStore((state) => state.lastReadAtByProject);
 
-  // 채팅방 목록은 실제 참여 중인 프로젝트 목록 기준으로 구성 (프로젝트 하나당 채팅방 하나)
-  const chats = useMemo<ChatRoom[]>(() => projects.map((project): ChatRoom => {
-    const participants: ChatParticipant[] = project.members.map((member) => ({
-      id: member.id,
-      name: member.nickname,
-      avatarUrl: member.profileImageUrl ?? '',
-    }));
-    const messages = messagesByProject[project.id] ?? [];
-    const latest = messages[messages.length - 1];
-    const lastReadAt = lastReadAtByProject[project.id];
-    const unreadCount = messages.filter(
-      (message) => !message.isMine && (!lastReadAt || new Date(message.sentAt) > new Date(lastReadAt)),
-    ).length;
-
-    if (!latest) {
-      return {
-        id: project.id,
-        projectName: project.name,
-        participants,
-        lastSenderName: '',
-        lastMessage: '아직 메시지가 없어요',
-        time: '',
-        unreadCount: 0,
-      };
-    }
-
-    return {
-      id: project.id,
-      projectName: project.name,
-      participants,
-      lastSenderName: latest.isMine ? '나' : latest.sender.name,
-      lastMessage: latest.type === 'text' ? latest.text : latest.fileName,
-      time: new Intl.DateTimeFormat('ko-KR', { hour: '2-digit', minute: '2-digit', hour12: false }).format(new Date(latest.sentAt)),
-      unreadCount,
+  useEffect(() => {
+    let cancelled = false;
+    fetchChannels({ size: 100 })
+      .then((res) => {
+        if (!cancelled) setChats(res.content.map(toChatRoom));
+      })
+      .catch(() => {
+        if (!cancelled) setNotice('채팅방 목록을 불러오지 못했어요. 다시 시도해 주세요.');
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
     };
-  }), [projects, messagesByProject, lastReadAtByProject]);
+  }, []);
 
   const filtered = useMemo(() => {
     const q = keyword.trim().toLowerCase();
@@ -104,7 +107,11 @@ export default function ChatPage() {
 
       {/* 채팅방 리스트 - Figma: divide-y gray-200, item h-81px, px-22px≈px-6, py-16px=py-4 */}
       <div className="flex-1 bg-white divide-y divide-gray-100">
-        {chats.length === 0 ? (
+        {loading ? (
+          <div className="flex flex-col items-center justify-center py-16 text-center">
+            <p className="text-body-sm text-gray-400">불러오는 중...</p>
+          </div>
+        ) : chats.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 text-center">
             <p className="text-title text-gray-500">아직 채팅방이 없어요</p>
             <p className="mt-1 text-body-sm text-gray-400">참여 중인 프로젝트가 생기면 여기에 표시돼요</p>
@@ -118,18 +125,20 @@ export default function ChatPage() {
         ) : (
           filtered.map((chat) => (
             <ChatListItem
-              key={chat.id}
+              key={chat.projectId}
               projectName={chat.projectName}
               participants={chat.participants}
-              lastSenderName={chat.lastSenderName}
+              lastSenderName=""
               lastMessage={chat.lastMessage}
               time={chat.time}
               unreadCount={chat.unreadCount}
-              onClick={() => navigate(`/project/${chat.id}/chat`)}
+              onClick={() => navigate(`/project/${chat.projectId}/chat`)}
             />
           ))
         )}
       </div>
+
+      <AlertModal open={Boolean(notice)} title={notice ?? ''} onConfirm={() => setNotice(null)} />
     </div>
   );
 }

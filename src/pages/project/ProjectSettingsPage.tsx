@@ -1,189 +1,551 @@
-import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
-import { CalendarDays, Check, FolderX, Users } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { ChevronDown, ChevronLeft, ChevronRight, Link2, QrCode } from "lucide-react";
+import QRCode from "qrcode";
 import { useNavigate, useParams } from "react-router-dom";
-import { AuthHeader } from "../../components/AuthHeader";
-import { Button } from "../../components/Button";
-import { Input } from "../../components/Input";
-import { Layout } from "../../components/Layout";
-import { ProjectInviteSection } from "../../components/project/ProjectInviteSection";
-import { getDateAfterDays, isFutureDate } from "../../lib/projectDate";
+import {
+  getProjectSettings,
+  leaveProject,
+  toApiProjectType,
+  updateProjectSettings,
+} from "../../api/projectApi";
+import { ApiError } from "../../api/client";
+import githubIcon from "../../assets/integrations/github.svg";
+import figmaIcon from "../../assets/integrations/figma.svg";
+import notionIcon from "../../assets/integrations/notion.png";
+import docsIcon from "../../assets/integrations/google-docs.svg";
+import slidesIcon from "../../assets/integrations/google-slides.svg";
+import { Modal } from "../../components/Modal";
 import { useProjectStore } from "../../store/projectStore";
-import type { ProjectMember, ProjectType } from "../../types/project";
+import {
+  useIntegrationStore,
+  type IntegrationProvider,
+} from "../../store/integrationStore";
+import type {
+  ProjectIntegrationType,
+  ProjectSettingsResponse,
+  ProjectType,
+} from "../../types/project";
 
-const PROJECT_TYPE_OPTIONS: Array<{ value: ProjectType; label: string }> = [
-  { value: "DEVELOPMENT", label: "개발 프로젝트" },
-  { value: "GENERAL", label: "일반 팀프로젝트" },
-];
+const INTEGRATIONS = [
+  { id: "github", label: "GitHub", icon: githubIcon, logo: 32, type: "GITHUB" },
+  { id: "figma", label: "Figma", icon: figmaIcon, logo: 22, type: "FIGMA" },
+  { id: "notion", label: "Notion", icon: notionIcon, logo: 16, type: "NOTION" },
+  { id: "docs", label: "Google docs", icon: docsIcon, logo: 19, type: "GOOGLE" },
+  { id: "slides", label: "Google slides", icon: slidesIcon, logo: 19, type: "GOOGLE" },
+] as const satisfies ReadonlyArray<{
+  id: string;
+  label: string;
+  icon: string;
+  logo: number;
+  type: ProjectIntegrationType;
+}>;
 
-function ProjectMemberRow({ member }: { member: ProjectMember }) {
+const MONTHS = Array.from({ length: 12 }, (_, index) => String(index + 1).padStart(2, "0"));
+const DAYS = Array.from({ length: 31 }, (_, index) => String(index + 1).padStart(2, "0"));
+
+function splitEndDate(value: string): [string, string, string] {
+  const [year, month, day] = value.split("-");
+  return [year, month, day];
+}
+
+function toUiProjectType(type: ProjectSettingsResponse["projectType"]): ProjectType {
+  return type === "DEVELOP" ? "DEVELOPMENT" : "GENERAL";
+}
+
+function getErrorMessage(error: unknown) {
+  if (!(error instanceof ApiError)) {
+    return "네트워크 상태를 확인하고 다시 시도해 주세요.";
+  }
+
+  switch (error.code) {
+    case "PROJECT_NOT_FOUND":
+    case "PROJECT001":
+      return "존재하지 않는 프로젝트예요.";
+    case "PROJECT_MEMBER_REQUIRED":
+    case "PROJECT002":
+      return "프로젝트에 접근할 권한이 없어요.";
+    case "PROJECT_SETTING_PERMISSION_DENIED":
+    case "PROJECT003":
+      return "프로젝트 설정은 방장만 변경할 수 있어요.";
+    case "VALIDATION_ERROR":
+    case "PROJECT004":
+    case "PROJECT005":
+    case "E400_INVALID_DATE":
+      return "프로젝트명과 예상 종료일을 확인해 주세요.";
+    case "OWNER_MUST_TRANSFER":
+      return "방장은 다른 팀원에게 권한을 이전한 뒤 나갈 수 있어요.";
+    default:
+      return error.message || "요청을 처리하지 못했어요.";
+  }
+}
+
+function isValidDate(year: string, month: string, day: string) {
+  const value = `${year}-${month}-${day}`;
+  const date = new Date(`${value}T00:00:00Z`);
+  return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === value;
+}
+
+async function copyText(value: string) {
+  if (navigator.clipboard?.writeText) {
+    try {
+      await navigator.clipboard.writeText(value);
+      return;
+    } catch {
+      // 권한이 없거나 보안 컨텍스트가 아닌 환경에서는 아래 fallback을 사용한다.
+    }
+  }
+
+  const textarea = document.createElement("textarea");
+  textarea.value = value;
+  textarea.setAttribute("readonly", "");
+  textarea.style.position = "fixed";
+  textarea.style.opacity = "0";
+  document.body.appendChild(textarea);
+  textarea.select();
+  const copied = document.execCommand("copy");
+  document.body.removeChild(textarea);
+  if (!copied) throw new Error("클립보드 복사에 실패했습니다.");
+}
+
+function SelectBox({
+  value,
+  onChange,
+  children,
+  ariaLabel,
+  disabled,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  children: React.ReactNode;
+  ariaLabel: string;
+  disabled: boolean;
+}) {
   return (
-    <li className="flex min-h-14 items-center gap-3 py-2">
-      <span className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-aqua-50 text-body font-semibold text-aqua-700">
-        {member.profileImageUrl ? (
-          <img src={member.profileImageUrl} alt={`${member.nickname} 프로필`} className="h-full w-full object-cover" />
-        ) : (
-          <span aria-hidden="true">{member.nickname.trim().slice(0, 1) || "?"}</span>
-        )}
-      </span>
-      <span className="min-w-0 flex-1 truncate text-body font-medium text-gray-900">{member.nickname}</span>
-    </li>
+    <div className="relative flex-1">
+      <select
+        aria-label={ariaLabel}
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        disabled={disabled}
+        className="h-14 w-full appearance-none rounded-[14px] border border-gray-200 bg-transparent px-[18px] text-[15px] text-gray-900 outline-none focus:border-blue-500 disabled:bg-gray-50 disabled:text-gray-400"
+      >
+        {children}
+      </select>
+      <ChevronDown className="pointer-events-none absolute right-[18px] top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" aria-hidden />
+    </div>
+  );
+}
+
+function ProjectLeaveDialog({
+  open,
+  isLeaving,
+  onConfirm,
+  onCancel,
+}: {
+  open: boolean;
+  isLeaving: boolean;
+  onConfirm: () => void;
+  onCancel: () => void;
+}) {
+  return (
+    <Modal
+      open={open}
+      onClose={isLeaving ? undefined : onCancel}
+      contentClassName="h-[436px] max-w-[362px] rounded-[22px] px-6 pb-[26px] pt-[42px]"
+    >
+      <div className="flex h-full flex-col">
+        <h2 className="text-center text-[18px] font-semibold leading-[26px] text-gray-900">
+          프로젝트에서 나가시겠습니까?
+        </h2>
+
+        <ul className="mt-[38px] space-y-[18px] pl-4 text-[13px] leading-[21px] text-gray-400">
+          <li className="list-disc pl-1">
+            프로젝트에서 나가면 내 프로젝트 목록에서 즉시 사라지며, 이후 해당 프로젝트의
+            자료, 활동 기록, 채팅, 업무 및 리포트를 확인할 수 없습니다
+          </li>
+          <li className="list-disc pl-1">
+            다시 참여하려면 팀원에게 초대 링크 또는 QR코드를 새로 전달 받아야 합니다
+          </li>
+          <li className="list-disc pl-1">
+            기존에 작성한 활동 기록은 프로젝트의 기여도 분석을 위해 보존됩니다
+          </li>
+        </ul>
+
+        <p className="mt-[18px] text-[13px] leading-5 text-gray-600 underline underline-offset-2">
+          프로젝트에서 나간 후 연동된 워크스페이스를 탈퇴해주세요.
+        </p>
+
+        <div className="mt-auto grid grid-cols-2 gap-4">
+          <button
+            type="button"
+            onClick={onCancel}
+            disabled={isLeaving}
+            className="h-14 rounded-[14px] bg-gray-100 text-[16px] font-semibold text-gray-400 disabled:opacity-50"
+          >
+            취소
+          </button>
+          <button
+            type="button"
+            onClick={onConfirm}
+            disabled={isLeaving}
+            className="h-14 rounded-[14px] bg-error text-[16px] font-semibold text-white disabled:opacity-60"
+          >
+            {isLeaving ? "나가는 중..." : "나가기"}
+          </button>
+        </div>
+      </div>
+    </Modal>
   );
 }
 
 export function ProjectSettingsPage() {
   const { id = "" } = useParams();
   const navigate = useNavigate();
-  const project = useProjectStore((state) => state.projects.find((item) => item.id === id));
-  const updateProject = useProjectStore((state) => state.updateProject);
-  const markProjectSettingsAsSeen = useProjectStore((state) => state.markProjectSettingsAsSeen);
-  const [projectName, setProjectName] = useState(project?.name ?? "");
-  const [projectType, setProjectType] = useState<ProjectType | "">(project?.type ?? "");
-  const [expectedEndDate, setExpectedEndDate] = useState(project?.expectedEndDate ?? "");
-  const [nameTouched, setNameTouched] = useState(false);
-  const [dateTouched, setDateTouched] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [saved, setSaved] = useState(false);
-  const saveStartedRef = useRef(false);
+  const fetchProjects = useProjectStore((state) => state.fetchProjects);
+  const mockIntegrationAccounts = useIntegrationStore((state) => state.accounts);
+  const [settings, setSettings] = useState<ProjectSettingsResponse | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isLeaving, setIsLeaving] = useState(false);
+  const [isLeaveDialogOpen, setIsLeaveDialogOpen] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+  const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
+  const [isQrOpen, setIsQrOpen] = useState(false);
+  const requestIdRef = useRef(0);
+  const [name, setName] = useState("");
+  const [type, setType] = useState<ProjectType>("DEVELOPMENT");
+  const [year, setYear] = useState("");
+  const [month, setMonth] = useState("");
+  const [day, setDay] = useState("");
+
+  const years = useMemo(() => {
+    const currentYear = new Date().getFullYear();
+    const endYear = Number(year);
+    const firstYear = Math.min(currentYear, Number.isFinite(endYear) ? endYear : currentYear);
+    return Array.from({ length: 10 }, (_, index) => String(firstYear + index));
+  }, [year]);
+
+  const applySettings = useCallback((response: ProjectSettingsResponse) => {
+    const [nextYear, nextMonth, nextDay] = splitEndDate(response.endDay);
+    setSettings(response);
+    setName(response.projectName);
+    setType(toUiProjectType(response.projectType));
+    setYear(nextYear);
+    setMonth(nextMonth);
+    setDay(nextDay);
+  }, []);
+
+  const loadSettings = useCallback(async () => {
+    const requestId = ++requestIdRef.current;
+    setIsLoading(true);
+    setError(null);
+    try {
+      const response = await getProjectSettings(id);
+      if (requestId === requestIdRef.current) applySettings(response);
+    } catch (loadError) {
+      if (requestId === requestIdRef.current) setError(getErrorMessage(loadError));
+    } finally {
+      if (requestId === requestIdRef.current) setIsLoading(false);
+    }
+  }, [applySettings, id]);
 
   useEffect(() => {
-    markProjectSettingsAsSeen(id);
-  }, [id, markProjectSettingsAsSeen]);
+    if (!id) {
+      setError("프로젝트 정보가 올바르지 않아요.");
+      setIsLoading(false);
+      return;
+    }
+    void loadSettings();
+    return () => {
+      requestIdRef.current += 1;
+    };
+  }, [id, loadSettings]);
 
   useEffect(() => {
-    if (!project) return;
-    setProjectName(project.name);
-    setProjectType(project.type);
-    setExpectedEndDate(project.expectedEndDate);
-    setNameTouched(false);
-    setDateTouched(false);
-  }, [project]);
+    if (!notice) return;
+    const timer = window.setTimeout(() => setNotice(null), 2000);
+    return () => window.clearTimeout(timer);
+  }, [notice]);
 
-  const normalizedName = projectName.trim();
-  const nameValid = normalizedName.length >= 2 && normalizedName.length <= 20;
-  const dateChanged = Boolean(project && expectedEndDate !== project.expectedEndDate);
-  const dateValid = !dateChanged || isFutureDate(expectedEndDate);
-  const hasChanges = Boolean(project && (
-    normalizedName !== project.name || projectType !== project.type || dateChanged
-  ));
-  const canSave = nameValid && projectType !== "" && dateValid && hasChanges && !saving;
-  const invitationLink = useMemo(() => {
-    if (!project) return "";
-    return project.invitationLink || `${window.location.origin}/invite/${project.id}`;
-  }, [project]);
+  const isCompleted = settings?.status === "COMPLETED";
+  const formDisabled = isLoading || isSaving || isCompleted;
+  const trimmedName = name.trim();
+  const isFormValid =
+    trimmedName.length >= 2 &&
+    trimmedName.length <= 20 &&
+    isValidDate(year, month, day);
 
-  if (!project) {
+  const handleSave = async () => {
+    if (!settings || isSaving || isCompleted || !isFormValid) return;
+    setIsSaving(true);
+    setError(null);
+    try {
+      await updateProjectSettings(id, {
+        projectName: trimmedName,
+        projectType: toApiProjectType(type),
+        endDay: `${year}-${month}-${day}`,
+      });
+      const refreshedSettings = await getProjectSettings(id);
+      applySettings(refreshedSettings);
+      await fetchProjects(true);
+      navigate(`/project/${id}/feed`);
+    } catch (saveError) {
+      setError(getErrorMessage(saveError));
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleCopyInvite = async () => {
+    const inviteUrl = settings?.invite.inviteUrl;
+    if (!inviteUrl) return;
+    try {
+      await copyText(inviteUrl);
+      setNotice("초대 링크를 복사했어요.");
+    } catch {
+      setNotice("초대 링크를 복사하지 못했어요.");
+    }
+  };
+
+  const handleOpenQr = async () => {
+    const inviteUrl = settings?.invite.inviteUrl;
+    if (!inviteUrl) return;
+    try {
+      const dataUrl = await QRCode.toDataURL(inviteUrl, {
+        width: 240,
+        margin: 2,
+        errorCorrectionLevel: "M",
+      });
+      setQrDataUrl(dataUrl);
+      setIsQrOpen(true);
+    } catch {
+      setNotice("QR 코드를 만들지 못했어요.");
+    }
+  };
+
+  const handleLeave = async () => {
+    if (isLeaving) return;
+    setIsLeaving(true);
+    setError(null);
+    try {
+      const response = await leaveProject(id);
+      if (!response.success) throw new Error("프로젝트 나가기 응답이 올바르지 않습니다.");
+      try {
+        await fetchProjects(true);
+      } catch {
+        // ProjectDataLoader가 /home 진입 후 실패한 강제 조회를 다시 시도한다.
+      }
+      navigate("/home", { replace: true });
+    } catch (leaveError) {
+      setError(getErrorMessage(leaveError));
+      setIsLeaveDialogOpen(false);
+    } finally {
+      setIsLeaving(false);
+    }
+  };
+
+  if (isLoading && !settings) {
     return (
-      <Layout className="bg-gray-25">
-        <AuthHeader title="프로젝트 설정" variant="inline" onBack={() => navigate("/home")} />
-        <main className="flex flex-1 flex-col items-center justify-center px-6 pb-16 text-center">
-          <span className="flex h-16 w-16 items-center justify-center rounded-full bg-gray-100 text-gray-400">
-            <FolderX size={32} aria-hidden="true" />
-          </span>
-          <h1 className="mt-5 text-h3 font-bold text-gray-900">프로젝트를 찾을 수 없어요</h1>
-          <p className="mt-2 text-body-sm text-gray-500">삭제되었거나 존재하지 않는 프로젝트입니다.</p>
-          <Button type="button" fullWidth={false} className="mt-6 !text-white" onClick={() => navigate("/home")}>
-            홈으로 이동
-          </Button>
-        </main>
-      </Layout>
+      <div className="app-shell flex min-h-svh items-center justify-center bg-gray-25" role="status" aria-label="프로젝트 설정 불러오는 중">
+        <span className="h-9 w-9 animate-spin rounded-full border-4 border-blue-100 border-t-blue-500" />
+      </div>
     );
   }
 
-  const nameError = nameTouched && !nameValid
-    ? normalizedName.length === 0 ? "프로젝트명을 입력해 주세요" : "프로젝트명은 앞뒤 공백 제외 2~20자로 입력해 주세요"
-    : undefined;
-  const dateError = dateTouched && dateChanged && !dateValid
-    ? "오늘보다 이후 날짜를 선택해 주세요"
-    : undefined;
+  if (!settings) {
+    return (
+      <div className="app-shell min-h-svh bg-gray-25 pb-[116px]">
+        <header className="flex h-[52px] items-center border-b border-gray-100 px-5 shadow-sm">
+          <button type="button" aria-label="홈으로 가기" onClick={() => navigate("/home")} className="mr-3">
+            <ChevronLeft className="h-6 w-6 text-gray-700" />
+          </button>
+          <h1 className="text-[18px] font-semibold text-gray-900">프로젝트 설정</h1>
+        </header>
+        <main className="flex min-h-[420px] flex-col items-center justify-center px-5 text-center">
+          <p className="text-[15px] text-gray-600">{error}</p>
+          <button type="button" onClick={() => void loadSettings()} className="mt-4 rounded-[14px] bg-blue-500 px-5 py-3 text-white">
+            다시 시도
+          </button>
+        </main>
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    setNameTouched(true);
-    setDateTouched(true);
-    if (!canSave || !projectType || saveStartedRef.current) return;
-    saveStartedRef.current = true;
-    setSaving(true);
-    updateProject(project.id, { name: normalizedName, type: projectType, expectedEndDate });
-    saveStartedRef.current = false;
-    setSaving(false);
-    setSaved(true);
-  };
+        <footer className="fixed bottom-0 left-1/2 z-20 h-[92px] w-full max-w-mobile -translate-x-1/2 border-t border-gray-100 bg-white px-5 pt-[10px]">
+          <button
+            type="button"
+            onClick={() => setIsLeaveDialogOpen(true)}
+            disabled={isLeaving}
+            className="h-14 w-full rounded-[14px] border border-error text-[16px] font-semibold text-error disabled:opacity-50"
+          >
+            프로젝트 나가기
+          </button>
+        </footer>
+
+        <ProjectLeaveDialog
+          open={isLeaveDialogOpen}
+          isLeaving={isLeaving}
+          onConfirm={() => void handleLeave()}
+          onCancel={() => {
+            if (!isLeaving) setIsLeaveDialogOpen(false);
+          }}
+        />
+      </div>
+    );
+  }
 
   return (
-    <Layout className="bg-gray-25">
-      <AuthHeader title="프로젝트 설정" variant="inline" />
-      <main className="flex-1 px-5 py-6">
-        <form onSubmit={handleSubmit} noValidate>
-          <section aria-labelledby="project-info-title" className="rounded-lg border border-gray-100 bg-white p-5 shadow-md">
-            <div className="flex items-center gap-2">
-              <CalendarDays size={20} className="text-blue-500" aria-hidden="true" />
-              <h2 id="project-info-title" className="text-title font-bold text-gray-900">프로젝트 정보</h2>
-            </div>
-            <div className="mt-5 space-y-4">
-              <Input
-                id="project-name"
-                label="프로젝트명"
-                value={projectName}
-                onChange={(event) => { setProjectName(event.target.value); setSaved(false); }}
-                onBlur={() => setNameTouched(true)}
-                errorText={nameError}
-                className="h-14 rounded-lg"
-                maxLength={20}
-              />
-              <label htmlFor="project-type" className="block">
-                <span className="mb-1.5 block text-body-sm font-medium text-gray-700">프로젝트 유형</span>
-                <select
-                  id="project-type"
-                  value={projectType}
-                  onChange={(event) => { setProjectType(event.target.value as ProjectType); setSaved(false); }}
-                  className="h-14 w-full rounded-lg border border-gray-200 bg-white px-4 text-body text-gray-900 outline-none focus:border-blue-500"
-                  required
-                >
-                  {PROJECT_TYPE_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
-                </select>
-              </label>
-              <Input
-                id="project-end-date"
-                type="date"
-                label="예상 종료일"
-                value={expectedEndDate}
-                min={getDateAfterDays(1)}
-                onChange={(event) => { setExpectedEndDate(event.target.value); setSaved(false); }}
-                onBlur={() => setDateTouched(true)}
-                errorText={dateError}
-                className="h-14 rounded-lg"
-              />
-            </div>
-            <Button type="submit" size="lg" loading={saving} disabled={!canSave} className="mt-6 enabled:!text-white disabled:!text-gray-400">
-              변경사항 저장
-            </Button>
-            <div className="mt-2 min-h-5" aria-live="polite">
-              {saved && <p className="flex items-center justify-center gap-1 text-caption font-normal text-success"><Check size={14} aria-hidden="true" /> 변경사항을 저장했어요</p>}
-            </div>
-          </section>
-        </form>
+    <div className="app-shell min-h-svh bg-gray-25 pb-[116px]">
+      <header className="flex h-[52px] items-center border-b border-gray-100 bg-gray-25 px-5 shadow-sm">
+        <button type="button" aria-label="뒤로 가기" onClick={() => navigate(`/project/${id}/feed`)} className="mr-3 flex h-6 w-6 items-center justify-center">
+          <ChevronLeft className="h-6 w-6 text-gray-700" />
+        </button>
+        <h1 className="text-[18px] font-semibold text-gray-900">프로젝트 설정</h1>
+      </header>
 
-        <section aria-labelledby="project-members-title" className="mt-5 rounded-lg border border-gray-100 bg-white p-5 shadow-md">
-          <div className="flex items-center justify-between gap-3">
-            <div className="flex items-center gap-2">
-              <Users size={20} className="text-aqua-600" aria-hidden="true" />
-              <h2 id="project-members-title" className="text-title font-bold text-gray-900">현재 팀원</h2>
-            </div>
-            <span className="rounded-full bg-aqua-50 px-3 py-1 text-caption text-aqua-700">{project.members.length}명</span>
+      <main className="px-5 pt-[18px]">
+        {isCompleted && (
+          <p className="mb-4 rounded-[12px] bg-gray-100 px-4 py-3 text-[13px] text-gray-600">
+            완료된 프로젝트의 설정은 변경할 수 없어요.
+          </p>
+        )}
+        {error && <p className="mb-4 text-[13px] text-error" role="alert">{error}</p>}
+        <label className="block text-[14px] font-normal text-gray-700">
+          프로젝트명
+          <input
+            value={name}
+            onChange={(event) => setName(event.target.value)}
+            disabled={formDisabled}
+            maxLength={20}
+            className="mt-[11px] h-14 w-full rounded-[14px] border border-gray-200 bg-transparent px-[18px] text-[15px] text-gray-900 outline-none focus:border-blue-500 disabled:bg-gray-50 disabled:text-gray-400"
+          />
+        </label>
+
+        <label className="mt-[22px] block text-[14px] font-normal text-gray-700">
+          프로젝트 유형
+          <div className="relative mt-[11px]">
+            <select
+              value={type}
+              onChange={(event) => setType(event.target.value as ProjectType)}
+              disabled={formDisabled}
+              className="h-14 w-full appearance-none rounded-[14px] border border-gray-200 bg-transparent px-[18px] text-[15px] text-gray-900 outline-none focus:border-blue-500 disabled:bg-gray-50 disabled:text-gray-400"
+            >
+              <option value="DEVELOPMENT">개발 프로젝트</option>
+              <option value="GENERAL">일반 팀프로젝트</option>
+            </select>
+            <ChevronDown className="pointer-events-none absolute right-[18px] top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" aria-hidden />
           </div>
-          {project.members.length > 0 ? (
-            <ul className="mt-3 divide-y divide-gray-100">
-              {project.members.map((member) => <ProjectMemberRow key={member.id} member={member} />)}
-            </ul>
-          ) : (
-            <p className="mt-4 rounded-md bg-gray-50 px-4 py-5 text-center text-body-sm text-gray-400">표시할 팀원이 없어요</p>
-          )}
+        </label>
+
+        <fieldset className="mt-[22px]">
+          <legend className="text-[14px] font-normal text-gray-700">예상 종료일</legend>
+          <div className="mt-[11px] flex gap-[7px]">
+            <SelectBox value={year} onChange={setYear} ariaLabel="종료 연도" disabled={formDisabled}>
+              {years.map((item) => <option key={item}>{item}</option>)}
+            </SelectBox>
+            <SelectBox value={month} onChange={setMonth} ariaLabel="종료 월" disabled={formDisabled}>
+              {MONTHS.map((item) => <option key={item}>{item}</option>)}
+            </SelectBox>
+            <SelectBox value={day} onChange={setDay} ariaLabel="종료 일" disabled={formDisabled}>
+              {DAYS.map((item) => <option key={item}>{item}</option>)}
+            </SelectBox>
+          </div>
+        </fieldset>
+
+        <section className="mt-[22px]">
+          <h2 className="text-[14px] font-normal text-gray-700">팀원 초대</h2>
+          <div className="mt-[11px] grid grid-cols-2 gap-4">
+            <button type="button" onClick={() => void handleCopyInvite()} className="flex h-14 items-center justify-center gap-2 rounded-[14px] bg-blue-100 text-[16px] font-semibold text-navy-700">
+              <Link2 className="h-[18px] w-[18px]" /> 링크 초대
+            </button>
+            <button type="button" onClick={() => void handleOpenQr()} className="flex h-14 items-center justify-center gap-2 rounded-[14px] bg-blue-100 text-[16px] font-semibold text-navy-700">
+              <QrCode className="h-[18px] w-[18px]" /> QR 초대
+            </button>
+          </div>
         </section>
 
-        <div className="mt-5 rounded-lg border border-gray-100 bg-white p-5 shadow-md">
-          <ProjectInviteSection invitationLink={invitationLink} />
-        </div>
+        <section className="mt-[17px]">
+          <h2 className="text-[14px] font-normal text-gray-900">
+            팀 워크스페이스 연동 <span className="text-error">*</span>
+          </h2>
+          <p className="mt-1 text-[12px] font-normal text-gray-400">워크스페이스를 소유한 팀원만 연동할 수 있어요.</p>
+          <div className="mt-2 rounded-[16px] border border-gray-100 bg-white/10 px-[18px] shadow-card">
+            {INTEGRATIONS.map((integration) => {
+              const serverConnected = settings.externalConnections.some(
+                (connection) => connection.linkType === integration.type && connection.isLinked
+              );
+              const storeProvider: IntegrationProvider =
+                integration.id === "docs"
+                  ? "googleDocs"
+                  : integration.id === "slides"
+                    ? "googleSlides"
+                    : integration.id;
+              const mockConnected = mockIntegrationAccounts[storeProvider];
+              const connected = serverConnected || mockConnected;
+              return (
+                <button
+                  key={integration.id}
+                  type="button"
+                  onClick={() =>
+                    navigate(`/project/${id}/settings/integrations/${integration.id}`, {
+                      state: {
+                        isConnected: connected,
+                        isMockConnected: mockConnected && !serverConnected,
+                      },
+                    })
+                  }
+                  className="flex h-[61px] w-full items-center"
+                >
+                  <span className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-[10px] bg-white">
+                    <img src={integration.icon} alt="" className="object-contain" style={{ width: integration.logo, height: integration.logo }} />
+                  </span>
+                  <span className="ml-3 flex-1 text-left text-[15px] font-normal text-gray-900">{integration.label}</span>
+                  <span className={`mr-[14px] rounded-full px-[14px] py-[5px] text-[12px] ${connected ? "bg-[#E9F8F0] text-success" : "bg-[#FDEDEE] text-error"}`}>
+                    {connected ? "연동" : "미연동"}
+                  </span>
+                  <ChevronRight className="h-5 w-5 shrink-0 text-gray-400" aria-hidden />
+                </button>
+              );
+            })}
+          </div>
+        </section>
       </main>
-    </Layout>
+
+      <footer className="fixed bottom-0 left-1/2 z-20 grid h-[92px] w-full max-w-mobile -translate-x-1/2 grid-cols-[1fr_1fr] gap-4 border-t border-gray-100 bg-white px-5 pt-[10px]">
+        <button type="button" onClick={() => setIsLeaveDialogOpen(true)} disabled={isLeaving} className="h-14 rounded-[14px] border border-error text-[16px] font-semibold text-error disabled:opacity-50">
+          프로젝트 나가기
+        </button>
+        <button type="button" onClick={() => void handleSave()} disabled={!isFormValid || formDisabled} className="h-14 rounded-[14px] bg-blue-500 text-[16px] font-semibold text-white disabled:bg-gray-200 disabled:text-gray-400">
+          {isSaving ? "저장 중..." : "저장"}
+        </button>
+      </footer>
+
+      {notice && (
+        <div
+          className={`fixed bottom-[104px] left-1/2 z-40 w-[calc(100%-40px)] max-w-[362px] -translate-x-1/2 rounded-[12px] px-4 py-3 text-center text-[13px] text-white shadow-lg ${
+            notice.includes("못했") ? "bg-error" : "bg-gray-800"
+          }`}
+          role="status"
+          aria-live="polite"
+        >
+          {notice}
+        </div>
+      )}
+
+      <ProjectLeaveDialog
+        open={isLeaveDialogOpen}
+        isLeaving={isLeaving}
+        onConfirm={() => void handleLeave()}
+        onCancel={() => {
+          if (!isLeaving) setIsLeaveDialogOpen(false);
+        }}
+      />
+
+      <Modal open={isQrOpen} onClose={() => setIsQrOpen(false)}>
+        <div className="flex flex-col items-center text-center">
+          <h2 className="text-[18px] font-semibold text-gray-900">프로젝트 초대 QR</h2>
+          {qrDataUrl && <img src={qrDataUrl} alt="프로젝트 초대 링크 QR 코드" className="mt-4 h-60 w-60" />}
+          <button type="button" onClick={() => setIsQrOpen(false)} className="mt-4 h-12 w-full rounded-[14px] bg-blue-500 font-semibold text-white">확인</button>
+        </div>
+      </Modal>
+    </div>
   );
 }
