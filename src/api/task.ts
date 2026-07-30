@@ -5,6 +5,8 @@ import type {
   ServerProjectActiveMemberResponse,
   ServerTaskCreateRequest,
   ServerTaskCreateResponse,
+  ServerTaskAttachmentAddRequest,
+  ServerTaskAttachmentAddResponse,
   ServerAttachmentResponse,
   ServerTaskDeleteResponse,
   ServerTaskDetailResponse,
@@ -101,22 +103,22 @@ function isValidAttachment(value: unknown): value is ServerAttachmentResponse {
   if (typeof value !== 'object' || value === null) return false
 
   const attachment = value as ServerAttachmentResponse
-  return (
+  const hasCommonFields =
     Number.isSafeInteger(attachment.taskAttachmentId) &&
     attachment.taskAttachmentId !== undefined &&
     attachment.taskAttachmentId > 0 &&
     (attachment.attachmentType === 'FILE' ||
       attachment.attachmentType === 'LINK') &&
-    (attachment.fileId === undefined ||
-      (Number.isSafeInteger(attachment.fileId) && attachment.fileId > 0)) &&
-    typeof attachment.fileName === 'string' &&
-    (attachment.linkUrl === undefined ||
-      attachment.linkUrl === null ||
-      typeof attachment.linkUrl === 'string') &&
-    (attachment.downloadUrlApi === undefined ||
-      attachment.downloadUrlApi === null ||
-      typeof attachment.downloadUrlApi === 'string')
-  )
+    typeof attachment.fileName === 'string'
+
+  if (!hasCommonFields) return false
+  return attachment.attachmentType === 'FILE'
+    ? isPositiveSafeInteger(attachment.fileId) &&
+        typeof attachment.downloadUrlApi === 'string' &&
+        (attachment.linkUrl === undefined || attachment.linkUrl === null)
+    : typeof attachment.linkUrl === 'string' &&
+        (attachment.downloadUrlApi === undefined ||
+          attachment.downloadUrlApi === null)
 }
 
 function mapTaskSummary(value: unknown): TaskListItemViewModel {
@@ -232,6 +234,7 @@ function mapTaskDetail(
     attachments: task.attachments.map((attachment) => ({
       id: attachment.taskAttachmentId!,
       type: attachment.attachmentType!,
+      fileId: attachment.fileId,
       fileName: attachment.fileName!,
       linkUrl: attachment.linkUrl,
       downloadUrlApi: attachment.downloadUrlApi,
@@ -404,6 +407,60 @@ export async function updateTask(
   }
 
   return task
+}
+
+export async function addTaskAttachment(
+  projectId: number,
+  taskId: number,
+  payload: ServerTaskAttachmentAddRequest
+) {
+  assertProjectId(projectId)
+  assertTaskId(taskId)
+  const response = await apiRequest<unknown>(
+    `/api/projects/${projectId}/tasks/${taskId}/attachments`,
+    {
+      method: 'POST',
+      body: payload,
+    }
+  )
+
+  if (!isValidAttachment(response)) {
+    throw new ApiError(
+      'INVALID_TASK_ATTACHMENT_ADD_RESPONSE',
+      '업무 첨부 추가 응답 형식이 올바르지 않습니다.'
+    )
+  }
+  return response as ServerTaskAttachmentAddResponse
+}
+
+export async function deleteTaskAttachment(
+  projectId: number,
+  taskId: number,
+  taskAttachmentId: number
+) {
+  assertProjectId(projectId)
+  assertTaskId(taskId)
+  if (!isPositiveSafeInteger(taskAttachmentId)) {
+    throw new ApiError(
+      'INVALID_TASK_ATTACHMENT_ID',
+      '올바른 업무 첨부 ID가 아닙니다.'
+    )
+  }
+  const response = await apiRequest<unknown>(
+    `/api/projects/${projectId}/tasks/${taskId}/attachments/${taskAttachmentId}`,
+    { method: 'DELETE' }
+  )
+  if (
+    typeof response !== 'object' ||
+    response === null ||
+    typeof (response as ServerTaskDeleteResponse).isDeleted !== 'boolean'
+  ) {
+    throw new ApiError(
+      'INVALID_TASK_ATTACHMENT_DELETE_RESPONSE',
+      '업무 첨부 삭제 응답 형식이 올바르지 않습니다.'
+    )
+  }
+  return response as ServerTaskDeleteResponse
 }
 
 export async function updateTaskStatus(

@@ -1,5 +1,6 @@
-import { CalendarDays, FileText, Info, Link, TriangleAlert, UserRound } from 'lucide-react'
+import { CalendarDays, Info, TriangleAlert, UserRound } from 'lucide-react'
 import { AVATAR_PRESETS } from '../AvatarPicker'
+import { AttachmentList } from '../attachment/AttachmentList'
 import { BottomSheet } from '../Modal'
 import { Button } from '../Button'
 import { cn } from '../../lib/utils'
@@ -9,6 +10,7 @@ import type {
   TaskDetailViewModel,
 } from '../../types/task'
 import { parseTaskDate } from '../../utils/taskDate'
+import type { NormalizedAttachment } from '../../types/attachment'
 import {
   SERVER_TASK_CATEGORY_CONFIG,
   TASK_BADGE_BASE_CLASS,
@@ -51,6 +53,27 @@ function formatDueDate(value: string) {
   return `${date.getFullYear()}.${date.getMonth() + 1}.${date.getDate()}`
 }
 
+function normalizeTaskAttachments(
+  task: TaskDetailViewModel
+): NormalizedAttachment[] {
+  return task.attachments.map((attachment) =>
+    attachment.type === 'FILE'
+      ? {
+          attachmentId: attachment.id,
+          attachmentType: 'FILE',
+          fileName: attachment.fileName,
+          fileSize: null,
+          downloadUrlApi: attachment.downloadUrlApi ?? null,
+        }
+      : {
+          attachmentId: attachment.id,
+          attachmentType: 'LINK',
+          fileName: attachment.fileName,
+          linkUrl: attachment.linkUrl!,
+        }
+  )
+}
+
 export function TaskCardDetailModal({
   open,
   task,
@@ -70,6 +93,9 @@ export function TaskCardDetailModal({
     : undefined
   const avatarSrc = AVATAR_PRESETS.find((avatar) => avatar.id === avatarId)?.src
   const category = task ? SERVER_TASK_CATEGORY_CONFIG[task.category] : null
+  const normalizedAttachments = task
+    ? normalizeTaskAttachments(task)
+    : []
   return (
     <BottomSheet
       open={open}
@@ -167,26 +193,16 @@ export function TaskCardDetailModal({
 
         <div className="mt-5">
           <h3 className="text-body-sm text-gray-600">첨부 자료</h3>
-          {task.attachments.length > 0 ? (
-            <div className="mt-2 flex flex-col gap-2">
-              {task.attachments.map((attachment) => {
-                const AttachmentIcon = attachment.type === 'LINK' ? Link : FileText
-                return (
-                  <div key={attachment.id} className="flex items-center gap-3 rounded-md bg-gray-50 p-3">
-                    <AttachmentIcon className="h-5 w-5 shrink-0 text-primary" aria-hidden />
-                    <span className="min-w-0 flex-1 truncate text-body-sm text-primary-700">
-                      {attachment.fileName}
-                    </span>
-                    <span className="text-caption font-normal text-gray-400">
-                      {attachment.type === 'LINK' ? '링크' : '파일'}
-                    </span>
-                  </div>
-                )
-              })}
-            </div>
-          ) : (
-            <p className="mt-2 text-body-sm text-gray-400">첨부 자료가 없어요</p>
-          )}
+          <AttachmentList
+            attachments={normalizedAttachments}
+            variant="subtle"
+            className="mt-2"
+            emptyContent={
+              <p className="mt-2 text-body-sm text-gray-400">
+                첨부 자료가 없어요
+              </p>
+            }
+          />
         </div>
 
         <p className="mt-4 flex items-start gap-2 rounded-md bg-primary-50 p-3 text-caption font-normal text-primary-700">

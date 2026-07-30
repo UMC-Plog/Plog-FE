@@ -40,7 +40,7 @@ interface AttachmentPickerProps {
   maxAttachments?: number
   disabled?: boolean
   onStatusChange?: (summary: AttachmentDraftSummary) => void
-  variant?: 'default' | 'post'
+  variant?: 'default' | 'post' | 'task'
 }
 
 const FILE_ACCEPT = '.pdf,.pptx,.docx,.zip,.fig'
@@ -282,6 +282,8 @@ export function AttachmentPicker({
 
   const atLimit = value.length >= maxAttachments
   const isPostVariant = variant === 'post'
+  const isTaskVariant = variant === 'task'
+  const isStyledCardVariant = isPostVariant || isTaskVariant
 
   const openLinkModal = () => {
     setLinkError(undefined)
@@ -295,7 +297,7 @@ export function AttachmentPicker({
 
   return (
     <div>
-      {!isPostVariant && (
+      {!isPostVariant && !isTaskVariant && (
         <div className="flex items-center justify-between gap-3">
           <p className="text-body-sm font-medium text-gray-700">첨부</p>
           <span className="text-caption font-normal text-gray-400">
@@ -337,14 +339,18 @@ export function AttachmentPicker({
       )}
 
       {value.length > 0 && (
-        <ul className={`${isPostVariant ? 'mt-4' : 'mt-2'} flex flex-col gap-2`}>
+        <ul
+          className={`${
+            isPostVariant ? 'mt-4' : isTaskVariant ? '' : 'mt-2'
+          } flex flex-col gap-2`}
+        >
           {value.map((draft) => {
             const isFile = draft.attachmentType === 'FILE'
             const isNewFile = isFile && draft.source === 'NEW'
             const isUploading = isNewFile && draft.status === 'UPLOADING'
             const isFailed = isNewFile && draft.status === 'ERROR'
             const Icon = isFile
-              ? isPostVariant && isImageAttachment(draft)
+              ? isStyledCardVariant && isImageAttachment(draft)
                 ? Image
                 : FileText
               : LinkIcon
@@ -355,6 +361,8 @@ export function AttachmentPicker({
                 className={
                   isPostVariant
                     ? 'rounded-md bg-gray-50 px-3 py-3'
+                    : isTaskVariant
+                      ? 'rounded-md bg-gray-100 px-3 py-3'
                     : 'rounded-md border border-gray-200 bg-white p-3'
                 }
               >
@@ -362,7 +370,9 @@ export function AttachmentPicker({
                   <Icon className="h-4 w-4 shrink-0 text-primary" aria-hidden />
                   <span
                     className={`min-w-0 flex-1 truncate text-body-sm ${
-                      isPostVariant ? 'text-blue-600' : 'text-gray-700'
+                      isStyledCardVariant
+                        ? 'text-blue-600'
+                        : 'text-gray-700'
                     }`}
                   >
                     {draft.fileName}
@@ -372,13 +382,20 @@ export function AttachmentPicker({
                       {formatFileSize(draft.fileSize)}
                     </span>
                   )}
+                  {isTaskVariant &&
+                    ((isFile && draft.fileSize === undefined) ||
+                      !isFile) && (
+                      <span className="shrink-0 text-caption font-normal text-gray-400">
+                        {isFile ? 'FILE' : '링크'}
+                      </span>
+                    )}
                   <button
                     type="button"
                     disabled={disabled}
                     aria-label={`${draft.fileName} 첨부 제거`}
                     onClick={() => removeDraft(draft.localId)}
                     className={`shrink-0 text-gray-400 hover:text-gray-600 disabled:text-gray-200 ${
-                      isPostVariant
+                      isStyledCardVariant
                         ? 'flex h-7 w-7 items-center justify-center rounded-full bg-white'
                         : ''
                     }`}
@@ -425,7 +442,7 @@ export function AttachmentPicker({
         </ul>
       )}
 
-      {!isPostVariant && (
+      {!isPostVariant && !isTaskVariant && (
         <div className="mt-2 grid grid-cols-2 gap-2">
           <Button
             type="button"
@@ -447,6 +464,41 @@ export function AttachmentPicker({
           >
             링크 추가
           </Button>
+        </div>
+      )}
+
+      {isTaskVariant && (
+        <div className="mt-3 rounded-md border border-dashed border-gray-300 bg-white px-4 py-4 text-center">
+          <p className="text-caption font-normal text-gray-500">
+            파일 또는 링크 첨부 (선택)
+          </p>
+          <p className="mt-1 text-caption font-normal text-gray-400">
+            최대 50MB, PDF, PPTX, DOCX, ZIP, IMG
+          </p>
+          <div className="mt-3 flex justify-center gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              fullWidth={false}
+              disabled={disabled || atLimit}
+              icon={<Paperclip className="h-4 w-4" aria-hidden />}
+              onClick={() => fileInputRef.current?.click()}
+            >
+              파일 선택
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              fullWidth={false}
+              disabled={disabled || atLimit}
+              icon={<LinkIcon className="h-4 w-4" aria-hidden />}
+              onClick={openLinkModal}
+            >
+              링크 추가
+            </Button>
+          </div>
         </div>
       )}
 
