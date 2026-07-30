@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ChevronDown, ChevronLeft, ChevronRight, Link2, QrCode } from "lucide-react";
 import QRCode from "qrcode";
 import { useNavigate, useParams } from "react-router-dom";
+import { createProjectInvitationUrl } from "../../lib/projectInvitation";
 import {
   getProjectSettings,
   leaveProject,
@@ -202,6 +203,7 @@ export function ProjectSettingsPage() {
   const { id = "" } = useParams();
   const navigate = useNavigate();
   const fetchProjects = useProjectStore((state) => state.fetchProjects);
+  const removeProject = useProjectStore((state) => state.removeProject);
   const mockIntegrationAccounts = useIntegrationStore((state) => state.accounts);
   const [settings, setSettings] = useState<ProjectSettingsResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -301,7 +303,7 @@ export function ProjectSettingsPage() {
     const inviteUrl = settings?.invite.inviteUrl;
     if (!inviteUrl) return;
     try {
-      await copyText(inviteUrl);
+      await copyText(createProjectInvitationUrl(inviteUrl));
       setNotice("초대 링크를 복사했어요.");
     } catch {
       setNotice("초대 링크를 복사하지 못했어요.");
@@ -312,7 +314,7 @@ export function ProjectSettingsPage() {
     const inviteUrl = settings?.invite.inviteUrl;
     if (!inviteUrl) return;
     try {
-      const dataUrl = await QRCode.toDataURL(inviteUrl, {
+      const dataUrl = await QRCode.toDataURL(createProjectInvitationUrl(inviteUrl), {
         width: 240,
         margin: 2,
         errorCorrectionLevel: "M",
@@ -336,6 +338,7 @@ export function ProjectSettingsPage() {
       } catch {
         // ProjectDataLoader가 /home 진입 후 실패한 강제 조회를 다시 시도한다.
       }
+      removeProject(id);
       navigate("/home", { replace: true });
     } catch (leaveError) {
       setError(getErrorMessage(leaveError));

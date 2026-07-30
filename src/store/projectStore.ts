@@ -15,6 +15,7 @@ interface ProjectState {
   error: string | null;
   fetchProjects: (force?: boolean) => Promise<void>;
   createProject: (request: CreateProjectRequest) => Promise<CreatedProject>;
+  removeProject: (projectId: string) => void;
   reset: () => void;
 }
 
@@ -72,6 +73,11 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
       set({ error: getErrorMessage(error) });
       throw error;
     }
+  },
+  removeProject: (projectId) => {
+    set((state) => ({
+      projects: state.projects.filter((project) => project.id !== projectId),
+    }));
   },
   reset: () => {
     requestGeneration += 1;

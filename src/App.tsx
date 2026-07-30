@@ -34,6 +34,7 @@ import PeerEvalStarPage from './pages/project/PeerEvalStarPage'
 import PeerEvalKeywordPage from './pages/project/PeerEvalKeywordPage'
 import SelfFeedbackPage from './pages/project/SelfFeedbackPage'
 import { ProjectDataLoader } from './components/ProjectDataLoader'
+import { ProjectInvitationPage } from './pages/project/ProjectInvitationPage'
 
 function App() {
   return (
@@ -49,6 +50,8 @@ function App() {
         <Route path="/find-password" element={<FindPasswordPage />} />
         <Route path="/reset-password" element={<ResetPasswordPage />} />
         <Route path="/oauth/:provider" element={<OAuthCallbackPage />} />
+
+        <Route path="/invite/:inviteCode" element={<ProjectInvitationPage />} />
 
         <Route element={<ProjectDataLoader />}>
           {/* 하단 탭바가 있는 화면들 */}

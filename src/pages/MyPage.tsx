@@ -7,7 +7,7 @@ import { cn } from "../lib/utils";
 import { useAuthStore } from "../store/authStore";
 import { logoutRequest } from "../api/auth";
 
-function PlogMark() {
+export function PlogMark() {
   return (
     <svg width="24" height="24" viewBox="90 8 59 66" fill="none" aria-hidden="true">
       <path

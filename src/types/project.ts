@@ -73,6 +73,27 @@ export interface ProjectInviteResponse {
   inviteUrl: string;
 }
 
+export interface ProjectInvitationPreviewResponse {
+  projectId: number;
+  projectName: string;
+  projectType: ProjectApiType;
+  endDay: string;
+}
+
+export interface ProjectJoinRequest {
+  inviteCode: string;
+}
+
+export interface ProjectJoinResponse {
+  projectId: number;
+  projectName: string;
+  projectMemberId: number;
+  role: "OWNER" | "MEMBER";
+  projectStatus: ProjectStatus;
+  memberStatus: "ACTIVE" | "EXIT";
+  joinedAt: string;
+}
+
 export interface ProjectSettingsInviteResponse {
   inviteUrl: string;
   qrUrl: string;
@@ -138,5 +159,6 @@ export interface CreatedProject {
   id: string;
   myProjectMemberId: number;
   name: string;
+  invitationCode: string;
   invitationLink: string;
 }
