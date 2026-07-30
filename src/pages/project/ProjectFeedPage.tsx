@@ -171,7 +171,7 @@ export default function ProjectFeedPage() {
             <button
               type="button"
               onClick={() =>
-                navigate(`/project/${notice.projectId}/notices/${notice.postId}`)
+                navigate(`/project/${notice.projectId}/notices`)
               }
               className="flex w-full items-center gap-2 rounded-md bg-blue-50 px-3 py-2.5 text-left text-body-sm text-blue-600 hover:bg-blue-100"
             >

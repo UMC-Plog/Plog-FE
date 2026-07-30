@@ -147,6 +147,10 @@ export interface ServerPostFeedResponse {
   hasNext?: boolean
 }
 
+export interface ServerPostNoticeListResponse {
+  notices?: ServerPostResponse[]
+}
+
 export interface PostFeedAttachmentViewModel {
   id?: number
   type: ServerPostAttachmentType

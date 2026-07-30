@@ -20,6 +20,7 @@ import type {
   ServerPostCommentResponse,
   ServerPostUpdateRequest,
   ServerPostUpdateResponse,
+  ServerPostNoticeListResponse,
 } from '../types/post'
 import { ApiError, apiRequest } from './client'
 import type { ProfilePreset } from '../lib/profilePreset'
@@ -483,6 +484,44 @@ export async function fetchPostDetail(
     projectId,
     invalidDetailResponse,
     postId
+  )
+}
+
+function invalidNoticeListResponse(): never {
+  throw new ApiError(
+    'INVALID_POST_NOTICE_LIST_RESPONSE',
+    '공지 이력 응답 형식이 올바르지 않습니다.'
+  )
+}
+
+export async function fetchPostNotices(
+  projectId: number
+): Promise<PostListItemViewModel[]> {
+  if (!isPositiveSafeInteger(projectId)) {
+    throw new ApiError(
+      'INVALID_PROJECT_ID',
+      '올바른 프로젝트 ID가 아닙니다.'
+    )
+  }
+
+  const response = await apiRequest<unknown>(
+    `/api/projects/${projectId}/posts/notices`
+  )
+  if (typeof response !== 'object' || response === null) {
+    invalidNoticeListResponse()
+  }
+
+  const noticeList = response as ServerPostNoticeListResponse
+  if (!Array.isArray(noticeList.notices)) {
+    invalidNoticeListResponse()
+  }
+
+  return noticeList.notices.map((notice) =>
+    validatePostResponse(
+      notice,
+      projectId,
+      invalidNoticeListResponse
+    )
   )
 }
 

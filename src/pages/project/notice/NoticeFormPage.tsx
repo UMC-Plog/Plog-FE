@@ -1,8 +1,12 @@
 import { UserRound } from 'lucide-react'
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { ApiError } from '../../../api/client'
-import { createPost as requestCreatePost } from '../../../api/postApi'
+import {
+  createPost as requestCreatePost,
+  fetchPostDetail,
+  updatePost as requestUpdatePost,
+} from '../../../api/postApi'
 import { AVATAR_PRESETS } from '../../../components/AvatarPicker'
 import { Button } from '../../../components/Button'
 import { Input } from '../../../components/Input'
@@ -10,6 +14,10 @@ import { Layout } from '../../../components/Layout'
 import { TextArea } from '../../../components/TextArea'
 import { useAuthStore } from '../../../store/authStore'
 import { useProjectStore } from '../../../store/projectStore'
+import type {
+  PostDetailViewModel,
+  ServerPostUpdateRequest,
+} from '../../../types/post'
 
 export default function NoticeFormPage() {
   const { id: projectId, noticeId } = useParams<{ id: string; noticeId: string }>()
@@ -19,6 +27,9 @@ export default function NoticeFormPage() {
     state.projects.find((project) => project.id === projectId)
   )
   const isEditMode = Boolean(noticeId)
+  const [existingNotice, setExistingNotice] = useState<PostDetailViewModel>()
+  const [isEditLoading, setIsEditLoading] = useState(isEditMode)
+  const [editLoadError, setEditLoadError] = useState<string>()
   const [title, setTitle] = useState('')
   const [content, setContent] = useState('')
   const [contentTouched, setContentTouched] = useState(false)
@@ -37,6 +48,12 @@ export default function NoticeFormPage() {
     projectId && /^[1-9]\d*$/.test(projectId) && Number.isSafeInteger(Number(projectId))
       ? Number(projectId)
       : null
+  const numericNoticeId =
+    noticeId &&
+    /^[1-9]\d*$/.test(noticeId) &&
+    Number.isSafeInteger(Number(noticeId))
+      ? Number(noticeId)
+      : null
   const titleError =
     titleTouched && normalizedTitle.length === 0
       ? '공지 제목을 입력해 주세요.'
@@ -51,14 +68,59 @@ export default function NoticeFormPage() {
         : undefined
   const canSubmit = Boolean(
     !isSubmitting &&
-      !isEditMode &&
       numericProjectId !== null &&
       normalizedTitle.length >= 1 &&
       normalizedTitle.length <= 100 &&
       normalizedContent.length >= 1 &&
       normalizedContent.length <= 5000 &&
-      user
+      user &&
+      (!isEditMode ||
+        (numericNoticeId !== null &&
+          existingNotice &&
+          (normalizedTitle !== existingNotice.title ||
+            normalizedContent !== existingNotice.content)))
   )
+
+  useEffect(() => {
+    if (!isEditMode) return
+    if (numericProjectId === null || numericNoticeId === null) {
+      setEditLoadError('올바른 공지 경로가 아닙니다.')
+      setIsEditLoading(false)
+      return
+    }
+
+    let active = true
+    setIsEditLoading(true)
+    setEditLoadError(undefined)
+    void fetchPostDetail(numericProjectId, numericNoticeId)
+      .then((response) => {
+        if (!active) return
+        if (!response.isNotice) {
+          throw new ApiError(
+            'INVALID_NOTICE_DETAIL_RESPONSE',
+            '공지로 지정된 게시글이 아닙니다.'
+          )
+        }
+        setExistingNotice(response)
+        setTitle(response.title)
+        setContent(response.content)
+      })
+      .catch((error: unknown) => {
+        if (!active) return
+        setEditLoadError(
+          error instanceof ApiError
+            ? error.message
+            : '공지를 불러오지 못했습니다.'
+        )
+      })
+      .finally(() => {
+        if (active) setIsEditLoading(false)
+      })
+
+    return () => {
+      active = false
+    }
+  }, [isEditMode, numericNoticeId, numericProjectId])
 
   const handleCancel = () => {
     if (!projectId) return
@@ -82,6 +144,21 @@ export default function NoticeFormPage() {
     setSubmitError(undefined)
 
     try {
+      if (isEditMode && numericNoticeId !== null && existingNotice) {
+        const payload: ServerPostUpdateRequest = {}
+        if (normalizedTitle !== existingNotice.title) {
+          payload.title = normalizedTitle
+        }
+        if (normalizedContent !== existingNotice.content) {
+          payload.content = normalizedContent
+        }
+        await requestUpdatePost(numericProjectId, numericNoticeId, payload)
+        navigate(`/project/${numericProjectId}/notices`, {
+          replace: true,
+        })
+        return
+      }
+
       await requestCreatePost(numericProjectId, {
         title: normalizedTitle,
         content: normalizedContent,
@@ -99,7 +176,7 @@ export default function NoticeFormPage() {
     }
   }
 
-  if (isEditMode) {
+  if (isEditMode && (isEditLoading || editLoadError || !existingNotice)) {
     return (
       <Layout>
         <header className="grid h-12 grid-cols-3 items-center border-b border-gray-200 bg-white px-3">
@@ -113,15 +190,15 @@ export default function NoticeFormPage() {
           >
             취소
           </Button>
-          <h1 className="text-center text-body font-semibold text-gray-900">공지 작성</h1>
+          <h1 className="text-center text-body font-semibold text-gray-900">공지 수정</h1>
         </header>
         <main className="flex flex-1 flex-col items-center justify-center px-8 text-center">
           <p className="text-title font-bold text-gray-700">
-            공지 수정은 아직 지원하지 않아요
+            {isEditLoading ? '공지를 불러오는 중이에요' : '공지를 불러오지 못했어요'}
           </p>
-          <p className="mt-1.5 text-body-sm text-gray-400">
-            백엔드 수정 API가 제공되면 연결할 예정입니다.
-          </p>
+          {editLoadError && (
+            <p className="mt-1.5 text-body-sm text-error">{editLoadError}</p>
+          )}
           <Button type="button" size="sm" fullWidth={false} onClick={handleCancel} className="mt-6">
             돌아가기
           </Button>
@@ -143,7 +220,9 @@ export default function NoticeFormPage() {
         >
           취소
         </Button>
-        <h1 className="text-center text-body font-semibold text-gray-900">공지 작성</h1>
+        <h1 className="text-center text-body font-semibold text-gray-900">
+          {isEditMode ? '공지 수정' : '공지 작성'}
+        </h1>
         <Button
           type="button"
           size="sm"
@@ -152,7 +231,7 @@ export default function NoticeFormPage() {
           onClick={() => void handleSubmit()}
           className="justify-self-end text-white"
         >
-          {isSubmitting ? '게시 중' : '게시'}
+          {isSubmitting ? (isEditMode ? '수정 중' : '게시 중') : isEditMode ? '수정' : '게시'}
         </Button>
       </header>
 

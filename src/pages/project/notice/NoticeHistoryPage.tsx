@@ -1,13 +1,18 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { ApiError } from '../../../api/client'
-import { fetchPostFeed } from '../../../api/postApi'
+import {
+  deletePost as requestDeletePost,
+  fetchPostNotices,
+} from '../../../api/postApi'
 import { Button } from '../../../components/Button'
+import { ConfirmDialog } from '../../../components/ConfirmDialog'
 import { EmptyState } from '../../../components/EmptyState'
 import { Layout } from '../../../components/Layout'
+import { NoticeHistoryItem } from '../../../components/notice/NoticeHistoryItem'
 import { TopNavBar } from '../../../components/TopNavBar'
 import type { PostListItemViewModel } from '../../../types/post'
-import { PostAuthorAvatar } from '../../../components/post/PostAuthorAvatar'
+import { useProjectStore } from '../../../store/projectStore'
 
 function parsePositiveSafeInteger(value: string | undefined) {
   return value &&
@@ -17,42 +22,35 @@ function parsePositiveSafeInteger(value: string | undefined) {
     : null
 }
 
-function formatNoticeTime(createdAt: string) {
-  const diff = Date.now() - new Date(createdAt).getTime()
-  const minutes = Math.floor(diff / 60000)
-
-  if (minutes < 1) return '방금 전'
-  if (minutes < 60) return `${minutes}분 전`
-
-  const hours = Math.floor(minutes / 60)
-  if (hours < 24) return `${hours}시간 전`
-
-  const days = Math.floor(hours / 24)
-  if (days < 7) return `${days}일 전`
-
-  return new Intl.DateTimeFormat('ko-KR', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-  }).format(new Date(createdAt))
-}
-
 export default function NoticeHistoryPage() {
   const { id: projectId } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const numericProjectId = parsePositiveSafeInteger(projectId)
-  const [notice, setNotice] = useState<PostListItemViewModel | null>(null)
+  const currentProject = useProjectStore((state) =>
+    state.projects.find((project) => project.id === projectId)
+  )
+  const [notices, setNotices] = useState<PostListItemViewModel[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string>()
+  const [openMenuPostId, setOpenMenuPostId] = useState<number | null>(null)
+  const [pendingDeleteNotice, setPendingDeleteNotice] =
+    useState<PostListItemViewModel>()
+  const [isDeleting, setIsDeleting] = useState(false)
+  const [deleteError, setDeleteError] = useState<string>()
   const requestIdRef = useRef(0)
+  const deletingRef = useRef(false)
+  const inFlightRef = useRef<{
+    projectId: number
+    request: ReturnType<typeof fetchPostNotices>
+  } | null>(null)
 
   const goToFeed = () => {
     if (projectId) navigate(`/project/${projectId}/feed`)
   }
 
-  const loadNotice = useCallback(async () => {
+  const loadNotices = useCallback(async () => {
     const requestId = ++requestIdRef.current
-    setNotice(null)
+    setNotices([])
     setIsLoading(true)
     setError(undefined)
 
@@ -63,9 +61,14 @@ export default function NoticeHistoryPage() {
     }
 
     try {
-      const response = await fetchPostFeed(numericProjectId, { size: 20 })
+      const request =
+        inFlightRef.current?.projectId === numericProjectId
+          ? inFlightRef.current.request
+          : fetchPostNotices(numericProjectId)
+      inFlightRef.current = { projectId: numericProjectId, request }
+      const response = await request
       if (requestId !== requestIdRef.current) return
-      setNotice(response.notice)
+      setNotices(response)
     } catch (requestError: unknown) {
       if (requestId !== requestIdRef.current) return
       setError(
@@ -74,16 +77,68 @@ export default function NoticeHistoryPage() {
           : '네트워크 상태를 확인한 뒤 다시 시도해 주세요.'
       )
     } finally {
+      if (inFlightRef.current?.projectId === numericProjectId) {
+        inFlightRef.current = null
+      }
       if (requestId === requestIdRef.current) setIsLoading(false)
     }
   }, [numericProjectId])
 
   useEffect(() => {
-    void loadNotice()
+    void loadNotices()
     return () => {
       requestIdRef.current += 1
     }
-  }, [loadNotice])
+  }, [loadNotices])
+
+  const handleEdit = (notice: PostListItemViewModel) => {
+    setOpenMenuPostId(null)
+    navigate(`/project/${notice.projectId}/notices/${notice.postId}/edit`)
+  }
+
+  const handleDelete = (notice: PostListItemViewModel) => {
+    setOpenMenuPostId(null)
+    setDeleteError(undefined)
+    setPendingDeleteNotice(notice)
+  }
+
+  const handleConfirmDelete = async () => {
+    if (
+      numericProjectId === null ||
+      !pendingDeleteNotice ||
+      deletingRef.current
+    ) {
+      return
+    }
+
+    deletingRef.current = true
+    setIsDeleting(true)
+    setDeleteError(undefined)
+    try {
+      await requestDeletePost(
+        numericProjectId,
+        pendingDeleteNotice.postId
+      )
+      setPendingDeleteNotice(undefined)
+      deletingRef.current = false
+      setIsDeleting(false)
+      await loadNotices()
+    } catch (requestError: unknown) {
+      setDeleteError(
+        requestError instanceof ApiError
+          ? requestError.message
+          : '네트워크 상태를 확인한 뒤 다시 시도해 주세요.'
+      )
+      deletingRef.current = false
+      setIsDeleting(false)
+    }
+  }
+
+  const handleCancelDelete = () => {
+    if (deletingRef.current) return
+    setPendingDeleteNotice(undefined)
+    setDeleteError(undefined)
+  }
 
   return (
     <Layout>
@@ -106,46 +161,35 @@ export default function NoticeHistoryPage() {
               <Button
                 type="button"
                 fullWidth={false}
-                onClick={() => void loadNotice()}
+                onClick={() => void loadNotices()}
               >
                 다시 시도
               </Button>
             }
           />
-        ) : notice ? (
-          <div className="px-4 py-5">
-            <button
-              type="button"
-              onClick={() =>
-                navigate(
-                  `/project/${notice.projectId}/notices/${notice.postId}`
-                )
-              }
-              className="w-full text-left"
-            >
-              <article>
-                <div className="flex items-center gap-3">
-                  <PostAuthorAvatar profilePreset={notice.profilePreset} />
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-body-sm font-semibold text-gray-900">
-                      {notice.authorNickname ?? '알 수 없는 사용자'}
-                    </p>
-                    <p className="text-caption font-normal text-gray-400">
-                      {formatNoticeTime(notice.createdAt)}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="mt-3 rounded-lg bg-white p-5 shadow-md">
-                  <h2 className="text-title font-bold text-gray-900">
-                    {notice.title}
-                  </h2>
-                  <p className="whitespace-pre-wrap break-words text-body-sm text-gray-700">
-                    {notice.content}
-                  </p>
-                </div>
-              </article>
-            </button>
+        ) : notices.length > 0 ? (
+          <div className="space-y-4 px-4 py-5">
+            {notices.map((notice) => (
+              <NoticeHistoryItem
+                key={notice.postId}
+                notice={notice}
+                isMenuOpen={openMenuPostId === notice.postId}
+                canEdit={
+                  currentProject?.myProjectMemberId === notice.projectMemberId
+                }
+                isDeleting={
+                  isDeleting && pendingDeleteNotice?.postId === notice.postId
+                }
+                onToggleMenu={() =>
+                  setOpenMenuPostId((current) =>
+                    current === notice.postId ? null : notice.postId
+                  )
+                }
+                onCloseMenu={() => setOpenMenuPostId(null)}
+                onEdit={() => handleEdit(notice)}
+                onDelete={() => handleDelete(notice)}
+              />
+            ))}
           </div>
         ) : (
           <EmptyState
@@ -154,6 +198,24 @@ export default function NoticeHistoryPage() {
           />
         )}
       </main>
+
+      <ConfirmDialog
+        open={Boolean(pendingDeleteNotice)}
+        title="공지를 삭제하시겠습니까?"
+        description={
+          deleteError ? (
+            <span className="text-error">{deleteError}</span>
+          ) : (
+            '삭제된 공지는 복구할 수 없어요'
+          )
+        }
+        confirmText={isDeleting ? '삭제 중' : '삭제하기'}
+        cancelText="취소"
+        destructive
+        confirmDisabled={isDeleting}
+        onConfirm={() => void handleConfirmDelete()}
+        onCancel={handleCancelDelete}
+      />
     </Layout>
   )
 }
