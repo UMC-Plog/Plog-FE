@@ -17,7 +17,7 @@ import type {
   ProjectMember,
   ProjectType,
 } from "../types/project";
-import { apiRequest } from "./client";
+import { ApiError, apiRequest } from "./client";
 
 const PROJECT_PAGE_SIZE = 100;
 const MAX_PROJECT_PAGES = 20;
@@ -58,6 +58,7 @@ function mapMember(response: ProjectListItemResponse["memberPreviews"][number]):
 export function mapProjectResponseToProject(response: ProjectListItemResponse): Project {
   return {
     id: String(response.projectId),
+    myProjectMemberId: response.myProjectMemberId,
     name: response.projectName,
     type: mapProjectType(response.projectType),
     status: response.status,
@@ -66,6 +67,20 @@ export function mapProjectResponseToProject(response: ProjectListItemResponse): 
     members: response.memberPreviews.map(mapMember),
     memberCount: response.memberCount,
   };
+}
+
+function assertProjectListItem(response: ProjectListItemResponse) {
+  if (
+    !Number.isSafeInteger(response.projectId) ||
+    response.projectId <= 0 ||
+    !Number.isSafeInteger(response.myProjectMemberId) ||
+    response.myProjectMemberId <= 0
+  ) {
+    throw new ApiError(
+      "INVALID_PROJECT_LIST_RESPONSE",
+      "프로젝트 목록 응답 형식이 올바르지 않습니다."
+    );
+  }
 }
 
 export function mapCreatedProjectResponse(response: CreateProjectResponse): CreatedProject {
@@ -90,6 +105,7 @@ export async function getProjects(): Promise<Project[]> {
       throw new Error("프로젝트 목록 응답 형식이 올바르지 않습니다.");
     }
 
+    response.content.forEach(assertProjectListItem);
     projects.push(...response.content.map(mapProjectResponseToProject));
     hasNext = response.hasNext === true;
     page += 1;

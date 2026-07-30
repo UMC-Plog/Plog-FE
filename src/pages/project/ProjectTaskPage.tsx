@@ -3,6 +3,7 @@ import { ClipboardList, Plus } from 'lucide-react'
 import { useParams } from 'react-router-dom'
 import {
   deleteTask,
+  fetchOverdueTasks,
   fetchProjectTasks,
   fetchTaskDetail,
   fetchTasksByMember,
@@ -19,55 +20,20 @@ import { ProgressBar } from '../../components/ProgressBar'
 import { cn } from '../../lib/utils'
 import { useProjectStore } from '../../store/projectStore'
 import type {
-  ServerProfilePreset,
-  ServerTaskCategory,
-  ServerTaskDetailResponse,
   ServerTaskStatus,
-  ServerTaskSummaryResponse,
-  ServerTaskAttachmentType,
   TaskDetailViewModel,
   TaskListItemViewModel,
 } from '../../types/task'
 
-type TaskFilter = 'all' | 'mine' | 'dueSoon'
+type TaskFilter = 'all' | 'mine' | 'overdue'
 
 const TASK_STATUSES: ServerTaskStatus[] = ['TODO', 'IN_PROGRESS', 'DONE']
 
 const FILTERS: Array<{ value: TaskFilter; label: string }> = [
   { value: 'all', label: '전체' },
   { value: 'mine', label: '내 업무' },
-  { value: 'dueSoon', label: '마감임박' },
+  { value: 'overdue', label: '마감 초과' },
 ]
-
-const SERVER_TASK_STATUSES: ReadonlySet<string> = new Set([
-  'TODO',
-  'IN_PROGRESS',
-  'DONE',
-])
-
-const SERVER_TASK_CATEGORIES: ReadonlySet<string> = new Set([
-  'PLANNING',
-  'DESIGN',
-  'DEVELOP',
-  'TEST_FIX',
-  'PRESENTATION_DOC',
-  'RESEARCH',
-  'MATERIAL_PRODUCTION',
-  'PRESENTATION',
-  'SCHEDULE_MANAGEMENT',
-  'ETC',
-])
-
-const SERVER_PROFILE_PRESETS: ReadonlySet<string> = new Set([
-  'OTTER',
-  'PENGUIN',
-  'FROG',
-  'KOALA',
-  'PANDA',
-  'SMILEY',
-  'GHOST',
-  'TIGER',
-])
 
 function parseProjectId(value: string) {
   if (!/^[1-9]\d*$/.test(value)) return null
@@ -75,136 +41,6 @@ function parseProjectId(value: string) {
   return Number.isSafeInteger(projectId) ? projectId : null
 }
 
-function isServerTaskStatus(value: unknown): value is ServerTaskStatus {
-  return typeof value === 'string' && SERVER_TASK_STATUSES.has(value)
-}
-
-function isServerTaskCategory(value: unknown): value is ServerTaskCategory {
-  return typeof value === 'string' && SERVER_TASK_CATEGORIES.has(value)
-}
-
-function isServerProfilePreset(value: unknown): value is ServerProfilePreset {
-  return typeof value === 'string' && SERVER_PROFILE_PRESETS.has(value)
-}
-
-function isServerAttachmentType(value: unknown): value is ServerTaskAttachmentType {
-  return value === 'FILE' || value === 'LINK'
-}
-
-function mapTaskSummary(response: ServerTaskSummaryResponse): TaskListItemViewModel {
-  const { taskId, title, category, cardStatus, endDate, isOverdue, assignee, attachmentCount } =
-    response
-
-  if (
-    typeof taskId !== 'number' ||
-    typeof title !== 'string' ||
-    !category ||
-    !cardStatus ||
-    typeof endDate !== 'string' ||
-    typeof isOverdue !== 'boolean' ||
-    typeof assignee?.projectMemberId !== 'number' ||
-    (typeof assignee.nickname !== 'string' && assignee.nickname !== null) ||
-    typeof attachmentCount !== 'number'
-  ) {
-    throw new Error('업무 목록 응답 형식이 올바르지 않습니다.')
-  }
-
-  return {
-    id: taskId,
-    title,
-    category,
-    status: cardStatus,
-    dueDate: endDate,
-    isOverdue,
-    assignee: {
-      projectMemberId: assignee.projectMemberId,
-      nickname: assignee.nickname,
-      profilePreset: assignee.profilePreset,
-    },
-    attachmentCount,
-  }
-}
-
-function mapTaskDetail(
-  response: ServerTaskDetailResponse,
-  requestedTaskId: number
-): TaskDetailViewModel {
-  const {
-    taskId,
-    title,
-    assignee,
-    category,
-    cardStatus,
-    endDate,
-    completedAt,
-    dDay,
-    isOverdue,
-    isImminent,
-    attachments,
-  } = response
-
-  if (
-    taskId !== requestedTaskId ||
-    typeof title !== 'string' ||
-    typeof assignee?.projectMemberId !== 'number' ||
-    (typeof assignee.nickname !== 'string' && assignee.nickname !== null) ||
-    !isServerTaskCategory(category) ||
-    !isServerTaskStatus(cardStatus) ||
-    typeof endDate !== 'string' ||
-    (completedAt !== undefined && completedAt !== null && typeof completedAt !== 'string') ||
-    typeof dDay !== 'number' ||
-    typeof isOverdue !== 'boolean' ||
-    typeof isImminent !== 'boolean' ||
-    !Array.isArray(attachments) ||
-    (assignee.profilePreset !== undefined &&
-      assignee.profilePreset !== null &&
-      !isServerProfilePreset(assignee.profilePreset))
-  ) {
-    throw new Error('업무 상세 응답 형식이 올바르지 않습니다.')
-  }
-
-  const mappedAttachments = attachments.map((attachment) => {
-    if (
-      typeof attachment.taskAttachmentId !== 'number' ||
-      !isServerAttachmentType(attachment.attachmentType) ||
-      typeof attachment.fileName !== 'string' ||
-      (attachment.linkUrl !== undefined &&
-        attachment.linkUrl !== null &&
-        typeof attachment.linkUrl !== 'string') ||
-      (attachment.downloadUrlApi !== undefined &&
-        attachment.downloadUrlApi !== null &&
-        typeof attachment.downloadUrlApi !== 'string')
-    ) {
-      throw new Error('업무 상세 응답 형식이 올바르지 않습니다.')
-    }
-
-    return {
-      id: attachment.taskAttachmentId,
-      type: attachment.attachmentType,
-      fileName: attachment.fileName,
-      linkUrl: attachment.linkUrl,
-      downloadUrlApi: attachment.downloadUrlApi,
-    }
-  })
-
-  return {
-    id: taskId,
-    title,
-    assignee: {
-      projectMemberId: assignee.projectMemberId,
-      nickname: assignee.nickname,
-      profilePreset: assignee.profilePreset,
-    },
-    category,
-    status: cardStatus,
-    dueDate: endDate,
-    completedAt,
-    dDay,
-    isOverdue,
-    isImminent,
-    attachments: mappedAttachments,
-  }
-}
 
 function getErrorMessage(error: unknown) {
   return error instanceof Error
@@ -212,45 +48,20 @@ function getErrorMessage(error: unknown) {
     : '네트워크 상태를 확인한 뒤 다시 시도해 주세요.'
 }
 
-function isDueSoon(task: TaskListItemViewModel, today = new Date()) {
-  if (task.status === 'DONE' || task.isOverdue) return false
-
-  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(task.dueDate)
-  if (!match) return false
-
-  const year = Number(match[1])
-  const month = Number(match[2])
-  const day = Number(match[3])
-  const endDate = new Date(year, month - 1, day)
-  if (
-    endDate.getFullYear() !== year ||
-    endDate.getMonth() !== month - 1 ||
-    endDate.getDate() !== day
-  ) {
-    return false
-  }
-
-  const todayValue = Date.UTC(
-    today.getFullYear(),
-    today.getMonth(),
-    today.getDate()
-  )
-  const endDateValue = Date.UTC(year, month - 1, day)
-  const daysUntilDue = (endDateValue - todayValue) / 86_400_000
-  return daysUntilDue >= 0 && daysUntilDue <= 3
-}
 
 export default function ProjectTaskPage() {
   const { id: projectIdParam = '' } = useParams<{ id: string }>()
   const projectId = useMemo(() => parseProjectId(projectIdParam), [projectIdParam])
   const requestIdRef = useRef(0)
   const memberRequestIdRef = useRef(0)
+  const overdueRequestIdRef = useRef(0)
   const activeFilterRef = useRef<TaskFilter>('all')
   const detailRequestIdRef = useRef(0)
   const statusUpdatingRef = useRef(false)
   const deletingRef = useRef(false)
   const [allTasks, setAllTasks] = useState<TaskListItemViewModel[]>([])
   const [myTasks, setMyTasks] = useState<TaskListItemViewModel[]>([])
+  const [overdueTasks, setOverdueTasks] = useState<TaskListItemViewModel[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [filter, setFilter] = useState<TaskFilter>('all')
@@ -269,6 +80,9 @@ export default function ProjectTaskPage() {
   const project = useProjectStore((state) =>
     state.projects.find((item) => item.id === projectIdParam)
   )
+  const isProjectListLoading = useProjectStore((state) => state.isLoading)
+  const hasProjectListFetched = useProjectStore((state) => state.hasFetched)
+  const projectListError = useProjectStore((state) => state.error)
   const currentProjectMemberId =
     project?.myProjectMemberId !== undefined &&
     Number.isSafeInteger(project.myProjectMemberId) &&
@@ -294,11 +108,7 @@ export default function ProjectTaskPage() {
     }
 
     try {
-      const response = await fetchProjectTasks(projectId)
-      if (!Array.isArray(response.content)) {
-        throw new Error('업무 목록 응답 형식이 올바르지 않습니다.')
-      }
-      const nextTasks = response.content.map(mapTaskSummary)
+      const nextTasks = await fetchProjectTasks(projectId)
       if (requestId === requestIdRef.current) setAllTasks(nextTasks)
     } catch (loadError: unknown) {
       if (
@@ -332,11 +142,7 @@ export default function ProjectTaskPage() {
     }
 
     try {
-      const response = await fetchTasksByMember(projectId, projectMemberId)
-      if (!Array.isArray(response.content)) {
-        throw new Error('업무 목록 응답 형식이 올바르지 않습니다.')
-      }
-      const nextTasks = response.content.map(mapTaskSummary)
+      const nextTasks = await fetchTasksByMember(projectId, projectMemberId)
       if (requestId === memberRequestIdRef.current) setMyTasks(nextTasks)
     } catch (loadError: unknown) {
       if (
@@ -357,13 +163,51 @@ export default function ProjectTaskPage() {
     }
   }, [projectId])
 
+  const loadOverdueTasks = useCallback(async (surface = true) => {
+    const requestId = ++overdueRequestIdRef.current
+    if (projectId === null) return
+
+    if (surface && activeFilterRef.current === 'overdue') {
+      setIsLoading(true)
+      setError(null)
+    }
+
+    try {
+      const nextTasks = await fetchOverdueTasks(projectId)
+      if (requestId === overdueRequestIdRef.current) {
+        setOverdueTasks(nextTasks)
+      }
+    } catch (loadError: unknown) {
+      if (
+        requestId === overdueRequestIdRef.current &&
+        surface &&
+        activeFilterRef.current === 'overdue'
+      ) {
+        setError(getErrorMessage(loadError))
+      }
+    } finally {
+      if (
+        requestId === overdueRequestIdRef.current &&
+        surface &&
+        activeFilterRef.current === 'overdue'
+      ) {
+        setIsLoading(false)
+      }
+    }
+  }, [projectId])
+
   const loadTasks = useCallback(async () => {
     const activeFilter = activeFilterRef.current
     if (activeFilter === 'mine') {
       if (currentProjectMemberId === null) {
         await loadAllTasks()
+        if (isProjectListLoading || !hasProjectListFetched) {
+          setIsLoading(true)
+          return
+        }
         setError(
-          '현재 사용자의 프로젝트 멤버 ID를 확인할 수 없어 내 업무를 불러올 수 없습니다.'
+          projectListError ??
+            '현재 사용자의 프로젝트 멤버 ID를 확인할 수 없어 내 업무를 불러올 수 없습니다.'
         )
         setIsLoading(false)
         return
@@ -374,19 +218,58 @@ export default function ProjectTaskPage() {
       ])
       return
     }
+    if (activeFilter === 'overdue') {
+      await Promise.all([loadAllTasks(), loadOverdueTasks()])
+      return
+    }
     await loadAllTasks(activeFilter)
-  }, [currentProjectMemberId, loadAllTasks, loadMyTasks])
+  }, [
+    currentProjectMemberId,
+    hasProjectListFetched,
+    isProjectListLoading,
+    loadAllTasks,
+    loadMyTasks,
+    loadOverdueTasks,
+    projectListError,
+  ])
 
   useEffect(() => {
     activeFilterRef.current = 'all'
     setFilter('all')
     setMyTasks([])
+    setOverdueTasks([])
     void loadAllTasks('all')
     return () => {
       requestIdRef.current += 1
       memberRequestIdRef.current += 1
+      overdueRequestIdRef.current += 1
     }
   }, [loadAllTasks])
+
+  useEffect(() => {
+    if (activeFilterRef.current !== 'mine') return
+    if (currentProjectMemberId !== null) {
+      void Promise.all([
+        loadAllTasks(),
+        loadMyTasks(currentProjectMemberId),
+      ])
+      return
+    }
+    if (!isProjectListLoading && hasProjectListFetched) {
+      setError(
+        projectListError ??
+          '현재 사용자의 프로젝트 멤버 ID를 확인할 수 없어 내 업무를 불러올 수 없습니다.'
+      )
+      setIsLoading(false)
+    }
+  }, [
+    currentProjectMemberId,
+    hasProjectListFetched,
+    isProjectListLoading,
+    loadAllTasks,
+    loadMyTasks,
+    projectListError,
+  ])
 
   const selectFilter = useCallback((nextFilter: TaskFilter) => {
     if (nextFilter === activeFilterRef.current) return
@@ -398,21 +281,44 @@ export default function ProjectTaskPage() {
 
     if (nextFilter === 'mine') {
       requestIdRef.current += 1
+      overdueRequestIdRef.current += 1
       if (currentProjectMemberId === null) {
         memberRequestIdRef.current += 1
+        if (isProjectListLoading || !hasProjectListFetched) {
+          setIsLoading(true)
+          return
+        }
         setError(
-          '현재 사용자의 프로젝트 멤버 ID를 확인할 수 없어 내 업무를 불러올 수 없습니다.'
+          projectListError ??
+            '현재 사용자의 프로젝트 멤버 ID를 확인할 수 없어 내 업무를 불러올 수 없습니다.'
         )
         setIsLoading(false)
         return
       }
-      void loadMyTasks(currentProjectMemberId)
+      void Promise.all([
+        loadAllTasks(),
+        loadMyTasks(currentProjectMemberId),
+      ])
       return
     }
 
     memberRequestIdRef.current += 1
+    if (nextFilter === 'overdue') {
+      requestIdRef.current += 1
+      void Promise.all([loadAllTasks(), loadOverdueTasks()])
+      return
+    }
+    overdueRequestIdRef.current += 1
     void loadAllTasks(nextFilter)
-  }, [currentProjectMemberId, loadAllTasks, loadMyTasks])
+  }, [
+    currentProjectMemberId,
+    hasProjectListFetched,
+    isProjectListLoading,
+    loadAllTasks,
+    loadMyTasks,
+    loadOverdueTasks,
+    projectListError,
+  ])
 
   const loadTaskDetail = useCallback(async (taskId: number) => {
     const requestId = ++detailRequestIdRef.current
@@ -429,8 +335,7 @@ export default function ProjectTaskPage() {
     setIsDetailLoading(true)
 
     try {
-      const response = await fetchTaskDetail(projectId, taskId)
-      const nextDetail = mapTaskDetail(response, taskId)
+      const nextDetail = await fetchTaskDetail(projectId, taskId)
       if (requestId === detailRequestIdRef.current) setDetail(nextDetail)
     } catch (loadError: unknown) {
       if (requestId === detailRequestIdRef.current) {
@@ -546,8 +451,8 @@ export default function ProjectTaskPage() {
   const visibleTasks =
     filter === 'mine'
       ? myTasks
-      : filter === 'dueSoon'
-        ? allTasks.filter((task) => isDueSoon(task))
+      : filter === 'overdue'
+        ? overdueTasks
         : allTasks
   const completedCount = allTasks.filter((task) => task.status === 'DONE').length
   const totalCount = allTasks.length
@@ -621,15 +526,15 @@ export default function ProjectTaskPage() {
           title={
             filter === 'mine'
               ? '내게 배정된 업무가 없어요'
-              : filter === 'dueSoon'
-                ? '마감임박 업무가 없어요'
+              : filter === 'overdue'
+                ? '마감 초과 업무가 없어요'
                 : '아직 등록된 업무가 없어요'
           }
           description={
             filter === 'mine'
               ? '담당자로 지정된 업무가 생기면 여기에서 확인할 수 있어요'
-              : filter === 'dueSoon'
-                ? '마감일까지 3일 이하로 남은 미완료 업무가 없어요'
+              : filter === 'overdue'
+                ? '마감일이 지난 미완료 업무가 없어요'
                 : '업무가 등록되면 상태별로 확인할 수 있어요'
           }
         />

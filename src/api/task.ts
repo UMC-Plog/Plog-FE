@@ -9,10 +9,15 @@ import type {
   ServerTaskDeleteResponse,
   ServerTaskDetailResponse,
   ServerTaskListResponse,
+  ServerTaskSummaryResponse,
+  ServerTaskCategory,
+  ServerTaskStatus,
   ServerTaskStatusUpdateRequest,
   ServerTaskStatusUpdateResponse,
   ServerTaskUpdateRequest,
   ServerTaskUpdateResponse,
+  TaskDetailViewModel,
+  TaskListItemViewModel,
 } from '../types/task'
 
 const PROFILE_PRESETS: ReadonlySet<string> = new Set([
@@ -49,6 +54,49 @@ function isProfilePreset(value: unknown): value is ServerProfilePreset {
   return typeof value === 'string' && PROFILE_PRESETS.has(value)
 }
 
+function isPositiveSafeInteger(value: unknown): value is number {
+  return Number.isSafeInteger(value) && (value as number) > 0
+}
+
+function isNonNegativeSafeInteger(value: unknown): value is number {
+  return Number.isSafeInteger(value) && (value as number) >= 0
+}
+
+function isTaskCategory(value: unknown): value is ServerTaskCategory {
+  return typeof value === 'string' && TASK_CATEGORIES.has(value)
+}
+
+function isTaskStatus(value: unknown): value is ServerTaskStatus {
+  return typeof value === 'string' && TASK_STATUSES.has(value)
+}
+
+function isValidDate(value: unknown): value is string {
+  if (typeof value !== 'string') return false
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value)
+  if (!match) return false
+  const year = Number(match[1])
+  const month = Number(match[2])
+  const day = Number(match[3])
+  const date = new Date(Date.UTC(year, month - 1, day))
+  return (
+    date.getUTCFullYear() === year &&
+    date.getUTCMonth() === month - 1 &&
+    date.getUTCDate() === day
+  )
+}
+
+function assertProjectId(projectId: number) {
+  if (!isPositiveSafeInteger(projectId)) {
+    throw new ApiError('INVALID_PROJECT_ID', '올바른 프로젝트 ID가 아닙니다.')
+  }
+}
+
+function assertTaskId(taskId: number) {
+  if (!isPositiveSafeInteger(taskId)) {
+    throw new ApiError('INVALID_TASK_ID', '올바른 업무 ID가 아닙니다.')
+  }
+}
+
 function isValidAttachment(value: unknown): value is ServerAttachmentResponse {
   if (typeof value !== 'object' || value === null) return false
 
@@ -71,15 +119,130 @@ function isValidAttachment(value: unknown): value is ServerAttachmentResponse {
   )
 }
 
+function mapTaskSummary(value: unknown): TaskListItemViewModel {
+  const message = '업무 목록 응답 형식이 올바르지 않습니다.'
+  if (typeof value !== 'object' || value === null) {
+    throw new ApiError('INVALID_TASK_LIST_RESPONSE', message)
+  }
+
+  const task = value as ServerTaskSummaryResponse
+  const assignee = task.assignee
+  if (
+    !isPositiveSafeInteger(task.taskId) ||
+    typeof task.title !== 'string' ||
+    task.title.trim().length === 0 ||
+    !isTaskCategory(task.category) ||
+    !isTaskStatus(task.cardStatus) ||
+    !isValidDate(task.endDate) ||
+    typeof task.isOverdue !== 'boolean' ||
+    typeof assignee !== 'object' ||
+    assignee === null ||
+    !isPositiveSafeInteger(assignee.projectMemberId) ||
+    (typeof assignee.nickname !== 'string' && assignee.nickname !== null) ||
+    (assignee.profilePreset !== undefined &&
+      assignee.profilePreset !== null &&
+      !isProfilePreset(assignee.profilePreset)) ||
+    !isNonNegativeSafeInteger(task.attachmentCount)
+  ) {
+    throw new ApiError('INVALID_TASK_LIST_RESPONSE', message)
+  }
+
+  return {
+    id: task.taskId,
+    title: task.title,
+    category: task.category,
+    status: task.cardStatus,
+    dueDate: task.endDate,
+    isOverdue: task.isOverdue,
+    assignee: {
+      projectMemberId: assignee.projectMemberId,
+      nickname: assignee.nickname,
+      profilePreset: assignee.profilePreset,
+    },
+    attachmentCount: task.attachmentCount,
+  }
+}
+
+function mapTaskList(value: unknown): TaskListItemViewModel[] {
+  if (
+    typeof value !== 'object' ||
+    value === null ||
+    !Array.isArray((value as ServerTaskListResponse).content)
+  ) {
+    throw new ApiError(
+      'INVALID_TASK_LIST_RESPONSE',
+      '업무 목록 응답 형식이 올바르지 않습니다.'
+    )
+  }
+  return (value as ServerTaskListResponse).content!.map(mapTaskSummary)
+}
+
+function mapTaskDetail(
+  value: unknown,
+  requestedTaskId: number
+): TaskDetailViewModel {
+  const message = '업무 상세 응답 형식이 올바르지 않습니다.'
+  if (typeof value !== 'object' || value === null) {
+    throw new ApiError('INVALID_TASK_DETAIL_RESPONSE', message)
+  }
+
+  const task = value as ServerTaskDetailResponse
+  const assignee = task.assignee
+  if (
+    task.taskId !== requestedTaskId ||
+    typeof task.title !== 'string' ||
+    task.title.trim().length === 0 ||
+    typeof assignee !== 'object' ||
+    assignee === null ||
+    !isPositiveSafeInteger(assignee.projectMemberId) ||
+    (typeof assignee.nickname !== 'string' && assignee.nickname !== null) ||
+    (assignee.profilePreset !== undefined &&
+      assignee.profilePreset !== null &&
+      !isProfilePreset(assignee.profilePreset)) ||
+    !isTaskCategory(task.category) ||
+    !isTaskStatus(task.cardStatus) ||
+    !isValidDate(task.endDate) ||
+    (task.completedAt !== undefined &&
+      task.completedAt !== null &&
+      typeof task.completedAt !== 'string') ||
+    !Number.isSafeInteger(task.dDay) ||
+    typeof task.isOverdue !== 'boolean' ||
+    typeof task.isImminent !== 'boolean' ||
+    !Array.isArray(task.attachments) ||
+    !task.attachments.every(isValidAttachment)
+  ) {
+    throw new ApiError('INVALID_TASK_DETAIL_RESPONSE', message)
+  }
+
+  return {
+    id: task.taskId,
+    title: task.title,
+    assignee: {
+      projectMemberId: assignee.projectMemberId,
+      nickname: assignee.nickname,
+      profilePreset: assignee.profilePreset,
+    },
+    category: task.category,
+    status: task.cardStatus,
+    dueDate: task.endDate,
+    completedAt: task.completedAt,
+    dDay: task.dDay!,
+    isOverdue: task.isOverdue,
+    isImminent: task.isImminent,
+    attachments: task.attachments.map((attachment) => ({
+      id: attachment.taskAttachmentId!,
+      type: attachment.attachmentType!,
+      fileName: attachment.fileName!,
+      linkUrl: attachment.linkUrl,
+      downloadUrlApi: attachment.downloadUrlApi,
+    })),
+  }
+}
+
 export async function fetchActiveProjectMembers(
   projectId: number
 ): Promise<ProjectActiveMember[]> {
-  if (!Number.isSafeInteger(projectId) || projectId <= 0) {
-    throw new ApiError(
-      'INVALID_PROJECT_ID',
-      '올바른 프로젝트 ID가 아닙니다.'
-    )
-  }
+  assertProjectId(projectId)
 
   const response = await apiRequest<unknown>(
     `/api/projects/${projectId}/members`
@@ -123,33 +286,81 @@ export async function fetchActiveProjectMembers(
   })
 }
 
-export function fetchProjectTasks(projectId: number) {
-  return apiRequest<ServerTaskListResponse>(`/api/projects/${projectId}/tasks`)
-}
-
-export function fetchTaskDetail(projectId: number, taskId: number) {
-  return apiRequest<ServerTaskDetailResponse>(
-    `/api/projects/${projectId}/tasks/${taskId}`
+export async function fetchProjectTasks(projectId: number) {
+  assertProjectId(projectId)
+  return mapTaskList(
+    await apiRequest<unknown>(`/api/projects/${projectId}/tasks`)
   )
 }
 
-export function fetchOverdueTasks(projectId: number) {
-  return apiRequest<ServerTaskListResponse>(
-    `/api/projects/${projectId}/tasks/overdue`
+export async function fetchTaskDetail(projectId: number, taskId: number) {
+  assertProjectId(projectId)
+  assertTaskId(taskId)
+  return mapTaskDetail(
+    await apiRequest<unknown>(`/api/projects/${projectId}/tasks/${taskId}`),
+    taskId
   )
 }
 
-export function fetchTasksByMember(projectId: number, projectMemberId: number) {
-  return apiRequest<ServerTaskListResponse>(
-    `/api/projects/${projectId}/members/${projectMemberId}/tasks`
+export async function fetchOverdueTasks(projectId: number) {
+  assertProjectId(projectId)
+  return mapTaskList(
+    await apiRequest<unknown>(`/api/projects/${projectId}/tasks/overdue`)
   )
 }
 
-export function createTask(projectId: number, payload: ServerTaskCreateRequest) {
-  return apiRequest<ServerTaskCreateResponse>(`/api/projects/${projectId}/tasks`, {
+export async function fetchTasksByMember(
+  projectId: number,
+  projectMemberId: number
+) {
+  assertProjectId(projectId)
+  if (!isPositiveSafeInteger(projectMemberId)) {
+    throw new ApiError(
+      'INVALID_PROJECT_MEMBER_ID',
+      '올바른 프로젝트 멤버 ID가 아닙니다.'
+    )
+  }
+  return mapTaskList(
+    await apiRequest<unknown>(
+      `/api/projects/${projectId}/members/${projectMemberId}/tasks`
+    )
+  )
+}
+
+export async function createTask(
+  projectId: number,
+  payload: ServerTaskCreateRequest
+) {
+  assertProjectId(projectId)
+  const response = await apiRequest<unknown>(`/api/projects/${projectId}/tasks`, {
     method: 'POST',
     body: payload,
   })
+
+  if (typeof response !== 'object' || response === null) {
+    throw new ApiError(
+      'INVALID_TASK_CREATE_RESPONSE',
+      '업무 생성 응답 형식이 올바르지 않습니다.'
+    )
+  }
+  const task = response as ServerTaskCreateResponse
+  if (
+    !isPositiveSafeInteger(task.taskId) ||
+    typeof task.title !== 'string' ||
+    task.title.trim().length === 0 ||
+    !isTaskCategory(task.category) ||
+    !isTaskStatus(task.cardStatus) ||
+    !isValidDate(task.endDate) ||
+    !isPositiveSafeInteger(task.projectMemberId) ||
+    !Array.isArray(task.attachments) ||
+    !task.attachments.every(isValidAttachment)
+  ) {
+    throw new ApiError(
+      'INVALID_TASK_CREATE_RESPONSE',
+      '업무 생성 응답 형식이 올바르지 않습니다.'
+    )
+  }
+  return task
 }
 
 export async function updateTask(
@@ -157,6 +368,8 @@ export async function updateTask(
   taskId: number,
   payload: ServerTaskUpdateRequest
 ) {
+  assertProjectId(projectId)
+  assertTaskId(taskId)
   const response = await apiRequest<unknown>(
     `/api/projects/${projectId}/tasks/${taskId}`,
     {
@@ -176,14 +389,11 @@ export async function updateTask(
   if (
     task.taskId !== taskId ||
     typeof task.title !== 'string' ||
-    typeof task.category !== 'string' ||
-    !TASK_CATEGORIES.has(task.category) ||
-    typeof task.cardStatus !== 'string' ||
-    !TASK_STATUSES.has(task.cardStatus) ||
-    typeof task.endDate !== 'string' ||
-    !Number.isSafeInteger(task.projectMemberId) ||
-    task.projectMemberId === undefined ||
-    task.projectMemberId <= 0 ||
+    task.title.trim().length === 0 ||
+    !isTaskCategory(task.category) ||
+    !isTaskStatus(task.cardStatus) ||
+    !isValidDate(task.endDate) ||
+    !isPositiveSafeInteger(task.projectMemberId) ||
     !Array.isArray(task.attachments) ||
     !task.attachments.every(isValidAttachment)
   ) {
@@ -201,7 +411,9 @@ export async function updateTaskStatus(
   taskId: number,
   payload: ServerTaskStatusUpdateRequest
 ) {
-  const response = await apiRequest<ServerTaskStatusUpdateResponse>(
+  assertProjectId(projectId)
+  assertTaskId(taskId)
+  const response = await apiRequest<unknown>(
     `/api/projects/${projectId}/tasks/${taskId}/status`,
     {
       method: 'PATCH',
@@ -210,12 +422,8 @@ export async function updateTaskStatus(
   )
 
   if (
-    !Number.isSafeInteger(response.taskId) ||
-    response.taskId !== taskId ||
-    response.cardStatus !== payload.cardStatus ||
-    (response.completedAt !== undefined &&
-      response.completedAt !== null &&
-      typeof response.completedAt !== 'string')
+    typeof response !== 'object' ||
+    response === null
   ) {
     throw new ApiError(
       'INVALID_TASK_STATUS_RESPONSE',
@@ -223,10 +431,27 @@ export async function updateTaskStatus(
     )
   }
 
-  return response
+  const statusResponse = response as ServerTaskStatusUpdateResponse
+  if (
+    statusResponse.taskId !== taskId ||
+    !isTaskStatus(statusResponse.cardStatus) ||
+    statusResponse.cardStatus !== payload.cardStatus ||
+    (statusResponse.completedAt !== undefined &&
+      statusResponse.completedAt !== null &&
+      typeof statusResponse.completedAt !== 'string')
+  ) {
+    throw new ApiError(
+      'INVALID_TASK_STATUS_RESPONSE',
+      '업무 상태 변경 응답 형식이 올바르지 않습니다.'
+    )
+  }
+
+  return statusResponse
 }
 
 export async function deleteTask(projectId: number, taskId: number) {
+  assertProjectId(projectId)
+  assertTaskId(taskId)
   const response = await apiRequest<unknown>(
     `/api/projects/${projectId}/tasks/${taskId}`,
     { method: 'DELETE' }

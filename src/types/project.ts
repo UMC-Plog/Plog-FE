@@ -43,6 +43,7 @@ export interface ProjectMemberPreviewResponse {
 
 export interface ProjectListItemResponse {
   projectId: number;
+  myProjectMemberId: number;
   projectName: string;
   projectType: ProjectApiType;
   status: ProjectStatus;
