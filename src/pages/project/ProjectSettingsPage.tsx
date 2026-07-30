@@ -8,12 +8,13 @@ import docsIcon from "../../assets/integrations/google-docs.svg";
 import slidesIcon from "../../assets/integrations/google-slides.svg";
 import { useProjectStore } from "../../store/projectStore";
 
+// logo: Figma 실측 - 32px 흰 타일 안에 들어가는 로고 크기 (GitHub 애셋은 타일 자체라 32)
 const INTEGRATIONS = [
-  { id: "github", label: "GitHub", icon: githubIcon, connected: true },
-  { id: "figma", label: "Figma", icon: figmaIcon, connected: true },
-  { id: "notion", label: "Notion", icon: notionIcon, connected: false },
-  { id: "docs", label: "Google docs", icon: docsIcon, connected: false },
-  { id: "slides", label: "Google slides", icon: slidesIcon, connected: true },
+  { id: "github", label: "GitHub", icon: githubIcon, logo: 32, connected: true },
+  { id: "figma", label: "Figma", icon: figmaIcon, logo: 22, connected: true },
+  { id: "notion", label: "Notion", icon: notionIcon, logo: 16, connected: false },
+  { id: "docs", label: "Google docs", icon: docsIcon, logo: 19, connected: false },
+  { id: "slides", label: "Google slides", icon: slidesIcon, logo: 19, connected: true },
 ] as const;
 
 const YEARS = ["2025", "2026", "2027", "2028"];
@@ -75,7 +76,7 @@ export function ProjectSettingsPage() {
   };
 
   return (
-    <div className="app-shell min-h-svh bg-gray-25 pb-[92px]">
+    <div className="app-shell min-h-svh bg-gray-25 pb-[116px]">
       <header className="flex h-[52px] items-center border-b border-gray-100 bg-gray-25 px-5 shadow-sm">
         <button type="button" aria-label="뒤로가기" onClick={() => navigate(`/project/${id}/feed`)} className="mr-3 flex h-6 w-6 items-center justify-center">
           <ChevronLeft className="h-6 w-6 text-gray-700" />
@@ -83,7 +84,7 @@ export function ProjectSettingsPage() {
         <h1 className="text-[18px] font-semibold text-gray-900">프로젝트 설정</h1>
       </header>
 
-      <main className="px-5 pt-[25px]">
+      <main className="px-5 pt-[18px]">
         <label className="block text-[14px] font-normal text-gray-700">
           프로젝트명
           <input
@@ -93,7 +94,7 @@ export function ProjectSettingsPage() {
           />
         </label>
 
-        <label className="mt-[25px] block text-[14px] font-normal text-gray-700">
+        <label className="mt-[22px] block text-[14px] font-normal text-gray-700">
           프로젝트 유형
           <div className="relative mt-[11px]">
             <select
@@ -108,9 +109,9 @@ export function ProjectSettingsPage() {
           </div>
         </label>
 
-        <fieldset className="mt-[25px]">
+        <fieldset className="mt-[22px]">
           <legend className="text-[14px] font-normal text-gray-700">예상 종료일</legend>
-          <div className="mt-[11px] flex gap-2">
+          <div className="mt-[11px] flex gap-[7px]">
             <SelectBox value={year} onChange={setYear} ariaLabel="종료 연도">
               {YEARS.map((item) => <option key={item}>{item}</option>)}
             </SelectBox>
@@ -123,7 +124,7 @@ export function ProjectSettingsPage() {
           </div>
         </fieldset>
 
-        <section className="mt-[25px]">
+        <section className="mt-[22px]">
           <h2 className="text-[14px] font-normal text-gray-700">팀원 초대</h2>
           <div className="mt-[11px] grid grid-cols-2 gap-4">
             <button
@@ -142,33 +143,34 @@ export function ProjectSettingsPage() {
           </div>
         </section>
 
-        <section className="mt-[20px]">
+        <section className="mt-[17px]">
           <h2 className="text-[14px] font-normal text-gray-900">
             팀(워크) 스페이스 연동 <span className="text-error">*</span>
           </h2>
           <p className="mt-1 text-[12px] font-normal text-gray-400">
             워크스페이스의 소유자(생성자)의 연동이 필요합니다
           </p>
-          <div className="mt-2 rounded-[16px] border border-gray-100 bg-white/10 px-[18px] py-[7px] shadow-card">
+          {/* Figma: 카드 세로 패딩 0 + 행 높이 61 (카드 총 높이 305) */}
+          <div className="mt-2 rounded-[16px] border border-gray-100 bg-white/10 px-[18px] shadow-card">
             {INTEGRATIONS.map((integration) => (
               <button
                 key={integration.id}
                 type="button"
                 onClick={() => navigate(`/project/${id}/settings/integrations/${integration.id}`)}
-                className="flex h-[62px] w-full items-center"
+                className="flex h-[61px] w-full items-center"
               >
-                <span className="flex h-8 w-8 items-center justify-center overflow-hidden rounded-[10px] bg-white">
-                  <img src={integration.icon} alt="" className="h-8 w-8 object-contain" />
+                <span className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-[10px] bg-white">
+                  <img src={integration.icon} alt="" className="object-contain" style={{ width: integration.logo, height: integration.logo }} />
                 </span>
                 <span className="ml-3 flex-1 text-left text-[15px] font-normal text-gray-900">
                   {integration.label}
                 </span>
-                <span className={`mr-[14px] rounded-full px-[15px] py-[7px] text-[12px] ${
+                <span className={`mr-[14px] rounded-full px-[14px] py-[5px] text-[12px] ${
                   integration.connected ? "bg-[#E9F8F0] text-success" : "bg-[#FDEDEE] text-error"
                 }`}>
                   {integration.connected ? "연동" : "미연동"}
                 </span>
-                <ChevronRight className="h-5 w-5 text-gray-400" aria-hidden />
+                <ChevronRight className="h-5 w-5 shrink-0 text-gray-400" aria-hidden />
               </button>
             ))}
           </div>
