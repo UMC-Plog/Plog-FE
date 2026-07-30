@@ -118,13 +118,20 @@ export default function PeerEvalAccountSelectPage() {
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
   const [linkedProviders, setLinkedProviders] = useState<ProviderParam[] | null>(null);
   const [loading, setLoading] = useState(true);
+  // 목록 조회 자체가 실패했을 때는 "선택지가 없어서 건너뛰기 가능"과 구분해야 한다 (실패 시에는 건너뛰기 불가)
+  const [loadFailed, setLoadFailed] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
+  const [retryToken, setRetryToken] = useState(0);
 
   useEffect(() => {
     if (!id) return;
     let cancelled = false;
     setLoading(true);
+    // provider가 바뀌면 이전 provider의 선택값이 새 provider에 실수로 저장되지 않도록 즉시 초기화한다
+    setSelectedKey(null);
+    setActors([]);
+    setLoadFailed(false);
 
     Promise.all([
       getProjectIntegrations(id),
@@ -142,6 +149,7 @@ export default function PeerEvalAccountSelectPage() {
       })
       .catch((err) => {
         if (!cancelled) {
+          setLoadFailed(true);
           setNotice(err instanceof ApiError ? err.message : '계정 목록을 불러오지 못했어요. 다시 시도해 주세요.');
         }
       })
@@ -152,18 +160,22 @@ export default function PeerEvalAccountSelectPage() {
     return () => {
       cancelled = true;
     };
-  }, [id, providerParam]);
+  }, [id, providerParam, retryToken]);
 
   const providerIndex = linkedProviders?.indexOf(providerParam) ?? -1;
   const isLast = linkedProviders !== null && providerIndex === linkedProviders.length - 1;
   const nextProvider = linkedProviders && providerIndex >= 0 ? linkedProviders[providerIndex + 1] : undefined;
-  const canSubmit = Boolean(selectedKey) && !submitting;
+  // 수집된 활동이 없다고 "확인된" 경우에만 매핑 없이 다음 단계로 넘어갈 수 있다 (조회 실패 시엔 재시도해야 함)
+  const canSkip = !loading && !loadFailed && actors.length === 0;
+  const canSubmit = !loading && !submitting && (canSkip || Boolean(selectedKey));
 
   const handleSubmit = async () => {
-    if (!id || !selectedKey || submitting) return;
+    if (!id || submitting || !canSubmit) return;
     setSubmitting(true);
     try {
-      await saveMyActorMapping(id, providerParam, selectedKey);
+      if (selectedKey) {
+        await saveMyActorMapping(id, providerParam, selectedKey);
+      }
       if (isLast || !nextProvider) {
         navigate(`/project/${id}/peer-eval`);
       } else {
@@ -207,6 +219,17 @@ export default function PeerEvalAccountSelectPage() {
 
         {loading ? (
           <p className="text-body-sm text-gray-400 text-center py-6">불러오는 중...</p>
+        ) : loadFailed ? (
+          <div className="flex flex-col items-center gap-3 py-6">
+            <p className="text-body-sm text-gray-400 text-center">계정 목록을 불러오지 못했어요.</p>
+            <button
+              type="button"
+              onClick={() => setRetryToken((value) => value + 1)}
+              className="rounded-full border border-primary px-3.5 py-2 text-body-sm text-primary hover:bg-primary-50 transition-colors"
+            >
+              다시 시도
+            </button>
+          </div>
         ) : actors.length === 0 ? (
           <p className="text-body-sm text-gray-400 text-center py-6">
             아직 수집된 {config.label} 활동이 없어요. 데이터 수집 후 다시 시도해 주세요.

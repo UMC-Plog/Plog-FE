@@ -84,11 +84,15 @@ export default function PeerEvalListPage() {
   const [notice, setNotice] = useState<string | null>(null);
   const [linkedProviders, setLinkedProviders] = useState<AccountProvider[]>([]);
   const [accountDone, setAccountDone] = useState(false);
+  // 연동 상태를 확인하지 못한 동안은 "연동된 툴 없음"으로 단정하지 않고 계정 선택을 필수로 간주한다
+  const [integrationsUnavailable, setIntegrationsUnavailable] = useState(false);
+  const [integrationsRetryToken, setIntegrationsRetryToken] = useState(0);
 
   useEffect(() => {
     const projectId = Number(id);
     if (!Number.isFinite(projectId) || !id) return;
     let cancelled = false;
+    setLoading(true);
     Promise.all([
       fetchEvaluationTargets(projectId),
       fetchMySelfFeedback(projectId)
@@ -98,17 +102,19 @@ export default function PeerEvalListPage() {
           if (err instanceof ApiError && err.status === 404) return false;
           throw err;
         }),
-      // 연동된 외부 툴이 하나도 없으면 "내 계정 선택" 카드 자체를 숨긴다
-      getProjectIntegrations(id).catch(() => null),
+      getProjectIntegrations(id)
+        .then((res) => ({ ok: true as const, res }))
+        .catch(() => ({ ok: false as const, res: null })),
     ])
-      .then(async ([targetsRes, selfDoneRes, integrationsRes]) => {
+      .then(async ([targetsRes, selfDoneRes, integrationsResult]) => {
         if (cancelled) return;
         setTargets(targetsRes.targets);
         setSelfDone(selfDoneRes);
+        setIntegrationsUnavailable(!integrationsResult.ok);
 
-        const linked = integrationsRes
+        const linked = integrationsResult.ok
           ? PROVIDER_ORDER.filter((p) =>
-              integrationsRes.integrations.some((item) => item.linkType === p.type && item.linked)
+              integrationsResult.res.integrations.some((item) => item.linkType === p.type && item.linked)
             ).map((p) => p.param)
           : [];
         setLinkedProviders(linked);
@@ -120,7 +126,11 @@ export default function PeerEvalListPage() {
           if (cancelled) return;
           setAccountDone(
             mappings.every(
-              (res) => res !== null && res.mappings.some((m) => m.projectMemberId === res.currentProjectMemberId)
+              (res) =>
+                res !== null &&
+                // 수집된 활동이 없어 선택지가 없던 provider는 매핑이 없어도 완료로 인정한다
+                (res.availableProviderActors.length === 0 ||
+                  res.mappings.some((m) => m.projectMemberId === res.currentProjectMemberId))
             )
           );
         }
@@ -136,12 +146,13 @@ export default function PeerEvalListPage() {
     return () => {
       cancelled = true;
     };
-  }, [id]);
+  }, [id, integrationsRetryToken]);
 
   const doneCount = targets.filter((t) => t.isEvaluated).length + (selfDone ? 1 : 0);
   const totalCount = targets.length + 1;
-  // 연동된 외부 툴이 있으면 "내 계정 선택"도 필수 항목이라 완료해야 제출할 수 있다
-  const accountRequired = linkedProviders.length > 0;
+  // 연동된 외부 툴이 있으면 "내 계정 선택"도 필수 항목이라 완료해야 제출할 수 있다.
+  // 연동 상태 조회 자체가 실패했을 때도 우회되지 않도록 안전하게 필수로 취급한다.
+  const accountRequired = integrationsUnavailable || linkedProviders.length > 0;
   const allDone = totalCount > 0 && doneCount === totalCount && (!accountRequired || accountDone);
 
   const handleSubmit = () => {
@@ -237,8 +248,28 @@ export default function PeerEvalListPage() {
             </div>
           )}
 
+          {/* 연동 상태 조회 실패 카드 - 재시도 전까지는 이유를 알 수 없는 채로 제출이 막히지 않도록 안내 */}
+          {!loading && integrationsUnavailable && (
+            <div className="bg-error/5 border border-error/30 rounded-2xl shadow-md px-5 py-4 flex items-start gap-3">
+              <PersonIcon />
+              <div className="flex-1">
+                <span className="text-title text-gray-900">내 계정 선택</span>
+                <p className="text-caption text-gray-400 mt-2">
+                  연동 상태를 확인하지 못했어요. 연동된 툴이 있다면 계정 선택 후 제출할 수 있어요.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setIntegrationsRetryToken((value) => value + 1)}
+                  className="mt-3 bg-gray-25 border border-error text-error rounded-full px-3.5 py-2 text-body-sm hover:bg-error/10 transition-colors"
+                >
+                  다시 시도
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* 내 계정 선택 카드 - 연동된 외부 툴이 있을 때만 노출 */}
-          {!loading && linkedProviders.length > 0 && (
+          {!loading && !integrationsUnavailable && linkedProviders.length > 0 && (
             <div className="bg-primary-50 border border-primary rounded-2xl shadow-md px-5 py-4 flex items-start gap-3">
               <PersonIcon />
               <div className="flex-1">
