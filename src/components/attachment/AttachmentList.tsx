@@ -22,6 +22,7 @@ import type { NormalizedAttachment } from '../../types/attachment'
 
 interface AttachmentListProps {
   attachments: NormalizedAttachment[]
+  variant?: 'default' | 'subtle'
   canDelete?: boolean
   onDelete?: (attachment: NormalizedAttachment) => void
   deletingAttachmentId?: number | null
@@ -37,6 +38,7 @@ function getErrorMessage(error: unknown) {
 
 export function AttachmentList({
   attachments,
+  variant = 'default',
   canDelete = false,
   onDelete,
   deletingAttachmentId = null,
@@ -137,7 +139,12 @@ export function AttachmentList({
         return (
           <li
             key={attachment.attachmentId}
-            className="rounded-md border border-gray-200 bg-white p-3"
+            className={cn(
+              'rounded-md p-3 transition-colors',
+              variant === 'subtle'
+                ? 'bg-gray-100 hover:bg-gray-200/60'
+                : 'border border-gray-200 bg-white'
+            )}
           >
             <div className="flex items-center gap-2">
               <TypeIcon

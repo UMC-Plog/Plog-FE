@@ -1,6 +1,7 @@
 import { ApiError } from '../api/client'
 import {
   MAX_ATTACHMENTS,
+  type AttachmentRequest,
   type AttachmentDraft,
   type AttachmentDraftSummary,
   type NewAttachmentRequest,
@@ -144,4 +145,53 @@ export function toNewAttachmentRequests(
     })
   }
   return requests
+}
+
+export function toAttachmentRequests(
+  drafts: AttachmentDraft[]
+): AttachmentRequest[] {
+  return drafts.map((draft) => {
+    if (draft.attachmentType === 'LINK') {
+      return {
+        attachmentType: 'LINK',
+        fileName: draft.fileName,
+        linkUrl: draft.linkUrl,
+      }
+    }
+
+    if (draft.source === 'SERVER') {
+      if (
+        !Number.isSafeInteger(draft.fileId) ||
+        draft.fileId === undefined ||
+        draft.fileId <= 0 ||
+        !Number.isSafeInteger(draft.fileSize) ||
+        draft.fileSize === undefined ||
+        draft.fileSize < 0
+      ) {
+        throw new ApiError(
+          'INVALID_EXISTING_ATTACHMENT',
+          '기존 첨부파일 정보를 확인할 수 없습니다.'
+        )
+      }
+      return {
+        attachmentType: 'FILE',
+        fileName: draft.fileName,
+        fileSize: draft.fileSize,
+        fileId: draft.fileId,
+      }
+    }
+
+    if (draft.status !== 'SUCCESS' || !draft.fileKey) {
+      throw new ApiError(
+        'ATTACHMENT_UPLOAD_INCOMPLETE',
+        '파일 업로드가 완료될 때까지 기다려 주세요.'
+      )
+    }
+    return {
+      attachmentType: 'FILE',
+      fileName: draft.fileName,
+      fileSize: draft.fileSize,
+      fileKey: draft.fileKey,
+    }
+  })
 }

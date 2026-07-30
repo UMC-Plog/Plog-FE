@@ -304,20 +304,30 @@ function validateAttachment(
   if (
     (attachment.attachmentType !== 'FILE' &&
       attachment.attachmentType !== 'LINK') ||
-    typeof attachment.fileName !== 'string'
+    !isPositiveSafeInteger(attachment.postAttachmentId) ||
+    typeof attachment.fileName !== 'string' ||
+    !attachment.fileName.trim()
   ) {
     invalidResponse()
   }
 
   if (
-    attachment.postAttachmentId !== undefined &&
-    !isPositiveSafeInteger(attachment.postAttachmentId)
+    attachment.fileSize !== undefined &&
+    !isNonNegativeSafeInteger(attachment.fileSize)
   ) {
     invalidResponse()
   }
   if (
-    attachment.fileSize !== undefined &&
-    !isNonNegativeSafeInteger(attachment.fileSize)
+    attachment.attachmentType === 'FILE' &&
+    (!isPositiveSafeInteger(attachment.fileId) ||
+      !isNonNegativeSafeInteger(attachment.fileSize))
+  ) {
+    invalidResponse()
+  }
+  if (
+    attachment.attachmentType === 'LINK' &&
+    (typeof attachment.linkUrl !== 'string' ||
+      !attachment.linkUrl.trim())
   ) {
     invalidResponse()
   }

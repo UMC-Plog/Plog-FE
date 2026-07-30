@@ -65,6 +65,17 @@ export type NewAttachmentRequest =
   | NewFileAttachmentRequest
   | LinkAttachmentRequest
 
+export interface ExistingFileAttachmentRequest {
+  attachmentType: 'FILE'
+  fileName: string
+  fileSize: number
+  fileId: number
+}
+
+export type AttachmentRequest =
+  | NewAttachmentRequest
+  | ExistingFileAttachmentRequest
+
 export interface AttachmentDraftSummary {
   count: number
   hasPendingUploads: boolean

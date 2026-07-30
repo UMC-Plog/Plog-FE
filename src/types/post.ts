@@ -1,4 +1,5 @@
 import type { ProfilePreset } from '../lib/profilePreset'
+import type { AttachmentRequest } from './attachment'
 
 export interface PostAttachment {
   id: string
@@ -10,14 +11,7 @@ export interface PostAttachment {
 
 export type ServerPostAttachmentType = 'FILE' | 'LINK'
 
-export interface ServerPostAttachmentRequest {
-  attachmentType?: ServerPostAttachmentType
-  fileName?: string
-  fileSize?: number
-  fileKey?: string
-  fileId?: number
-  linkUrl?: string
-}
+export type ServerPostAttachmentRequest = AttachmentRequest
 
 export interface ServerPostCreateRequest {
   title: string
@@ -115,7 +109,7 @@ export interface ServerPostNoticeListResponse {
 }
 
 export interface PostFeedAttachmentViewModel {
-  id?: number
+  id: number
   type: ServerPostAttachmentType
   fileId?: number
   fileName: string
@@ -153,6 +147,7 @@ export interface PostFeedResult {
 export interface ServerPostUpdateRequest {
   title?: string
   content?: string
+  attachments?: ServerPostAttachmentRequest[]
 }
 
 export interface ServerPostUpdateResponse

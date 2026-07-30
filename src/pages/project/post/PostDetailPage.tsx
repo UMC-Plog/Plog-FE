@@ -1,4 +1,4 @@
-import { ArrowRight, Ellipsis, FileText, Heart, Link, MessageSquare } from 'lucide-react'
+import { ArrowRight, Ellipsis, Heart, MessageSquare } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { ApiError } from '../../../api/client'
@@ -21,6 +21,8 @@ import type { PostDetailViewModel } from '../../../types/post'
 import type { PostCommentViewModel } from '../../../types/post'
 import { PostAuthorAvatar } from '../../../components/post/PostAuthorAvatar'
 import { useProjectStore } from '../../../store/projectStore'
+import { AttachmentList } from '../../../components/attachment/AttachmentList'
+import type { NormalizedAttachment } from '../../../types/attachment'
 
 function formatPostTime(createdAt: string) {
   const createdTime = Date.parse(createdAt)
@@ -53,6 +55,27 @@ function parsePositiveSafeInteger(value: string | undefined) {
     Number.isSafeInteger(Number(value))
     ? Number(value)
     : null
+}
+
+function normalizePostAttachments(
+  post: PostDetailViewModel
+): NormalizedAttachment[] {
+  return post.attachments.map((attachment) =>
+    attachment.type === 'FILE'
+      ? {
+          attachmentId: attachment.id,
+          attachmentType: 'FILE',
+          fileName: attachment.fileName,
+          fileSize: attachment.fileSize ?? null,
+          downloadUrlApi: attachment.downloadUrlApi ?? null,
+        }
+      : {
+          attachmentId: attachment.id,
+          attachmentType: 'LINK',
+          fileName: attachment.fileName,
+          linkUrl: attachment.linkUrl!,
+        }
+  )
 }
 
 export default function PostDetailPage() {
@@ -96,6 +119,7 @@ export default function PostDetailPage() {
     currentProjectMemberId === post.projectMemberId
   const canEditPost = isPostAuthor
   const canDeletePost = isPostAuthor
+  const normalizedAttachments = post ? normalizePostAttachments(post) : []
 
   const loadDetail = useCallback(async () => {
     const requestId = ++detailRequestRef.current
@@ -402,29 +426,11 @@ export default function PostDetailPage() {
             {post.content}
           </p>
 
-          {post.attachments.length > 0 && (
-            <div className="mt-5 space-y-2">
-              {post.attachments.map((attachment, index) => {
-                const AttachmentIcon =
-                  attachment.type === 'LINK' ? Link : FileText
-
-                return (
-                  <div
-                    key={`${attachment.id ?? attachment.fileId ?? attachment.fileName}-${index}`}
-                    className="flex items-center gap-3 rounded-md bg-gray-50 px-3 py-3"
-                  >
-                    <AttachmentIcon
-                      className="h-5 w-5 shrink-0 text-primary"
-                      aria-hidden
-                    />
-                    <span className="min-w-0 flex-1 truncate text-body-sm text-blue-600">
-                      {attachment.fileName}
-                    </span>
-                  </div>
-                )
-              })}
-            </div>
-          )}
+          <AttachmentList
+            attachments={normalizedAttachments}
+            variant="subtle"
+            className="mt-5"
+          />
 
           <div className="mt-5 flex items-center gap-4 text-caption font-normal text-gray-400">
             <button

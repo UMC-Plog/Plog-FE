@@ -1,5 +1,6 @@
 import {
   FileText,
+  Image,
   Link as LinkIcon,
   Paperclip,
   RotateCcw,
@@ -12,6 +13,7 @@ import {
   useRef,
   useState,
 } from 'react'
+import type { ChangeEvent } from 'react'
 import { ApiError } from '../../api/client'
 import { uploadFile } from '../../api/file'
 import {
@@ -38,6 +40,19 @@ interface AttachmentPickerProps {
   maxAttachments?: number
   disabled?: boolean
   onStatusChange?: (summary: AttachmentDraftSummary) => void
+  variant?: 'default' | 'post'
+}
+
+const FILE_ACCEPT = '.pdf,.pptx,.docx,.zip,.fig'
+const IMAGE_ACCEPT =
+  '.jpg,.jpeg,.png,.webp,.gif,image/jpeg,image/png,image/webp,image/gif'
+
+function isImageAttachment(draft: AttachmentDraft) {
+  if (draft.attachmentType !== 'FILE') return false
+  if (draft.source === 'NEW' && draft.contentType.startsWith('image/')) {
+    return true
+  }
+  return /\.(?:jpe?g|png|webp|gif)$/i.test(draft.fileName)
 }
 
 function getErrorMessage(error: unknown) {
@@ -57,9 +72,11 @@ export function AttachmentPicker({
   maxAttachments = MAX_ATTACHMENTS,
   disabled = false,
   onStatusChange,
+  variant = 'default',
 }: AttachmentPickerProps) {
   const inputId = useId()
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const imageInputRef = useRef<HTMLInputElement>(null)
   const draftsRef = useRef(value)
   const generationsRef = useRef(new Map<string, number>())
   const mountedRef = useRef(true)
@@ -264,33 +281,90 @@ export function AttachmentPicker({
   }
 
   const atLimit = value.length >= maxAttachments
+  const isPostVariant = variant === 'post'
+
+  const openLinkModal = () => {
+    setLinkError(undefined)
+    setIsLinkModalOpen(true)
+  }
+
+  const handleFileInputChange = (event: ChangeEvent<HTMLInputElement>) => {
+    selectFiles(Array.from(event.target.files ?? []))
+    event.target.value = ''
+  }
 
   return (
     <div>
-      <div className="flex items-center justify-between gap-3">
-        <p className="text-body-sm font-medium text-gray-700">첨부</p>
-        <span className="text-caption font-normal text-gray-400">
-          {value.length}/{maxAttachments}
-        </span>
-      </div>
+      {!isPostVariant && (
+        <div className="flex items-center justify-between gap-3">
+          <p className="text-body-sm font-medium text-gray-700">첨부</p>
+          <span className="text-caption font-normal text-gray-400">
+            {value.length}/{maxAttachments}
+          </span>
+        </div>
+      )}
+
+      {isPostVariant && (
+        <div className="flex items-center gap-5 border-b border-gray-200 pb-3">
+          <button
+            type="button"
+            disabled={disabled || atLimit}
+            onClick={() => fileInputRef.current?.click()}
+            className="inline-flex items-center gap-1.5 text-body-sm text-gray-500 hover:text-gray-700 disabled:text-gray-300"
+          >
+            <Paperclip className="h-4 w-4" aria-hidden />
+            파일
+          </button>
+          <button
+            type="button"
+            disabled={disabled || atLimit}
+            onClick={openLinkModal}
+            className="inline-flex items-center gap-1.5 text-body-sm text-gray-500 hover:text-gray-700 disabled:text-gray-300"
+          >
+            <LinkIcon className="h-4 w-4" aria-hidden />
+            링크
+          </button>
+          <button
+            type="button"
+            disabled={disabled || atLimit}
+            onClick={() => imageInputRef.current?.click()}
+            className="inline-flex items-center gap-1.5 text-body-sm text-gray-500 hover:text-gray-700 disabled:text-gray-300"
+          >
+            <Image className="h-4 w-4" aria-hidden />
+            이미지
+          </button>
+        </div>
+      )}
 
       {value.length > 0 && (
-        <ul className="mt-2 flex flex-col gap-2">
+        <ul className={`${isPostVariant ? 'mt-4' : 'mt-2'} flex flex-col gap-2`}>
           {value.map((draft) => {
             const isFile = draft.attachmentType === 'FILE'
             const isNewFile = isFile && draft.source === 'NEW'
             const isUploading = isNewFile && draft.status === 'UPLOADING'
             const isFailed = isNewFile && draft.status === 'ERROR'
-            const Icon = isFile ? FileText : LinkIcon
+            const Icon = isFile
+              ? isPostVariant && isImageAttachment(draft)
+                ? Image
+                : FileText
+              : LinkIcon
 
             return (
               <li
                 key={draft.localId}
-                className="rounded-md border border-gray-200 bg-white p-3"
+                className={
+                  isPostVariant
+                    ? 'rounded-md bg-gray-50 px-3 py-3'
+                    : 'rounded-md border border-gray-200 bg-white p-3'
+                }
               >
                 <div className="flex items-center gap-2">
                   <Icon className="h-4 w-4 shrink-0 text-primary" aria-hidden />
-                  <span className="min-w-0 flex-1 truncate text-body-sm text-gray-700">
+                  <span
+                    className={`min-w-0 flex-1 truncate text-body-sm ${
+                      isPostVariant ? 'text-blue-600' : 'text-gray-700'
+                    }`}
+                  >
                     {draft.fileName}
                   </span>
                   {isFile && draft.fileSize !== undefined && (
@@ -303,7 +377,11 @@ export function AttachmentPicker({
                     disabled={disabled}
                     aria-label={`${draft.fileName} 첨부 제거`}
                     onClick={() => removeDraft(draft.localId)}
-                    className="shrink-0 text-gray-400 hover:text-gray-600 disabled:text-gray-200"
+                    className={`shrink-0 text-gray-400 hover:text-gray-600 disabled:text-gray-200 ${
+                      isPostVariant
+                        ? 'flex h-7 w-7 items-center justify-center rounded-full bg-white'
+                        : ''
+                    }`}
                   >
                     <X className="h-4 w-4" aria-hidden />
                   </button>
@@ -347,31 +425,30 @@ export function AttachmentPicker({
         </ul>
       )}
 
-      <div className="mt-2 grid grid-cols-2 gap-2">
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          disabled={disabled || atLimit}
-          icon={<Paperclip className="h-4 w-4" aria-hidden />}
-          onClick={() => fileInputRef.current?.click()}
-        >
-          파일 선택
-        </Button>
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          disabled={disabled || atLimit}
-          icon={<LinkIcon className="h-4 w-4" aria-hidden />}
-          onClick={() => {
-            setLinkError(undefined)
-            setIsLinkModalOpen(true)
-          }}
-        >
-          링크 추가
-        </Button>
-      </div>
+      {!isPostVariant && (
+        <div className="mt-2 grid grid-cols-2 gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={disabled || atLimit}
+            icon={<Paperclip className="h-4 w-4" aria-hidden />}
+            onClick={() => fileInputRef.current?.click()}
+          >
+            파일 선택
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={disabled || atLimit}
+            icon={<LinkIcon className="h-4 w-4" aria-hidden />}
+            onClick={openLinkModal}
+          >
+            링크 추가
+          </Button>
+        </div>
+      )}
 
       <input
         ref={fileInputRef}
@@ -379,13 +456,26 @@ export function AttachmentPicker({
         type="file"
         className="hidden"
         multiple
-        accept=".pdf,.pptx,.docx,.zip,.fig,.jpg,.jpeg,.png,.webp,.gif"
+        accept={
+          isPostVariant
+            ? FILE_ACCEPT
+            : `${FILE_ACCEPT},${IMAGE_ACCEPT}`
+        }
         aria-label="첨부 파일 선택"
-        onChange={(event) => {
-          selectFiles(Array.from(event.target.files ?? []))
-          event.target.value = ''
-        }}
+        onChange={handleFileInputChange}
       />
+
+      {isPostVariant && (
+        <input
+          ref={imageInputRef}
+          type="file"
+          className="hidden"
+          multiple
+          accept={IMAGE_ACCEPT}
+          aria-label="첨부 이미지 선택"
+          onChange={handleFileInputChange}
+        />
+      )}
 
       {attachmentError && (
         <p className="mt-2 text-caption font-normal text-error">
