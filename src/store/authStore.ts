@@ -20,6 +20,8 @@ export interface ProfileUpdate {
   avatarImageUrl: string | null;
 }
 
+export type SyncedProfile = Omit<AuthUser, "id">;
+
 interface TermsAgreement {
   service: boolean; // [필수] 서비스 이용약관
   privacy: boolean; // [필수] 개인정보 수집 및 이용
@@ -78,6 +80,7 @@ interface AuthState {
   logout: () => void;
   setTokens: (tokens: AuthTokens) => void;
   updateProfile: (profile: ProfileUpdate) => void;
+  syncProfile: (profile: SyncedProfile) => void;
 
   // signup draft actions (다단계 진행 중 데이터 유지)
   setSignupMethod: (method: SignupDraft["method"]) => void;
@@ -109,6 +112,18 @@ export const useAuthStore = create<AuthState>()(
                 ...state.user,
                 nickname: profile.nickname.trim(),
                 avatarId: profile.avatarId,
+                avatarImageUrl: getPersistentProfileImage(profile.avatarImageUrl),
+              }
+            : null,
+        })),
+      syncProfile: (profile) =>
+        set((state) => ({
+          user: state.user
+            ? {
+                ...state.user,
+                ...profile,
+                nickname: profile.nickname.trim(),
+                realName: profile.realName.trim(),
                 avatarImageUrl: getPersistentProfileImage(profile.avatarImageUrl),
               }
             : null,

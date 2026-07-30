@@ -1,6 +1,13 @@
-import { useRef, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import { Check, Pencil } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import {
+  checkProfileNicknameAvailable,
+  fetchProfile,
+  updateProfile as updateProfileRequest,
+  type ProfileResponse,
+} from "../../api/auth";
+import { ApiError } from "../../api/client";
 import {
   AVATAR_PRESETS,
   AvatarPicker,
@@ -12,7 +19,7 @@ import { Input } from "../../components/Input";
 import { Layout } from "../../components/Layout";
 import { AlertModal, BottomSheet } from "../../components/Modal";
 import { getPersistentProfileImage } from "../../lib/profileImage";
-import { mockCheckNickname } from "../../mocks/nickname";
+import { toAvatarId, toProfilePreset } from "../../lib/profilePreset";
 import { useAuthStore } from "../../store/authStore";
 
 type NicknameCheckState = "idle" | "checking" | "available" | "duplicate";
@@ -20,16 +27,18 @@ type NicknameCheckState = "idle" | "checking" | "available" | "duplicate";
 export function ProfileEditPage() {
   const navigate = useNavigate();
   const user = useAuthStore((state) => state.user);
-  const updateProfile = useAuthStore((state) => state.updateProfile);
-  const originalNickname = user?.nickname ?? "";
-  const initialCustomImageUrl = getPersistentProfileImage(user?.avatarImageUrl);
-  const initialAvatarId = user?.avatarId ?? (initialCustomImageUrl ? null : "otter");
+  const syncProfile = useAuthStore((state) => state.syncProfile);
+  const storedImageUrl = getPersistentProfileImage(user?.avatarImageUrl);
+  const storedAvatarId = user?.avatarId ?? (storedImageUrl ? null : "otter");
 
-  const [nickname, setNickname] = useState(originalNickname);
-  const [avatarId, setAvatarId] = useState<AvatarPresetId | null>(initialAvatarId);
-  const [customImageUrl, setCustomImageUrl] = useState<string | null>(initialCustomImageUrl);
-  const [stagedAvatarId, setStagedAvatarId] = useState<AvatarPresetId | null>(initialAvatarId);
-  const [stagedImageUrl, setStagedImageUrl] = useState<string | null>(initialCustomImageUrl);
+  const [originalNickname, setOriginalNickname] = useState(user?.nickname ?? "");
+  const [initialAvatarId, setInitialAvatarId] = useState<AvatarPresetId | null>(storedAvatarId);
+  const [initialCustomImageUrl, setInitialCustomImageUrl] = useState<string | null>(storedImageUrl);
+  const [nickname, setNickname] = useState(user?.nickname ?? "");
+  const [avatarId, setAvatarId] = useState<AvatarPresetId | null>(storedAvatarId);
+  const [customImageUrl, setCustomImageUrl] = useState<string | null>(storedImageUrl);
+  const [stagedAvatarId, setStagedAvatarId] = useState<AvatarPresetId | null>(storedAvatarId);
+  const [stagedImageUrl, setStagedImageUrl] = useState<string | null>(storedImageUrl);
   const [avatarSheetOpen, setAvatarSheetOpen] = useState(false);
   const [imageError, setImageError] = useState("");
   const [imageReading, setImageReading] = useState(false);
@@ -37,9 +46,60 @@ export function ProfileEditPage() {
   const [checkedNickname, setCheckedNickname] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [savedOpen, setSavedOpen] = useState(false);
+  const [profileLoading, setProfileLoading] = useState(true);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const latestNicknameRef = useRef(nickname);
   const imageRequestRef = useRef(0);
   const saveStartedRef = useRef(false);
+
+  const applyProfile = useCallback(
+    (profile: ProfileResponse) => {
+      const nextAvatarId = toAvatarId(profile.profilePreset);
+      syncProfile({
+        email: profile.email,
+        realName: profile.name,
+        nickname: profile.nickname,
+        avatarId: nextAvatarId,
+        avatarImageUrl: null,
+      });
+      setOriginalNickname(profile.nickname);
+      setInitialAvatarId(nextAvatarId);
+      setInitialCustomImageUrl(null);
+      setNickname(profile.nickname);
+      setAvatarId(nextAvatarId);
+      setCustomImageUrl(null);
+      setStagedAvatarId(nextAvatarId);
+      setStagedImageUrl(null);
+      latestNicknameRef.current = profile.nickname;
+      setCheckState("idle");
+      setCheckedNickname(null);
+    },
+    [syncProfile]
+  );
+
+  useEffect(() => {
+    let active = true;
+
+    void fetchProfile()
+      .then((profile) => {
+        if (active) applyProfile(profile);
+      })
+      .catch((error) => {
+        if (!active) return;
+        setErrorMessage(
+          error instanceof ApiError
+            ? error.message
+            : "프로필 정보를 불러오지 못했어요."
+        );
+      })
+      .finally(() => {
+        if (active) setProfileLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [applyProfile]);
 
   const normalizedNickname = nickname.trim();
   const nicknameValid = normalizedNickname.length >= 2 && normalizedNickname.length <= 6;
@@ -91,11 +151,25 @@ export function ProfileEditPage() {
     }
 
     setCheckState("checking");
-    const available = await mockCheckNickname(targetNickname);
-    if (latestNicknameRef.current.trim() !== targetNickname) return;
-
-    setCheckedNickname(targetNickname);
-    setCheckState(available ? "available" : "duplicate");
+    try {
+      await checkProfileNicknameAvailable(targetNickname);
+      if (latestNicknameRef.current.trim() !== targetNickname) return;
+      setCheckedNickname(targetNickname);
+      setCheckState("available");
+    } catch (error) {
+      if (latestNicknameRef.current.trim() !== targetNickname) return;
+      setCheckedNickname(targetNickname);
+      if (error instanceof ApiError && error.code === "AUTH003") {
+        setCheckState("duplicate");
+        return;
+      }
+      setCheckState("idle");
+      setErrorMessage(
+        error instanceof ApiError
+          ? error.message
+          : "닉네임 중복 확인에 실패했어요."
+      );
+    }
   };
 
   const openAvatarSheet = () => {
@@ -119,19 +193,35 @@ export function ProfileEditPage() {
     setAvatarSheetOpen(false);
   };
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!canSave || saveStartedRef.current) return;
 
     saveStartedRef.current = true;
     setSaving(true);
-    updateProfile({
-      nickname: normalizedNickname,
-      avatarId,
-      avatarImageUrl: customImageUrl,
-    });
-    setSaving(false);
-    setSavedOpen(true);
+    setErrorMessage(null);
+    try {
+      await updateProfileRequest({
+        ...(normalizedNickname !== originalNickname
+          ? { nickname: normalizedNickname }
+          : {}),
+        ...(avatarId !== initialAvatarId && avatarId
+          ? { preset: toProfilePreset(avatarId) ?? undefined }
+          : {}),
+      });
+      const latestProfile = await fetchProfile();
+      applyProfile(latestProfile);
+      setSavedOpen(true);
+    } catch (error) {
+      saveStartedRef.current = false;
+      setErrorMessage(
+        error instanceof ApiError
+          ? error.message
+          : "프로필을 수정하지 못했어요."
+      );
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -143,7 +233,17 @@ export function ProfileEditPage() {
       />
 
       <form className="flex flex-1 flex-col" onSubmit={handleSubmit} noValidate>
-        <div className="px-[22px] pt-9">
+        {profileLoading ? (
+          <div
+            className="flex flex-1 items-center justify-center"
+            role="status"
+            aria-label="프로필 정보 불러오는 중"
+          >
+            <span className="h-8 w-8 animate-spin rounded-full border-4 border-blue-100 border-t-blue-500" />
+          </div>
+        ) : (
+          <>
+          <div className="px-[22px] pt-9">
           <div className="flex justify-center">
             <div className="relative">
               <img
@@ -173,7 +273,7 @@ export function ProfileEditPage() {
                   실명
                 </label>
                 <span className="text-caption font-normal text-gray-400">
-                  * 분석 리포트의 신뢰도를 위해 가입 후 1회만 변경 가능합니다
+                  * 실명은 변경할 수 없습니다
                 </span>
               </div>
               <Input
@@ -219,7 +319,7 @@ export function ProfileEditPage() {
           </div>
         </div>
 
-        <footer className="mt-auto border-t border-gray-100 bg-white px-[22px] pb-[37px] pt-4">
+          <footer className="mt-auto border-t border-gray-100 bg-white px-[22px] pb-[37px] pt-4">
           <Button
             type="submit"
             size="lg"
@@ -229,7 +329,9 @@ export function ProfileEditPage() {
           >
             저장
           </Button>
-        </footer>
+          </footer>
+          </>
+        )}
       </form>
 
       <BottomSheet
@@ -282,6 +384,11 @@ export function ProfileEditPage() {
         confirmText="확인"
         onConfirm={() => navigate("/my")}
         variant="profile-saved"
+      />
+      <AlertModal
+        open={Boolean(errorMessage)}
+        title={errorMessage ?? ""}
+        onConfirm={() => setErrorMessage(null)}
       />
     </Layout>
   );
