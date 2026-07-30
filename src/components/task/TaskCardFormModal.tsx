@@ -4,6 +4,8 @@ import { ApiError } from '../../api/client'
 import {
   createTask,
   fetchActiveProjectMembers,
+  updateTask,
+  updateTaskStatus,
 } from '../../api/task'
 import { AVATAR_PRESETS } from '../AvatarPicker'
 import { Button } from '../Button'
@@ -16,14 +18,25 @@ import type {
   ServerProfilePreset,
   ServerTaskCategory,
   ServerTaskStatus,
+  ServerTaskUpdateRequest,
+  TaskDetailViewModel,
 } from '../../types/task'
 
 interface TaskCardFormModalProps {
   open: boolean
   projectId: number
   projectType?: ProjectType
+  task?: TaskDetailViewModel | null
   onClose: () => void
-  onCreated: () => void
+  onSaved: () => void
+}
+
+interface TaskEditBaseline {
+  title: string
+  projectMemberId: number
+  category: ServerTaskCategory
+  status: ServerTaskStatus
+  endDate: string
 }
 
 const STATUS_OPTIONS: Array<{ value: ServerTaskStatus; label: string }> = [
@@ -76,9 +89,11 @@ export function TaskCardFormModal({
   open,
   projectId,
   projectType,
+  task,
   onClose,
-  onCreated,
+  onSaved,
 }: TaskCardFormModalProps) {
+  const isEditMode = Boolean(task)
   const requestIdRef = useRef(0)
   const submittingRef = useRef(false)
   const [members, setMembers] = useState<ProjectActiveMember[]>([])
@@ -92,6 +107,7 @@ export function TaskCardFormModal({
   const [isDateFocused, setIsDateFocused] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState<string>()
+  const [editBaseline, setEditBaseline] = useState<TaskEditBaseline | null>(null)
 
   const categories = useMemo(
     () =>
@@ -106,7 +122,6 @@ export function TaskCardFormModal({
   const loadMembers = useCallback(async () => {
     const requestId = ++requestIdRef.current
     setMembers([])
-    setProjectMemberId(null)
     setIsMembersLoading(true)
     setMembersError(undefined)
 
@@ -128,10 +143,22 @@ export function TaskCardFormModal({
       return
     }
 
-    setTitle('')
-    setStatus('TODO')
-    setCategory('')
-    setEndDate('')
+    setTitle(task?.title ?? '')
+    setProjectMemberId(task?.assignee.projectMemberId ?? null)
+    setStatus(task?.status ?? 'TODO')
+    setCategory(task?.category ?? '')
+    setEndDate(task?.dueDate ?? '')
+    setEditBaseline(
+      task
+        ? {
+            title: task.title,
+            projectMemberId: task.assignee.projectMemberId,
+            category: task.category,
+            status: task.status,
+            endDate: task.dueDate,
+          }
+        : null
+    )
     setIsDateFocused(false)
     setIsSubmitting(false)
     setSubmitError(undefined)
@@ -141,7 +168,7 @@ export function TaskCardFormModal({
     return () => {
       requestIdRef.current += 1
     }
-  }, [loadMembers, open])
+  }, [loadMembers, open, task])
 
   useEffect(() => {
     if (category && !categories.some((option) => option.value === category)) {
@@ -153,6 +180,17 @@ export function TaskCardFormModal({
   const selectedMember = members.find(
     (member) => member.projectMemberId === projectMemberId
   )
+  const hasGeneralChanges = Boolean(
+    editBaseline &&
+      (normalizedTitle !== editBaseline.title ||
+        projectMemberId !== editBaseline.projectMemberId ||
+        category !== editBaseline.category ||
+        endDate !== editBaseline.endDate)
+  )
+  const hasStatusChanges = Boolean(
+    editBaseline && status !== editBaseline.status
+  )
+  const hasChanges = hasGeneralChanges || hasStatusChanges
   const canSubmit = Boolean(
     normalizedTitle.length >= 2 &&
       selectedMember &&
@@ -160,6 +198,7 @@ export function TaskCardFormModal({
       status &&
       endDate &&
       projectType &&
+      (!isEditMode || hasChanges) &&
       !isMembersLoading &&
       !isSubmitting
   )
@@ -179,14 +218,62 @@ export function TaskCardFormModal({
     setSubmitError(undefined)
 
     try {
-      await createTask(projectId, {
-        title: normalizedTitle,
-        projectMemberId: selectedMember.projectMemberId,
-        category,
-        cardStatus: status,
-        endDate,
-      })
-      onCreated()
+      if (task && editBaseline) {
+        const payload: ServerTaskUpdateRequest = {}
+        if (normalizedTitle !== editBaseline.title) {
+          payload.title = normalizedTitle
+        }
+        if (selectedMember.projectMemberId !== editBaseline.projectMemberId) {
+          payload.projectMemberId = selectedMember.projectMemberId
+        }
+        if (category !== editBaseline.category) payload.category = category
+        if (endDate !== editBaseline.endDate) payload.endDate = endDate
+
+        let generalUpdateSucceeded = false
+        if (hasGeneralChanges) {
+          await updateTask(projectId, task.id, payload)
+          generalUpdateSucceeded = true
+          setEditBaseline((current) =>
+            current
+              ? {
+                  ...current,
+                  title: normalizedTitle,
+                  projectMemberId: selectedMember.projectMemberId,
+                  category,
+                  endDate,
+                }
+              : current
+          )
+        }
+
+        if (hasStatusChanges) {
+          try {
+            await updateTaskStatus(projectId, task.id, {
+              cardStatus: status,
+            })
+          } catch (error: unknown) {
+            if (generalUpdateSucceeded) {
+              onSaved()
+              setSubmitError(
+                '업무 정보는 수정됐지만 상태 변경에 실패했습니다. 다시 확인해주세요.'
+              )
+              submittingRef.current = false
+              setIsSubmitting(false)
+              return
+            }
+            throw error
+          }
+        }
+      } else {
+        await createTask(projectId, {
+          title: normalizedTitle,
+          projectMemberId: selectedMember.projectMemberId,
+          category,
+          cardStatus: status,
+          endDate,
+        })
+      }
+      onSaved()
       onClose()
     } catch (error: unknown) {
       setSubmitError(getErrorMessage(error))
@@ -201,7 +288,9 @@ export function TaskCardFormModal({
       onClose={isSubmitting ? undefined : onClose}
     >
       <div className="max-h-[calc(100svh-7rem)] overflow-y-auto pr-1">
-        <h2 className="text-h3 text-gray-900">업무카드 등록</h2>
+        <h2 className="text-h3 text-gray-900">
+          {isEditMode ? '업무카드 수정' : '업무카드 등록'}
+        </h2>
 
         <div className="mt-4 flex flex-col gap-4">
           <div>
@@ -315,7 +404,10 @@ export function TaskCardFormModal({
                 <button
                   key={option.value}
                   type="button"
-                  onClick={() => setStatus(option.value)}
+                  onClick={() => {
+                    setStatus(option.value)
+                    setSubmitError(undefined)
+                  }}
                   aria-pressed={status === option.value}
                   className={cn(
                     'h-8 rounded-full border px-3 text-caption',
@@ -414,7 +506,13 @@ export function TaskCardFormModal({
             onClick={() => void submit()}
             className="flex-[2] text-white"
           >
-            {isSubmitting ? '등록 중' : '업무 등록'}
+            {isSubmitting
+              ? isEditMode
+                ? '수정 중'
+                : '등록 중'
+              : isEditMode
+                ? '업무 수정'
+                : '업무 등록'}
           </Button>
         </div>
       </div>

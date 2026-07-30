@@ -21,8 +21,11 @@ interface TaskCardDetailModalProps {
   error: string | null
   onClose: () => void
   onRetry: () => void
+  onEdit: () => void
+  onDelete: () => void
   onUnavailableAction: () => void
   isStatusUpdating: boolean
+  isDeleting: boolean
   onStatusChange: (status: ServerTaskStatus) => void
 }
 
@@ -55,8 +58,11 @@ export function TaskCardDetailModal({
   error,
   onClose,
   onRetry,
+  onEdit,
+  onDelete,
   onUnavailableAction,
   isStatusUpdating,
+  isDeleting,
   onStatusChange,
 }: TaskCardDetailModalProps) {
   const avatarId = task?.assignee.profilePreset
@@ -67,17 +73,17 @@ export function TaskCardDetailModal({
   return (
     <BottomSheet
       open={open}
-      onClose={isStatusUpdating ? undefined : onClose}
+      onClose={isStatusUpdating || isDeleting ? undefined : onClose}
     >
       <div className="max-h-[calc(100svh-7rem)] overflow-y-auto pr-1">
         <div className="flex items-center justify-between gap-3">
           <h2 className="text-h3 text-gray-900">업무카드 상세</h2>
           {task && (
             <div className="flex gap-1">
-              <Button type="button" variant="ghost" size="sm" fullWidth={false} disabled={isStatusUpdating} onClick={onUnavailableAction} className="h-7 px-2.5 text-caption leading-none bg-gray-100 text-gray-400">
+              <Button type="button" variant="ghost" size="sm" fullWidth={false} disabled={isStatusUpdating || isDeleting} onClick={onEdit} className="h-7 px-2.5 text-caption leading-none bg-gray-100 text-gray-400">
                 수정
               </Button>
-              <Button type="button" variant="ghost" size="sm" fullWidth={false} disabled={isStatusUpdating} onClick={onUnavailableAction} className="h-7 px-2.5 text-caption leading-none bg-error/10 text-error hover:bg-error/20">
+              <Button type="button" variant="ghost" size="sm" fullWidth={false} disabled={isStatusUpdating || isDeleting} onClick={onDelete} className="h-7 px-2.5 text-caption leading-none bg-error/10 text-error hover:bg-error/20">
                 삭제
               </Button>
             </div>

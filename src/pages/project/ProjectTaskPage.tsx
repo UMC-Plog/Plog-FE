@@ -2,11 +2,13 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ClipboardList, Plus } from 'lucide-react'
 import { useParams } from 'react-router-dom'
 import {
+  deleteTask,
   fetchProjectTasks,
   fetchTaskDetail,
   updateTaskStatus,
 } from '../../api/task'
 import { Button } from '../../components/Button'
+import { ConfirmDialog } from '../../components/ConfirmDialog'
 import { EmptyState } from '../../components/EmptyState'
 import { AlertModal } from '../../components/Modal'
 import { KanbanColumn } from '../../components/task/KanbanColumn'
@@ -215,6 +217,7 @@ export default function ProjectTaskPage() {
   const requestIdRef = useRef(0)
   const detailRequestIdRef = useRef(0)
   const statusUpdatingRef = useRef(false)
+  const deletingRef = useRef(false)
   const [tasks, setTasks] = useState<TaskListItemViewModel[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -227,6 +230,10 @@ export default function ProjectTaskPage() {
   const [isStatusUpdating, setIsStatusUpdating] = useState(false)
   const [statusError, setStatusError] = useState<string | null>(null)
   const [isCreateOpen, setIsCreateOpen] = useState(false)
+  const [editingTask, setEditingTask] = useState<TaskDetailViewModel | null>(null)
+  const [deleteTarget, setDeleteTarget] = useState<TaskDetailViewModel | null>(null)
+  const [isDeleting, setIsDeleting] = useState(false)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
   const project = useProjectStore((state) =>
     state.projects.find((item) => item.id === projectIdParam)
   )
@@ -356,6 +363,47 @@ export default function ProjectTaskPage() {
     selectedTaskId,
   ])
 
+  const openTaskEdit = useCallback(() => {
+    if (!detail || isStatusUpdating || isDeleting) return
+    setEditingTask(detail)
+    closeTaskDetail()
+  }, [closeTaskDetail, detail, isDeleting, isStatusUpdating])
+
+  const openTaskDelete = useCallback(() => {
+    if (!detail || isStatusUpdating || isDeleting) return
+    setDeleteError(null)
+    setDeleteTarget(detail)
+  }, [detail, isDeleting, isStatusUpdating])
+
+  const confirmTaskDelete = useCallback(async () => {
+    if (
+      projectId === null ||
+      !deleteTarget ||
+      deletingRef.current
+    ) {
+      return
+    }
+
+    deletingRef.current = true
+    setIsDeleting(true)
+    setDeleteError(null)
+
+    try {
+      const response = await deleteTask(projectId, deleteTarget.id)
+      if (!response.isDeleted) {
+        throw new Error('업무를 삭제하지 못했습니다.')
+      }
+      setDeleteTarget(null)
+      closeTaskDetail()
+      await loadTasks()
+    } catch (deleteTaskError: unknown) {
+      setDeleteError(getErrorMessage(deleteTaskError))
+    } finally {
+      deletingRef.current = false
+      setIsDeleting(false)
+    }
+  }, [closeTaskDetail, deleteTarget, loadTasks, projectId])
+
   const completedCount = tasks.filter((task) => task.status === 'DONE').length
   const totalCount = tasks.length
 
@@ -458,8 +506,11 @@ export default function ProjectTaskPage() {
         onRetry={() => {
           if (selectedTaskId !== null) void loadTaskDetail(selectedTaskId)
         }}
+        onEdit={openTaskEdit}
+        onDelete={openTaskDelete}
         onUnavailableAction={() => setNotice('detailAction')}
         isStatusUpdating={isStatusUpdating}
+        isDeleting={isDeleting}
         onStatusChange={(status) => void changeTaskStatus(status)}
       />
 
@@ -469,9 +520,40 @@ export default function ProjectTaskPage() {
           projectId={projectId}
           projectType={project?.type}
           onClose={() => setIsCreateOpen(false)}
-          onCreated={() => void loadTasks()}
+          onSaved={() => void loadTasks()}
         />
       )}
+
+      {projectId !== null && editingTask && (
+        <TaskCardFormModal
+          open
+          projectId={projectId}
+          projectType={project?.type}
+          task={editingTask}
+          onClose={() => setEditingTask(null)}
+          onSaved={() => void loadTasks()}
+        />
+      )}
+
+      <ConfirmDialog
+        open={deleteTarget !== null}
+        title="업무를 삭제하시겠습니까?"
+        description={
+          deleteError ??
+          '삭제된 업무는 복구할 수 없습니다.'
+        }
+        confirmText={isDeleting ? '삭제 중' : '삭제하기'}
+        cancelText="취소"
+        destructive
+        confirmDisabled={isDeleting}
+        confirmLoading={isDeleting}
+        onConfirm={() => void confirmTaskDelete()}
+        onCancel={() => {
+          if (isDeleting) return
+          setDeleteTarget(null)
+          setDeleteError(null)
+        }}
+      />
 
       <AlertModal
         open={notice !== null}

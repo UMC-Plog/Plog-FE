@@ -198,10 +198,10 @@ export interface ServerTaskCreateResponse {
 }
 
 export interface ServerTaskUpdateRequest {
-  title?: string | null
-  projectMemberId?: number | null
-  category?: ServerTaskCategory | null
-  endDate?: string | null
+  title?: string
+  projectMemberId?: number
+  category?: ServerTaskCategory
+  endDate?: string
 }
 
 export interface ServerTaskUpdateResponse {
