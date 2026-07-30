@@ -38,9 +38,10 @@ export default function ProjectReportPage() {
   const [report, setReport] = useState<ReportSearchResponse | null>(null)
 
   // Peer평가/자기피드백 전원 완료 여부와, 이미 생성된 리포트가 있는지를 실제 API로 확인한다.
+  // projectStore에 아직 이 프로젝트가 안 불러와졌어도 projectId만 유효하면 호출한다.
   useEffect(() => {
     const numericProjectId = Number(projectId)
-    if (!Number.isFinite(numericProjectId) || !project) return
+    if (!Number.isFinite(numericProjectId)) return
     let cancelled = false
 
     Promise.all([
@@ -59,16 +60,17 @@ export default function ProjectReportPage() {
       })
       .catch(() => undefined)
 
-    searchReports({ keyword: project.name, size: 1 })
+    // keyword 검색은 이름이 겹치는 다른 프로젝트를 잘못 집어올 수 있어 projectId로 다시 필터링한다.
+    searchReports({ size: 100 })
       .then((res) => {
-        if (!cancelled) setReport(res.content[0] ?? null)
+        if (!cancelled) setReport(res.content.find((item) => item.projectId === numericProjectId) ?? null)
       })
       .catch(() => undefined)
 
     return () => {
       cancelled = true
     }
-  }, [projectId, project])
+  }, [projectId])
 
   const status: EvaluationStatus =
     evalComplete || report?.reportStatus === 'COMPLETED'
