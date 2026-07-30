@@ -2,8 +2,20 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { cn } from '../../lib/utils';
 import { fetchEvaluationTargets, fetchMySelfFeedback, type TargetMember } from '../../api/evaluation';
+import { getIntegrationActorMappings, getProjectIntegrations } from '../../api/projectApi';
 import { ApiError } from '../../api/client';
 import { AlertModal } from '../../components/Modal';
+import type { ProjectIntegrationType } from '../../types/project';
+
+type AccountProvider = 'github' | 'figma' | 'notion' | 'google';
+
+// 백엔드가 연동 상태를 내려주는 순서(GITHUB, FIGMA, NOTION, GOOGLE)와 동일하게 순회한다
+const PROVIDER_ORDER: { param: AccountProvider; type: ProjectIntegrationType }[] = [
+  { param: 'github', type: 'GITHUB' },
+  { param: 'figma', type: 'FIGMA' },
+  { param: 'notion', type: 'NOTION' },
+  { param: 'google', type: 'GOOGLE' },
+];
 
 // ── SVG 아이콘 ──────────────────────────────────────────────────────────────
 
@@ -70,10 +82,12 @@ export default function PeerEvalListPage() {
   const [selfDone, setSelfDone] = useState(false);
   const [loading, setLoading] = useState(true);
   const [notice, setNotice] = useState<string | null>(null);
+  const [linkedProviders, setLinkedProviders] = useState<AccountProvider[]>([]);
+  const [accountDone, setAccountDone] = useState(false);
 
   useEffect(() => {
     const projectId = Number(id);
-    if (!Number.isFinite(projectId)) return;
+    if (!Number.isFinite(projectId) || !id) return;
     let cancelled = false;
     Promise.all([
       fetchEvaluationTargets(projectId),
@@ -84,11 +98,32 @@ export default function PeerEvalListPage() {
           if (err instanceof ApiError && err.status === 404) return false;
           throw err;
         }),
+      // 연동된 외부 툴이 하나도 없으면 "내 계정 선택" 카드 자체를 숨긴다
+      getProjectIntegrations(id).catch(() => null),
     ])
-      .then(([targetsRes, selfDoneRes]) => {
+      .then(async ([targetsRes, selfDoneRes, integrationsRes]) => {
         if (cancelled) return;
         setTargets(targetsRes.targets);
         setSelfDone(selfDoneRes);
+
+        const linked = integrationsRes
+          ? PROVIDER_ORDER.filter((p) =>
+              integrationsRes.integrations.some((item) => item.linkType === p.type && item.linked)
+            ).map((p) => p.param)
+          : [];
+        setLinkedProviders(linked);
+
+        if (linked.length > 0) {
+          const mappings = await Promise.all(
+            linked.map((provider) => getIntegrationActorMappings(id, provider).catch(() => null))
+          );
+          if (cancelled) return;
+          setAccountDone(
+            mappings.every(
+              (res) => res !== null && res.mappings.some((m) => m.projectMemberId === res.currentProjectMemberId)
+            )
+          );
+        }
       })
       .catch((err) => {
         if (!cancelled) {
@@ -105,7 +140,9 @@ export default function PeerEvalListPage() {
 
   const doneCount = targets.filter((t) => t.isEvaluated).length + (selfDone ? 1 : 0);
   const totalCount = targets.length + 1;
-  const allDone = totalCount > 0 && doneCount === totalCount;
+  // 연동된 외부 툴이 있으면 "내 계정 선택"도 필수 항목이라 완료해야 제출할 수 있다
+  const accountRequired = linkedProviders.length > 0;
+  const allDone = totalCount > 0 && doneCount === totalCount && (!accountRequired || accountDone);
 
   const handleSubmit = () => {
     if (!allDone || !id) return;
@@ -195,6 +232,34 @@ export default function PeerEvalListPage() {
                 </div>
                 <p className="text-caption text-gray-400 mt-2">
                   활동 로그로 파악하기 어려운 기여 맥락 작성
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* 내 계정 선택 카드 - 연동된 외부 툴이 있을 때만 노출 */}
+          {!loading && linkedProviders.length > 0 && (
+            <div className="bg-primary-50 border border-primary rounded-2xl shadow-md px-5 py-4 flex items-start gap-3">
+              <PersonIcon />
+              <div className="flex-1">
+                <div className="flex items-center justify-between">
+                  <span className="text-title text-gray-900">내 계정 선택</span>
+                  {accountDone ? (
+                    <span className="bg-success/10 text-success rounded-full px-3.5 py-2 text-body-sm shrink-0">
+                      완료
+                    </span>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => navigate(`/project/${id}/peer-eval/accounts/${linkedProviders[0]}`)}
+                      className="bg-gray-25 border border-primary text-primary rounded-full px-3.5 py-2 text-body-sm hover:bg-primary-100 transition-colors shrink-0"
+                    >
+                      연결하기
+                    </button>
+                  )}
+                </div>
+                <p className="text-caption text-gray-400 mt-2">
+                  신뢰도 높은 리포트 출력을 위해 본인 계정 선택이 필요해요
                 </p>
               </div>
             </div>
