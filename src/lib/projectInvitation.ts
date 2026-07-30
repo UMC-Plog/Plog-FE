@@ -35,8 +35,10 @@ export function createProjectInvitationUrl(
   const resolvedInviteCode = inviteCode || getInviteCodeFromUrl(backendInviteUrl);
   if (!resolvedInviteCode) return backendInviteUrl;
 
-  const configuredFrontendUrl = import.meta.env.VITE_FRONTEND_URL?.trim();
-  if (!configuredFrontendUrl) return backendInviteUrl;
+  // VITE_FRONTEND_URL이 비어 있어도 초대 링크가 백엔드 주소로 새어 나가지 않도록
+  // 현재 접속 중인 프론트 origin을 기본값으로 사용한다.
+  const configuredFrontendUrl =
+    import.meta.env.VITE_FRONTEND_URL?.trim() || window.location.origin;
 
   try {
     return new URL(
