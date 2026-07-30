@@ -95,3 +95,25 @@ export type OpenableAttachment =
       attachmentType: 'LINK'
       linkUrl?: string | null
     }
+
+export type NormalizedAttachment =
+  | NormalizedFileAttachment
+  | NormalizedLinkAttachment
+
+interface NormalizedAttachmentBase {
+  attachmentId: number
+  fileName: string
+}
+
+export interface NormalizedFileAttachment
+  extends NormalizedAttachmentBase {
+  attachmentType: 'FILE'
+  fileSize: number | null
+  downloadUrlApi: string | null
+}
+
+export interface NormalizedLinkAttachment
+  extends NormalizedAttachmentBase {
+  attachmentType: 'LINK'
+  linkUrl: string
+}
