@@ -9,7 +9,13 @@ import {
   Search,
   X,
 } from "lucide-react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
+import {
+  disconnectProjectIntegration,
+  getProjectSettings,
+} from "../../api/projectApi";
+import { ApiError } from "../../api/client";
+import { Modal } from "../../components/Modal";
 import { PermissionIcon } from "../../components/project/PermissionIcon";
 import type { PermissionIconName } from "../../components/project/PermissionIcon";
 import githubIcon from "../../assets/integrations/github.svg";
@@ -17,6 +23,10 @@ import figmaIcon from "../../assets/integrations/figma.svg";
 import notionIcon from "../../assets/integrations/notion.png";
 import docsIcon from "../../assets/integrations/google-docs.svg";
 import slidesIcon from "../../assets/integrations/google-slides.svg";
+import {
+  useIntegrationStore,
+  type IntegrationProvider,
+} from "../../store/integrationStore";
 
 type ProviderId = "github" | "figma" | "notion" | "docs" | "slides";
 type NotionFilter = "전체" | "페이지" | "DB";
@@ -218,7 +228,24 @@ function GradientCheck() {
 export default function IntegrationConnectionPage() {
   const { id = "", provider = "github" } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const config = PROVIDERS[(provider in PROVIDERS ? provider : "github") as ProviderId];
+  const storeProvider: IntegrationProvider =
+    provider === "docs"
+      ? "googleDocs"
+      : provider === "slides"
+        ? "googleSlides"
+        : (provider as Exclude<IntegrationProvider, "googleDocs" | "googleSlides">);
+  const mockConnected = useIntegrationStore((state) => state.accounts[storeProvider]);
+  const connectMock = useIntegrationStore((state) => state.connect);
+  const disconnectMock = useIntegrationStore((state) => state.disconnect);
+  const navigationMockConnected = Boolean(
+    (location.state as { isMockConnected?: boolean } | null)?.isMockConnected
+  );
+  const [isConnected, setIsConnected] = useState<boolean | null>(null);
+  const [connectionLoadError, setConnectionLoadError] = useState<string | null>(null);
+  const [isDisconnecting, setIsDisconnecting] = useState(false);
+  const [disconnectError, setDisconnectError] = useState<string | null>(null);
   const [step, setStep] = useState(1);
   const [url, setUrl] = useState("");
   const [files, setFiles] = useState(() => {
@@ -254,8 +281,51 @@ export default function IntegrationConnectionPage() {
     window.scrollTo(0, 0);
   }, [currentStep]);
 
+  useEffect(() => {
+    let active = true;
+    const integrationType =
+      provider === "docs" || provider === "slides"
+        ? "GOOGLE"
+        : provider.toUpperCase();
+
+    setIsConnected(null);
+    setConnectionLoadError(null);
+    void getProjectSettings(id)
+      .then((settings) => {
+        if (!active) return;
+        setIsConnected(
+          settings.externalConnections.some(
+            (connection) =>
+              connection.linkType === integrationType && connection.isLinked
+          ) || mockConnected
+        );
+      })
+      .catch((error) => {
+        if (!active) return;
+        if (mockConnected) {
+          setIsConnected(mockConnected);
+          return;
+        }
+        setConnectionLoadError(
+          error instanceof ApiError
+            ? error.message
+            : "연동 상태를 확인하지 못했어요."
+        );
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [id, mockConnected, provider]);
+
   const next = () => {
     if (currentStep === 4) {
+      if (isGooglePicker) {
+        connectMock("googleDocs");
+        connectMock("googleSlides");
+      } else {
+        connectMock(storeProvider);
+      }
       navigate(`/project/${id}/settings`);
       return;
     }
@@ -263,8 +333,114 @@ export default function IntegrationConnectionPage() {
     else setStep((value) => value + 1);
   };
 
+  const handleDisconnect = async () => {
+    if (isDisconnecting) return;
+    setIsDisconnecting(true);
+    setDisconnectError(null);
+    try {
+      if (navigationMockConnected || mockConnected) {
+        if (isGooglePicker) {
+          disconnectMock("googleDocs");
+          disconnectMock("googleSlides");
+        } else {
+          disconnectMock(storeProvider);
+        }
+        navigate(`/project/${id}/settings`, { replace: true });
+        return;
+      }
+      const apiProvider =
+        provider === "docs" || provider === "slides" ? "google" : provider;
+      await disconnectProjectIntegration(id, apiProvider);
+      navigate(`/project/${id}/settings`, { replace: true });
+    } catch (error) {
+      setDisconnectError(
+        error instanceof ApiError
+          ? error.message
+          : "연동을 해제하지 못했어요. 다시 시도해 주세요."
+      );
+    } finally {
+      setIsDisconnecting(false);
+    }
+  };
+
+  if (connectionLoadError) {
+    return (
+      <div className="app-shell flex min-h-svh flex-col items-center justify-center bg-gray-25 px-5 text-center">
+        <p className="text-[15px] text-gray-600" role="alert">
+          {connectionLoadError}
+        </p>
+        <button
+          type="button"
+          onClick={() => navigate(`/project/${id}/settings`)}
+          className="mt-4 rounded-[14px] bg-blue-500 px-5 py-3 text-white"
+        >
+          프로젝트 설정으로 돌아가기
+        </button>
+      </div>
+    );
+  }
+
+  if (isConnected === null) {
+    return (
+      <div
+        className="app-shell flex min-h-svh items-center justify-center bg-gray-25"
+        role="status"
+        aria-label="외부 툴 연동 상태 확인 중"
+      >
+        <span className="h-9 w-9 animate-spin rounded-full border-4 border-blue-100 border-t-blue-500" />
+      </div>
+    );
+  }
+
   return (
     <div className="app-shell min-h-svh bg-gray-25 pb-[116px]">
+      <Modal
+        open={isConnected}
+        onClose={isDisconnecting ? undefined : () => navigate(`/project/${id}/settings`)}
+        contentClassName="h-[292px] max-w-[362px] rounded-[22px] px-6 pb-[26px] pt-[42px]"
+      >
+        <div className="flex h-full flex-col items-center text-center">
+          <h2 className="text-[18px] font-semibold leading-[26px] text-gray-900">
+            {isGooglePicker
+              ? "Google Docs와 Google Slides 연동을 모두 해제하시겠습니까?"
+              : `${config.name} 연동을 해제하시겠습니까?`}
+          </h2>
+          <p className="mt-8 text-[13px] leading-[21px] text-gray-400">
+            {isGooglePicker && (
+              <>
+                두 서비스는 하나의 Google 계정으로 연동되어 함께 해제됩니다
+                <br />
+              </>
+            )}
+            연동된 툴의 활동 데이터가 기여도 분석에 자동 반영됩니다
+            <br />
+            연동을 해제하면 기여도 분석 정확도가 낮아질 수 있어요!
+          </p>
+          {disconnectError && (
+            <p className="mt-3 text-[12px] text-error" role="alert">
+              {disconnectError}
+            </p>
+          )}
+          <div className="mt-auto grid w-full grid-cols-2 gap-4">
+            <button
+              type="button"
+              onClick={() => navigate(`/project/${id}/settings`)}
+              disabled={isDisconnecting}
+              className="h-14 rounded-[14px] bg-gray-100 text-[16px] font-semibold text-gray-400 disabled:opacity-50"
+            >
+              취소
+            </button>
+            <button
+              type="button"
+              onClick={() => void handleDisconnect()}
+              disabled={isDisconnecting}
+              className="h-14 rounded-[14px] bg-error text-[16px] font-semibold text-white disabled:opacity-60"
+            >
+              {isDisconnecting ? "해제 중..." : "연동 해제"}
+            </button>
+          </div>
+        </div>
+      </Modal>
       <header className="flex h-[52px] items-center border-b border-gray-100 px-5 shadow-sm">
         <button type="button" aria-label="뒤로가기" onClick={() => navigate(`/project/${id}/settings`)} className="mr-3 flex h-6 w-6 items-center justify-center">
           <ChevronLeft className="h-6 w-6 text-gray-700" />
@@ -434,7 +610,13 @@ export default function IntegrationConnectionPage() {
 
       <footer className="fixed bottom-0 left-1/2 z-20 grid h-[92px] w-full max-w-mobile -translate-x-1/2 grid-cols-[123px_1fr] gap-[21px] border-t border-gray-100 bg-white px-5 pt-3">
         <button type="button" onClick={() => navigate(`/project/${id}/settings`)} className="h-14 rounded-[14px] border border-blue-500 text-[16px] font-semibold text-blue-500">취소</button>
-        <button type="button" onClick={next} className="h-14 rounded-[14px] bg-blue-500 text-[16px] font-semibold text-white">{actionLabel}</button>
+        <button
+          type="button"
+          onClick={next}
+          className="h-14 rounded-[14px] bg-blue-500 text-[16px] font-semibold text-white"
+        >
+          {actionLabel}
+        </button>
       </footer>
     </div>
   );

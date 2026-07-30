@@ -14,8 +14,13 @@ import type {
   ProjectApiType,
   ProjectListItemResponse,
   ProjectListResponse,
+  ProjectIntegrationDisconnectResponse,
+  ProjectLeaveResponse,
   ProjectMember,
+  ProjectSettingsResponse,
   ProjectType,
+  UpdateProjectSettingsRequest,
+  UpdateProjectSettingsResponse,
 } from "../types/project";
 import { ApiError, apiRequest } from "./client";
 
@@ -182,4 +187,34 @@ export function createProject(request: CreateProjectRequest) {
     method: "POST",
     body: request,
   });
+}
+
+export function getProjectSettings(projectId: string) {
+  return apiRequest<ProjectSettingsResponse>(`/api/projects/${projectId}/settings`);
+}
+
+export function updateProjectSettings(
+  projectId: string,
+  request: UpdateProjectSettingsRequest
+) {
+  return apiRequest<UpdateProjectSettingsResponse>(
+    `/api/projects/${projectId}/settings`,
+    {
+      method: "PATCH",
+      body: request,
+    }
+  );
+}
+
+export function leaveProject(projectId: string) {
+  return apiRequest<ProjectLeaveResponse>(`/api/projects/${projectId}/members/me`, {
+    method: "DELETE",
+  });
+}
+
+export function disconnectProjectIntegration(projectId: string, provider: string) {
+  return apiRequest<ProjectIntegrationDisconnectResponse>(
+    `/api/projects/${projectId}/integrations/${provider}`,
+    { method: "DELETE" }
+  );
 }
