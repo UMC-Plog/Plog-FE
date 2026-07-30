@@ -16,11 +16,16 @@ import type { IntegrationProviderActorResponse, ProjectIntegrationType } from '.
 
 type ProviderParam = 'github' | 'figma' | 'notion' | 'google';
 
-const PROVIDER_CONFIG: Record<ProviderParam, { label: string; type: ProjectIntegrationType; icon: string }> = {
-  github: { label: 'GitHub', type: 'GITHUB', icon: githubIcon },
-  figma: { label: 'Figma', type: 'FIGMA', icon: figmaIcon },
-  notion: { label: 'Notion', type: 'NOTION', icon: notionIcon },
-  google: { label: 'Google', type: 'GOOGLE', icon: googleIcon },
+// 아이콘 에셋이 자체 배경(둥근 사각형)을 포함하고 있어, 타일을 거의 채우도록 크게 렌더링해야
+// IntegrationConnectionPage와 동일한 룩이 된다 (Figma 실측: 63px 타일 안에 56~64px 로고)
+const PROVIDER_CONFIG: Record<
+  ProviderParam,
+  { label: string; type: ProjectIntegrationType; icon: string; logoSize: number }
+> = {
+  github: { label: 'GitHub', type: 'GITHUB', icon: githubIcon, logoSize: 63 },
+  figma: { label: 'Figma', type: 'FIGMA', icon: figmaIcon, logoSize: 56 },
+  notion: { label: 'Notion', type: 'NOTION', icon: notionIcon, logoSize: 36 },
+  google: { label: 'Google', type: 'GOOGLE', icon: googleIcon, logoSize: 38 },
 };
 
 // 백엔드가 GITHUB, FIGMA, NOTION, GOOGLE 순서로 연동 상태를 내려주는 것과 동일한 순회 순서
@@ -182,8 +187,13 @@ export default function PeerEvalAccountSelectPage() {
 
       <div className="flex-1 px-5 pt-6 pb-28 flex flex-col gap-6">
         <div className="flex items-start gap-5">
-          <span className="flex size-[63px] shrink-0 items-center justify-center overflow-hidden rounded-[10px] bg-white shadow-card">
-            <img src={config.icon} alt="" className="size-8 object-contain" />
+          <span className="flex size-[63px] shrink-0 items-center justify-center">
+            <img
+              src={config.icon}
+              alt=""
+              className="object-contain"
+              style={{ width: config.logoSize, height: config.logoSize }}
+            />
           </span>
           <div className="flex flex-col gap-1">
             <h1 className="text-title font-semibold text-gray-900">{config.label} 연동</h1>
