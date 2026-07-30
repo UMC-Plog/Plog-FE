@@ -293,7 +293,10 @@ export default function ProjectChatPage() {
   const handleSend = useCallback(() => {
     const text = input.trim();
     if (!text || roomId === null || !stompClientRef.current?.connected) return;
-    publishToDestination(stompClientRef.current, chatDestinations.publishMessage(roomId), { message: text });
+    publishToDestination(stompClientRef.current, chatDestinations.publishMessage(roomId), {
+      message: text,
+      clientMessageId: crypto.randomUUID(),
+    });
     setInput('');
   }, [input, roomId]);
 
