@@ -252,11 +252,13 @@ export default function ProjectChatPage() {
     const viewport = window.visualViewport;
     const chatPage = chatPageRef.current;
     if (!viewport || !chatPage) return;
+    const chatPageTop = chatPage.getBoundingClientRect().top + window.scrollY;
 
     const updateHeight = () => {
-      const top = chatPage.getBoundingClientRect().top;
-      const visibleTop = viewport.offsetTop;
-      const height = Math.max(240, viewport.height - Math.max(0, top - visibleTop));
+      // pageTop을 포함한 실제 화면 하단과 채팅 페이지 시작점 사이의 높이를 사용한다.
+      // iOS Safari가 키보드 표시 중 문서를 위로 이동해도 입력창이 화면 하단에 유지된다.
+      const visibleBottom = viewport.pageTop + viewport.height;
+      const height = Math.max(240, visibleBottom - chatPageTop);
       chatPage.style.height = `${height}px`;
 
       if (document.activeElement?.getAttribute('data-chat-input') === 'true') {
@@ -364,7 +366,7 @@ export default function ProjectChatPage() {
               }, 100);
             }}
             data-chat-input="true"
-            className="h-10 min-w-0 flex-1 rounded-full bg-gray-100 px-4 text-body-sm text-gray-900 placeholder:text-gray-400 focus:outline-none"
+            className="h-10 min-w-0 flex-1 rounded-full bg-gray-100 px-4 text-base text-gray-900 placeholder:text-gray-400 focus:outline-none sm:text-body-sm"
           />
 
           {/* 전송 버튼 */}
