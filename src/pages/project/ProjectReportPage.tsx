@@ -1,10 +1,11 @@
 import { Check, Crown, Info } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { AlertModal } from '../../components/Modal'
 import { cn } from '../../lib/utils'
 import { getProjectDeadline, isFutureDate } from '../../lib/projectDate'
 import { useProjectStore } from '../../store/projectStore'
+import { checkAndUpdateProjectStatus } from '../../api/projectApi'
 import { fetchEvaluationTargets, fetchMySelfFeedback } from '../../api/evaluation'
 import { searchReports, type ReportSearchResponse } from '../../api/report'
 
@@ -36,6 +37,21 @@ export default function ProjectReportPage() {
 
   const [evalComplete, setEvalComplete] = useState(false)
   const [report, setReport] = useState<ReportSearchResponse | null>(null)
+  const fetchProjects = useProjectStore((state) => state.fetchProjects)
+  const statusCheckedForRef = useRef<string | null>(null)
+
+  // project.status는 마감일이 지나도 자동으로 바뀌지 않고, 백엔드가 전원 평가 제출 또는
+  // 종료일 7일 경과 여부를 확인해야 완료 상태로 전환된다. 리포트탭 진입 시 한 번 그 확인을
+  // 트리거하고, 응답 스키마가 불명확하니 내용은 무시한 채 프로젝트 목록만 다시 조회한다.
+  useEffect(() => {
+    if (!projectId || project?.status !== 'IN_PROGRESS') return
+    if (statusCheckedForRef.current === projectId) return
+    statusCheckedForRef.current = projectId
+
+    checkAndUpdateProjectStatus(projectId)
+      .then(() => fetchProjects(true))
+      .catch(() => undefined)
+  }, [projectId, project?.status, fetchProjects])
 
   // Peer평가/자기피드백 전원 완료 여부와, 이미 생성된 리포트가 있는지를 실제 API로 확인한다.
   // projectStore에 아직 이 프로젝트가 안 불러와졌어도 projectId만 유효하면 호출한다.
