@@ -73,6 +73,12 @@ export default function NotificationPage() {
     void loadPage(0, false)
   }, [loadPage])
 
+  useEffect(() => {
+    const refresh = () => void loadPage(0, false)
+    window.addEventListener('plog:notification-received', refresh)
+    return () => window.removeEventListener('plog:notification-received', refresh)
+  }, [loadPage])
+
   const handleNotificationClick = (notification: NotificationResponse) => {
     if (notification.type === 'CHAT_MENTION') {
       navigate(`/project/${notification.projectId}/chat`)
