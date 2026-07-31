@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { cn } from '../../lib/utils';
 import { fetchEvaluationTargets, fetchPeerEvaluationDetail, type PeerEvaluationDetailResponse } from '../../api/evaluation';
+import { PeerEvalAvatar } from '../../components/PeerEvalAvatar';
+import type { ProfilePreset } from '../../lib/profilePreset';
 
 const CATEGORIES = [
   { id: 'collaborationScore', label: '협업 태도', sub: '소통 방식, 팀 분위기 기여도' },
@@ -94,6 +96,7 @@ export default function PeerEvalStarPage() {
   const { id, memberId } = useParams<{ id: string; memberId: string }>();
   const navigate = useNavigate();
   const [nickname, setNickname] = useState('');
+  const [profilePreset, setProfilePreset] = useState<ProfilePreset | null>(null);
   const [existing, setExisting] = useState<PeerEvaluationDetailResponse | null>(null);
 
   useEffect(() => {
@@ -106,7 +109,10 @@ export default function PeerEvalStarPage() {
       .then((res) => {
         if (cancelled) return;
         const target = res.targets.find((t) => t.projectMemberId === targetMemberId);
-        if (target) setNickname(target.nickname);
+        if (target) {
+          setNickname(target.nickname);
+          setProfilePreset(target.profilePreset);
+        }
       })
       .catch(() => undefined);
 
@@ -178,7 +184,7 @@ export default function PeerEvalStarPage() {
       <div className="flex-1 px-5 pt-6 pb-28 flex flex-col gap-5">
         {/* 대상 팀원 — 익명성 정책상 닉네임만 표시 */}
         <div className="flex items-center gap-3">
-          <div className="size-10 rounded-full bg-gray-100 shrink-0" />
+          <PeerEvalAvatar profilePreset={profilePreset} />
           <p className="text-title font-semibold text-gray-900">{nickname}</p>
         </div>
 

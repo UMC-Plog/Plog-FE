@@ -6,6 +6,7 @@ import { getIntegrationActorMappings, getProjectIntegrations } from '../../api/p
 import { ApiError } from '../../api/client';
 import { AlertModal } from '../../components/Modal';
 import type { ProjectIntegrationType } from '../../types/project';
+import { PeerEvalAvatar } from '../../components/PeerEvalAvatar';
 
 type AccountProvider = 'github' | 'figma' | 'notion' | 'google';
 
@@ -202,7 +203,7 @@ export default function PeerEvalListPage() {
                 key={target.projectMemberId}
                 className="bg-white border border-gray-100 rounded-2xl shadow-md px-5 py-4 flex items-center gap-3"
               >
-                <PersonIcon />
+                <PeerEvalAvatar profilePreset={target.profilePreset} size="sm" />
                 <span className="flex-1 text-title text-gray-900">{target.nickname}</span>
                 {target.isEvaluated ? (
                   <span className="bg-success/10 text-success rounded-full px-3.5 py-2 text-body-sm shrink-0">
