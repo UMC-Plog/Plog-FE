@@ -98,8 +98,9 @@ export default function PeerEvalListPage() {
       fetchMySelfFeedback(projectId)
         .then(() => true)
         .catch((err) => {
-          // 404 = 아직 자기 피드백을 작성하지 않은 정상 상태. 그 외는 실제 조회 실패로 취급해 위 catch로 넘긴다.
-          if (err instanceof ApiError && err.status === 404) return false;
+          // 404 또는 EVAL400_3(백엔드 실제 미작성 응답) = 아직 자기 피드백을 작성하지 않은 정상 상태.
+          // 그 외는 실제 조회 실패로 취급해 위 catch로 넘긴다.
+          if (err instanceof ApiError && (err.status === 404 || err.code === 'EVAL400_3')) return false;
           throw err;
         }),
       getProjectIntegrations(id)

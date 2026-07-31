@@ -249,15 +249,6 @@ export function leaveProject(projectId: string) {
   });
 }
 
-// 전원 평가 제출 또는 종료일 7일 경과 여부를 서버가 확인해 프로젝트를 완료 상태로 전환한다.
-// 응답 스키마가 백엔드 DTO 이름 충돌로 Swagger 상 제네릭(Request/Response)하게 잡혀있어
-// 응답 내용은 신뢰하지 않고, 호출부에서 프로젝트 목록을 다시 조회해 최신 상태를 반영한다.
-export function checkAndUpdateProjectStatus(projectId: string) {
-  return apiRequest<unknown>(`/api/projects/${projectId}/status`, {
-    method: "PATCH",
-  });
-}
-
 export function getProjectIntegrations(projectId: string) {
   return apiRequest<ProjectIntegrationStatusResponse>(
     `/api/projects/${projectId}/integrations`
