@@ -1,5 +1,13 @@
 /* global firebase */
 
+self.addEventListener('install', (event) => {
+  event.waitUntil(self.skipWaiting())
+})
+
+self.addEventListener('activate', (event) => {
+  event.waitUntil(self.clients.claim())
+})
+
 // FCM이 자체 notificationclick 핸들러를 등록하기 전에 앱 이동 로직을 등록한다.
 self.addEventListener('notificationclick', (event) => {
   event.notification.close()
