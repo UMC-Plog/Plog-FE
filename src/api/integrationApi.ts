@@ -1,5 +1,6 @@
 import type {
   FigmaResourceRegisterRequest,
+  GoogleResourceRegisterRequest,
   IntegrationAuthorizationResponse,
   IntegrationCollectionResponse,
   IntegrationDisconnectionResponse,
@@ -76,6 +77,16 @@ export function registerFigmaResource(projectId: string, fileUrl: string) {
 
   return apiRequest<IntegrationResourceResponse>(
     `/api/projects/${projectId}/integrations/figma/resources`,
+    { method: "POST", body: request }
+  );
+}
+
+/** 3-4. Google Picker가 선택한 Docs/Slides 파일 등록 */
+export function registerGoogleResource(projectId: string, fileId: string) {
+  const request: GoogleResourceRegisterRequest = { fileId };
+
+  return apiRequest<IntegrationResourceResponse>(
+    `/api/projects/${projectId}/integrations/google/resources`,
     { method: "POST", body: request }
   );
 }

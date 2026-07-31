@@ -74,6 +74,10 @@ export interface FigmaResourceRegisterRequest {
   fileUrl: string;
 }
 
+export interface GoogleResourceRegisterRequest {
+  fileId: string;
+}
+
 export interface IntegrationCollectionFailureResponse {
   resourceId: number;
   linkType: IntegrationLinkType;

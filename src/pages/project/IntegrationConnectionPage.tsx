@@ -18,10 +18,12 @@ import {
   getIntegrationStatus,
   getNotionResourceCandidates,
   registerFigmaResource,
+  registerGoogleResource,
   registerNotionResource,
 } from "../../api/integrationApi";
 import { ApiError } from "../../api/client";
 import { openBlankAuthWindow, waitForIntegrationLinked } from "../../lib/integrationAuth";
+import { openGooglePicker } from "../../lib/googlePicker";
 import { Modal } from "../../components/Modal";
 import { PermissionIcon } from "../../components/project/PermissionIcon";
 import type { PermissionIconName } from "../../components/project/PermissionIcon";
@@ -72,8 +74,8 @@ type Provider = {
   permissions: Permission[];
 };
 
-/** 백엔드 Integration API가 연결된 provider. Google은 Picker 연동 전까지 목업 흐름을 유지한다 */
-const SERVER_PROVIDERS = ["github", "figma", "notion"] as const;
+/** 백엔드 Integration API가 연결된 provider */
+const SERVER_PROVIDERS = ["github", "figma", "notion", "docs", "slides"] as const;
 type ServerProviderId = (typeof SERVER_PROVIDERS)[number];
 
 const PROVIDER_PATH: Record<ProviderId, IntegrationProviderPath> = {
@@ -256,6 +258,7 @@ function toResourceItem(resource: IntegrationResourceResponse): ResourceItem {
 
 function getErrorMessage(error: unknown, fallback: string) {
   if (error instanceof ApiError) return error.message || fallback;
+  if (error instanceof Error) return error.message || fallback;
   return fallback;
 }
 
@@ -346,6 +349,7 @@ export default function IntegrationConnectionPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [isRegistering, setIsRegistering] = useState(false);
+  const [isPickerOpening, setIsPickerOpening] = useState(false);
   const [isCollecting, setIsCollecting] = useState(false);
   const [collectMessage, setCollectMessage] = useState<string | null>(null);
   const authAbortRef = useRef<AbortController | null>(null);
@@ -448,6 +452,12 @@ export default function IntegrationConnectionPage() {
       setResources(response.resources);
       setResourceError(null);
     } catch (error) {
+      // 등록된 리소스가 아직 없을 때 백엔드는 404를 반환한다. 선택 화면에서는 빈 목록으로 처리한다.
+      if (error instanceof ApiError && error.status === 404) {
+        setResources([]);
+        setResourceError(null);
+        return;
+      }
       setResourceError(getErrorMessage(error, "등록된 항목을 불러오지 못했어요."));
     }
   }, [id, isServer, providerPath]);
@@ -561,6 +571,28 @@ export default function IntegrationConnectionPage() {
       );
     } finally {
       setIsRegistering(false);
+    }
+  };
+
+  const handleOpenGooglePicker = async () => {
+    if (!isGooglePicker || isPickerOpening) return;
+
+    setIsPickerOpening(true);
+    setSaveError(null);
+
+    try {
+      const selectedFile = await openGooglePicker(providerId);
+      if (!selectedFile) return;
+
+      const resource = await registerGoogleResource(id, selectedFile.id);
+      setResources((items) =>
+        items.some((item) => item.resourceId === resource.resourceId) ? items : [...items, resource]
+      );
+      setResourceError(null);
+    } catch (error) {
+      setSaveError(getErrorMessage(error, "Google 파일을 선택하거나 등록하지 못했습니다."));
+    } finally {
+      setIsPickerOpening(false);
     }
   };
 
@@ -982,11 +1014,18 @@ export default function IntegrationConnectionPage() {
                   <AccountRow account={accountLabel} accountType={config.accountType} />
                   <button
                     type="button"
+                    onClick={() => void handleOpenGooglePicker()}
+                    disabled={isPickerOpening}
                     className="flex h-[60px] w-full items-center rounded-[16px] border border-gray-100 bg-white px-[18px] text-[15px] text-gray-900 shadow-card"
                   >
-                    Google Picker 열기
+                    {isPickerOpening ? "Google Picker 여는 중..." : "Google Picker 열기"}
                     <ChevronRight className="ml-auto h-5 w-5 text-gray-400" />
                   </button>
+                  {saveError && (
+                    <p className="mt-3 text-[12px] leading-[18px] text-error" role="alert">
+                      {saveError}
+                    </p>
+                  )}
                   <h3 className="mt-7 text-[14px] text-gray-700">선택된 문서 ({resourceItems.length})</h3>
                   <FileList
                     icon={config.icon}
