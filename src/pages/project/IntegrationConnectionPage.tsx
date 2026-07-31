@@ -10,7 +10,6 @@ import {
   X,
 } from "lucide-react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
-import { getProjectSettings } from "../../api/projectApi";
 import {
   collectIntegrationData,
   createIntegrationAuthorization,
@@ -44,6 +43,10 @@ import {
 
 type ProviderId = "github" | "figma" | "notion" | "docs" | "slides";
 type NotionFilter = "전체" | "페이지" | "DB";
+type IntegrationNavigationState = {
+  isConnected?: boolean;
+  isMockConnected?: boolean;
+};
 
 type Permission = {
   title: string;
@@ -308,11 +311,15 @@ export default function IntegrationConnectionPage() {
   const mockConnected = useIntegrationStore((state) => state.accounts[storeProvider]);
   const connectMock = useIntegrationStore((state) => state.connect);
   const disconnectMock = useIntegrationStore((state) => state.disconnect);
-  const navigationMockConnected = Boolean(
-    (location.state as { isMockConnected?: boolean } | null)?.isMockConnected
+  const navigationState = location.state as IntegrationNavigationState | null;
+  const navigationConnected = navigationState?.isConnected;
+  const navigationMockConnected = Boolean(navigationState?.isMockConnected);
+  const [isConnected, setIsConnected] = useState<boolean | null>(
+    navigationConnected ?? null
   );
-  const [isConnected, setIsConnected] = useState<boolean | null>(null);
-  const [isDisconnectOpen, setIsDisconnectOpen] = useState(false);
+  const [isDisconnectOpen, setIsDisconnectOpen] = useState(
+    navigationConnected === true
+  );
   const [connectionLoadError, setConnectionLoadError] = useState<string | null>(null);
   const [isDisconnecting, setIsDisconnecting] = useState(false);
   const [disconnectError, setDisconnectError] = useState<string | null>(null);
@@ -400,39 +407,21 @@ export default function IntegrationConnectionPage() {
 
   useEffect(() => () => authAbortRef.current?.abort(), []);
 
-  // 연동 상태 조회. GitHub/Notion/Figma는 Integration API, Google은 목업 흐름을 그대로 쓴다
+  // 설정 목록에서 전달된 상태를 즉시 보여주고, 공통 Integration API로 서버 상태를 재검증한다.
   useEffect(() => {
     let active = true;
 
-    setIsConnected(null);
+    if (navigationConnected === undefined) {
+      setIsConnected(null);
+    }
     setConnectionLoadError(null);
 
-    if (isServer) {
-      void getIntegrationStatus(id)
-        .then((status) => {
-          if (!active) return;
-          const integration = status.integrations.find((item) => item.linkType === linkType);
-          setAccountName(integration?.connectedAccountName ?? null);
-          setIsConnected(Boolean(integration?.linked));
-          setIsDisconnectOpen(Boolean(integration?.linked));
-        })
-        .catch((error) => {
-          if (!active) return;
-          setConnectionLoadError(getErrorMessage(error, "연동 상태를 확인하지 못했어요."));
-        });
-
-      return () => {
-        active = false;
-      };
-    }
-
-    void getProjectSettings(id)
-      .then((settings) => {
+    void getIntegrationStatus(id)
+      .then((status) => {
         if (!active) return;
-        const connected =
-          settings.externalConnections.some(
-            (connection) => connection.linkType === linkType && connection.isLinked
-          ) || mockConnected;
+        const integration = status.integrations.find((item) => item.linkType === linkType);
+        const connected = Boolean(integration?.linked) || (!isServer && mockConnected);
+        setAccountName(integration?.connectedAccountName ?? null);
         setIsConnected(connected);
         setIsDisconnectOpen(connected);
       })
@@ -449,7 +438,7 @@ export default function IntegrationConnectionPage() {
     return () => {
       active = false;
     };
-  }, [id, isServer, linkType, mockConnected]);
+  }, [id, isServer, linkType, mockConnected, navigationConnected]);
 
   const loadResources = useCallback(async () => {
     if (!isServer) return;
