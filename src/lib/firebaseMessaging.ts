@@ -64,10 +64,45 @@ async function getMessagingRegistration() {
   if (!('serviceWorker' in navigator)) {
     throw new Error('이 브라우저에서는 백그라운드 알림을 지원하지 않습니다.')
   }
-  return navigator.serviceWorker.register(getServiceWorkerUrl(), {
+  const registration = await navigator.serviceWorker.register(getServiceWorkerUrl(), {
     scope: '/',
     updateViaCache: 'none',
   })
+
+  if (registration.active) return registration
+
+  const activatingWorker = registration.installing ?? registration.waiting
+  if (!activatingWorker) {
+    throw new Error('알림 서비스 초기화 상태를 확인하지 못했습니다. 새로고침 후 다시 시도해 주세요.')
+  }
+  const worker = activatingWorker
+
+  await new Promise<void>((resolve, reject) => {
+    const timeoutId = window.setTimeout(() => {
+      cleanup()
+      reject(new Error('알림 서비스 활성화 시간이 초과되었습니다. 새로고침 후 다시 시도해 주세요.'))
+    }, 15_000)
+
+    const handleStateChange = () => {
+      if (worker.state === 'activated') {
+        cleanup()
+        resolve()
+      } else if (worker.state === 'redundant') {
+        cleanup()
+        reject(new Error('알림 서비스 활성화에 실패했습니다. 새로고침 후 다시 시도해 주세요.'))
+      }
+    }
+
+    function cleanup() {
+      window.clearTimeout(timeoutId)
+      worker.removeEventListener('statechange', handleStateChange)
+    }
+
+    worker.addEventListener('statechange', handleStateChange)
+    handleStateChange()
+  })
+
+  return registration
 }
 
 export async function enablePushNotifications() {
