@@ -37,10 +37,12 @@ import PeerEvalAccountSelectPage from './pages/project/PeerEvalAccountSelectPage
 import { ProjectDataLoader } from './components/ProjectDataLoader'
 import { ProjectInvitationPage } from './pages/project/ProjectInvitationPage'
 import NotificationPage from './pages/NotificationPage'
+import { PushNotificationManager } from './components/PushNotificationManager'
 
 function App() {
   return (
     <BrowserRouter>
+      <PushNotificationManager />
       <Routes>
         {/* 담당자 A — 인증/온보딩 (페이지 ID는 팀 노션 "역할 분담 상세" 문서 기준) */}
         <Route path="/" element={<SplashPage />} />
