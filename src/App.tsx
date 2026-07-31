@@ -36,6 +36,7 @@ import SelfFeedbackPage from './pages/project/SelfFeedbackPage'
 import PeerEvalAccountSelectPage from './pages/project/PeerEvalAccountSelectPage'
 import { ProjectDataLoader } from './components/ProjectDataLoader'
 import { ProjectInvitationPage } from './pages/project/ProjectInvitationPage'
+import NotificationPage from './pages/NotificationPage'
 
 function App() {
   return (
@@ -66,6 +67,7 @@ function App() {
         <Route path="/my/profile" element={<ProfileEditPage />} />
         <Route path="/my/accounts" element={<AccountConnectionsPage />} />
         <Route path="/my/notifications" element={<NotificationSettingsPage />} />
+        <Route path="/notifications" element={<NotificationPage />} />
         <Route path="/my/withdraw" element={<WithdrawPage />} />
         <Route path="/project/new" element={<CreateProjectPage />} />
         <Route path="/project/:id/settings" element={<ProjectSettingsPage />} />
