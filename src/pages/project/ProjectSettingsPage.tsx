@@ -26,6 +26,7 @@ import type {
   ProjectSettingsResponse,
   ProjectType,
 } from "../../types/project";
+import { getDaysFromToday } from "../../lib/projectDate";
 
 const INTEGRATIONS = [
   { id: "github", label: "GitHub", icon: githubIcon, logo: 32, type: "GITHUB" },
@@ -278,7 +279,8 @@ export function ProjectSettingsPage() {
   const isFormValid =
     trimmedName.length >= 2 &&
     trimmedName.length <= 20 &&
-    isValidDate(year, month, day);
+    isValidDate(year, month, day) &&
+    getDaysFromToday(`${year}-${month}-${day}`) >= 0;
 
   const handleSave = async () => {
     if (!settings || isSaving || isCompleted || !isFormValid) return;
@@ -453,6 +455,9 @@ export function ProjectSettingsPage() {
               {DAYS.map((item) => <option key={item}>{item}</option>)}
             </SelectBox>
           </div>
+          {isValidDate(year, month, day) && getDaysFromToday(`${year}-${month}-${day}`) < 0 && (
+            <p className="mt-1.5 text-caption font-normal text-error">오늘 또는 이후 날짜를 선택해 주세요</p>
+          )}
         </fieldset>
 
         <section className="mt-[22px]">
