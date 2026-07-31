@@ -14,7 +14,6 @@ import type {
   ProjectApiType,
   ProjectListItemResponse,
   ProjectListResponse,
-  ProjectIntegrationDisconnectResponse,
   ProjectInvitationPreviewResponse,
   ProjectJoinRequest,
   ProjectJoinResponse,
@@ -231,9 +230,3 @@ export function leaveProject(projectId: string) {
   });
 }
 
-export function disconnectProjectIntegration(projectId: string, provider: string) {
-  return apiRequest<ProjectIntegrationDisconnectResponse>(
-    `/api/projects/${projectId}/integrations/${provider}`,
-    { method: "DELETE" }
-  );
-}

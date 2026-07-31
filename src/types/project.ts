@@ -137,11 +137,6 @@ export interface ProjectLeaveResponse {
   success: boolean;
 }
 
-export interface ProjectIntegrationDisconnectResponse {
-  projectId: number;
-  linkType: ProjectIntegrationType;
-}
-
 
 export interface CreateProjectResponse {
   projectId: number;
