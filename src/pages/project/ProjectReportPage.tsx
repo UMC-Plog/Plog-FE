@@ -75,7 +75,7 @@ export default function ProjectReportPage() {
   const status: EvaluationStatus =
     evalComplete || report?.reportStatus === 'COMPLETED'
       ? 'submitted'
-      : project?.status === 'COMPLETED' && !isFutureDate(project.expectedEndDate)
+      : project && project.progress >= 100 && !isFutureDate(project.expectedEndDate)
       ? 'unlocked'
       : 'locked'
 
