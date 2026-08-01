@@ -75,7 +75,7 @@ export default function ProjectReportPage() {
   const status: EvaluationStatus =
     evalComplete || report?.reportStatus === 'COMPLETED'
       ? 'submitted'
-      : project?.status === 'COMPLETED' && !isFutureDate(project.expectedEndDate)
+      : project && !isFutureDate(project.expectedEndDate)
       ? 'unlocked'
       : 'locked'
 
@@ -125,7 +125,7 @@ export default function ProjectReportPage() {
           <div className="flex items-start gap-2 rounded-12 bg-primary-50 px-4 py-3">
             <Info className="mt-0.5 h-4 w-4 shrink-0 text-primary-500" aria-hidden />
             <p className="text-caption font-medium text-primary-500">
-              모든 업무가 완료되고 프로젝트 마감일이 지나면 Peer 평가를 시작할 수 있어요
+              프로젝트 마감일부터 Peer 평가를 시작할 수 있어요
             </p>
           </div>
         </div>

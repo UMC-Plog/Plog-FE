@@ -9,6 +9,8 @@ import {
 } from '../../api/evaluation';
 import { ApiError } from '../../api/client';
 import { AlertModal } from '../../components/Modal';
+import { PeerEvalAvatar } from '../../components/PeerEvalAvatar';
+import type { ProfilePreset } from '../../lib/profilePreset';
 
 const ALL_KEYWORDS = ['리더십', '성실함', '소통 능력', '책임감', '문제 해결', '창의성', '꼼꼼함', '추진력'];
 const DEFAULT_SELECTED = new Set(['리더십', '성실함', '문제 해결', '창의성']);
@@ -48,6 +50,7 @@ export default function PeerEvalKeywordPage() {
   const location = useLocation();
   const navState = (location.state as NavState | null) ?? null;
   const [nickname, setNickname] = useState('');
+  const [profilePreset, setProfilePreset] = useState<ProfilePreset | null>(null);
   const [notice, setNotice] = useState<{ message: string; submitted: boolean } | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -67,7 +70,10 @@ export default function PeerEvalKeywordPage() {
       .then((res) => {
         if (cancelled) return;
         const target = res.targets.find((t) => t.projectMemberId === targetMemberId);
-        if (target) setNickname(target.nickname);
+        if (target) {
+          setNickname(target.nickname);
+          setProfilePreset(target.profilePreset);
+        }
       })
       .catch(() => undefined);
     return () => {
@@ -140,7 +146,7 @@ export default function PeerEvalKeywordPage() {
       <div className="flex-1 px-5 pt-6 pb-28 flex flex-col gap-5">
         {/* 대상 팀원 */}
         <div className="flex items-center gap-3">
-          <div className="size-10 rounded-full bg-gray-100 shrink-0" />
+          <PeerEvalAvatar profilePreset={profilePreset} />
           <p className="text-title font-semibold text-gray-900">{nickname}</p>
         </div>
 

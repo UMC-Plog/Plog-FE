@@ -10,11 +10,17 @@ import type {
   CreateProjectRequest,
   CreateProjectResponse,
   CreatedProject,
+  IntegrationActorMappingListResponse,
+  IntegrationActorMappingResponse,
   Project,
   ProjectApiType,
+  ProjectIntegrationStatusResponse,
   ProjectListItemResponse,
   ProjectListResponse,
   ProjectIntegrationDisconnectResponse,
+  ProjectInvitationPreviewResponse,
+  ProjectJoinRequest,
+  ProjectJoinResponse,
   ProjectLeaveResponse,
   ProjectMember,
   ProjectSettingsResponse,
@@ -169,6 +175,7 @@ export function mapCreatedProjectResponse(response: CreateProjectResponse): Crea
     id: String(response.projectId),
     myProjectMemberId: response.myProjectMemberId,
     name: response.projectName,
+    invitationCode: response.invite.inviteCode,
     invitationLink: response.invite.inviteUrl,
   };
 }
@@ -199,6 +206,21 @@ export async function getProjects(): Promise<Project[]> {
 
 export function createProject(request: CreateProjectRequest) {
   return apiRequest<CreateProjectResponse>("/api/projects", {
+    method: "POST",
+    body: request,
+  });
+}
+
+export function getProjectInvitationPreview(inviteCode: string) {
+  return apiRequest<ProjectInvitationPreviewResponse>(
+    `/api/projects/invitations/${encodeURIComponent(inviteCode)}`
+  );
+}
+
+export function joinProject(inviteCode: string) {
+  const request: ProjectJoinRequest = { inviteCode };
+
+  return apiRequest<ProjectJoinResponse>("/api/projects/join", {
     method: "POST",
     body: request,
   });
@@ -235,6 +257,25 @@ export function leaveProject(projectId: string) {
   return apiRequest<ProjectLeaveResponse>(`/api/projects/${projectId}/members/me`, {
     method: "DELETE",
   });
+}
+
+export function getProjectIntegrations(projectId: string) {
+  return apiRequest<ProjectIntegrationStatusResponse>(
+    `/api/projects/${projectId}/integrations`
+  );
+}
+
+export function getIntegrationActorMappings(projectId: string, provider: string) {
+  return apiRequest<IntegrationActorMappingListResponse>(
+    `/api/projects/${projectId}/integrations/${provider}/actor-mappings`
+  );
+}
+
+export function saveMyActorMapping(projectId: string, provider: string, actorKey: string) {
+  return apiRequest<IntegrationActorMappingResponse>(
+    `/api/projects/${projectId}/integrations/${provider}/actor-mappings/me`,
+    { method: "PUT", body: { actorKey } }
+  );
 }
 
 export function disconnectProjectIntegration(projectId: string, provider: string) {

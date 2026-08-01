@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ChevronDown, ChevronLeft, ChevronRight, Link2, QrCode } from "lucide-react";
 import QRCode from "qrcode";
 import { useNavigate, useParams } from "react-router-dom";
+import { createProjectInvitationUrl } from "../../lib/projectInvitation";
 import {
   getProjectSettings,
   isOwnerMustTransferError,
@@ -26,6 +27,7 @@ import type {
   ProjectSettingsResponse,
   ProjectType,
 } from "../../types/project";
+import { getDaysFromToday } from "../../lib/projectDate";
 
 const INTEGRATIONS = [
   { id: "github", label: "GitHub", icon: githubIcon, logo: 32, type: "GITHUB" },
@@ -327,7 +329,8 @@ export function ProjectSettingsPage() {
   const isFormValid =
     trimmedName.length >= 2 &&
     trimmedName.length <= 20 &&
-    isValidDate(year, month, day);
+    isValidDate(year, month, day) &&
+    getDaysFromToday(`${year}-${month}-${day}`) >= 0;
 
   const handleSave = async () => {
     if (!settings || isSaving || isCompleted || !isFormValid) return;
@@ -354,7 +357,7 @@ export function ProjectSettingsPage() {
     const inviteUrl = settings?.invite.inviteUrl;
     if (!inviteUrl) return;
     try {
-      await copyText(inviteUrl);
+      await copyText(createProjectInvitationUrl(inviteUrl));
       setNotice("초대 링크를 복사했어요.");
     } catch {
       setNotice("초대 링크를 복사하지 못했어요.");
@@ -365,7 +368,7 @@ export function ProjectSettingsPage() {
     const inviteUrl = settings?.invite.inviteUrl;
     if (!inviteUrl) return;
     try {
-      const dataUrl = await QRCode.toDataURL(inviteUrl, {
+      const dataUrl = await QRCode.toDataURL(createProjectInvitationUrl(inviteUrl), {
         width: 240,
         margin: 2,
         errorCorrectionLevel: "M",
@@ -397,6 +400,7 @@ export function ProjectSettingsPage() {
       } catch {
         // ProjectDataLoader가 /home 진입 후 실패한 강제 조회를 다시 시도한다.
       }
+      removeProject(id);
       navigate("/home", { replace: true });
     } catch (requestError) {
       // 방장에게 다른 활성 팀원이 남아 있으면 400 OWNER_MUST_TRANSFER — 권한 이전 안내로 바꿔 띄운다.
@@ -520,6 +524,9 @@ export function ProjectSettingsPage() {
               {DAYS.map((item) => <option key={item}>{item}</option>)}
             </SelectBox>
           </div>
+          {isValidDate(year, month, day) && getDaysFromToday(`${year}-${month}-${day}`) < 0 && (
+            <p className="mt-1.5 text-caption font-normal text-error">오늘 또는 이후 날짜를 선택해 주세요</p>
+          )}
         </fieldset>
 
         <section className="mt-[22px]">

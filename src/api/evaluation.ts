@@ -1,9 +1,11 @@
 import { apiRequest } from './client'
+import type { ProfilePreset } from '../lib/profilePreset'
 
 export interface TargetMember {
   projectMemberId: number
   nickname: string
   isEvaluated: boolean
+  profilePreset: ProfilePreset | null
 }
 
 export interface PeerEvaluationDetailResponse {

@@ -95,8 +95,9 @@ export default function SelfFeedbackPage() {
       })
       .catch((err) => {
         if (cancelled) return;
-        // 404 = 아직 자기 피드백을 작성하지 않은 정상 상태. 그 외는 실제 조회 실패이므로 알려야 한다.
-        if (err instanceof ApiError && err.status === 404) return;
+        // 404 또는 EVAL400_3(백엔드 실제 미작성 응답) = 아직 자기 피드백을 작성하지 않은 정상 상태.
+        // 그 외는 실제 조회 실패이므로 알려야 한다.
+        if (err instanceof ApiError && (err.status === 404 || err.code === 'EVAL400_3')) return;
         setNotice('기존 자기 피드백을 불러오지 못했어요. 새로고침 후 다시 시도해 주세요.');
       });
     return () => {

@@ -73,6 +73,27 @@ export interface ProjectInviteResponse {
   inviteUrl: string;
 }
 
+export interface ProjectInvitationPreviewResponse {
+  projectId: number;
+  projectName: string;
+  projectType: ProjectApiType;
+  endDay: string;
+}
+
+export interface ProjectJoinRequest {
+  inviteCode: string;
+}
+
+export interface ProjectJoinResponse {
+  projectId: number;
+  projectName: string;
+  projectMemberId: number;
+  role: "OWNER" | "MEMBER";
+  projectStatus: ProjectStatus;
+  memberStatus: "ACTIVE" | "EXIT";
+  joinedAt: string;
+}
+
 export interface ProjectSettingsInviteResponse {
   inviteUrl: string;
   qrUrl: string;
@@ -121,6 +142,52 @@ export interface ProjectIntegrationDisconnectResponse {
   linkType: ProjectIntegrationType;
 }
 
+export interface IntegrationItemResponse {
+  linkType: ProjectIntegrationType;
+  linked: boolean;
+  connectedAccountName: string | null;
+}
+
+export interface ProjectIntegrationStatusResponse {
+  projectId: number;
+  projectMemberId: number;
+  integrations: IntegrationItemResponse[];
+}
+
+export interface IntegrationProviderActorResponse {
+  actorKey: string;
+  providerActorId: string | null;
+  providerLogin: string;
+  providerEmail: string | null;
+  displayName: string;
+  activityCount: number;
+  firstOccurredAt: string | null;
+  lastOccurredAt: string | null;
+  mapped: boolean;
+  mappedProjectMemberId: number | null;
+  mappedByCurrentMember: boolean;
+}
+
+export interface IntegrationActorMappingResponse {
+  mappingId: number;
+  projectMemberId: number;
+  memberName: string;
+  memberNickname: string;
+  profilePreset: ProfilePreset | null;
+  actorKey: string;
+  providerActorId: string | null;
+  providerLogin: string;
+  providerEmail: string | null;
+}
+
+export interface IntegrationActorMappingListResponse {
+  projectId: number;
+  linkType: ProjectIntegrationType;
+  currentProjectMemberId: number;
+  mappings: IntegrationActorMappingResponse[];
+  availableProviderActors: IntegrationProviderActorResponse[];
+}
+
 
 export interface CreateProjectResponse {
   projectId: number;
@@ -138,5 +205,6 @@ export interface CreatedProject {
   id: string;
   myProjectMemberId: number;
   name: string;
+  invitationCode: string;
   invitationLink: string;
 }

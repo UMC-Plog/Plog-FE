@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { FolderOpen, Plus } from "lucide-react";
+import { Bell, FolderOpen, Plus } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "../components/Button";
 import { EmptyState } from "../components/EmptyState";
@@ -79,14 +79,24 @@ export default function HomePage() {
           <PlogMark />
           <h1 className="text-title font-bold text-gray-900">프로젝트</h1>
         </div>
-        <button
-          type="button"
-          aria-label="프로젝트 생성"
-          onClick={() => navigate("/project/new")}
-          className="flex h-10 w-10 items-center justify-center rounded-full text-blue-500 hover:bg-blue-50"
-        >
-          <Plus size={24} strokeWidth={2} aria-hidden="true" />
-        </button>
+        <div className="flex items-center gap-1">
+          <button
+            type="button"
+            aria-label="알림"
+            onClick={() => navigate("/notifications")}
+            className="flex h-10 w-10 items-center justify-center rounded-full text-gray-600 hover:bg-gray-100"
+          >
+            <Bell size={22} strokeWidth={2} aria-hidden="true" />
+          </button>
+          <button
+            type="button"
+            aria-label="프로젝트 생성"
+            onClick={() => navigate("/project/new")}
+            className="flex h-10 w-10 items-center justify-center rounded-full text-blue-500 hover:bg-blue-50"
+          >
+            <Plus size={24} strokeWidth={2} aria-hidden="true" />
+          </button>
+        </div>
       </header>
 
       <div className="mt-[14px] flex items-center justify-between gap-3 px-[22px]">

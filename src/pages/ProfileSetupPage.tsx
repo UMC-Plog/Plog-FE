@@ -11,6 +11,7 @@ import { useAuthStore } from "../store/authStore";
 import { checkNicknameAvailable, signup, login, oauthSignup, type AgreementItem } from "../api/auth";
 import { ApiError } from "../api/client";
 import { toProfilePreset } from "../lib/profilePreset";
+import { consumeProjectInvitationPath } from "../lib/projectInvitation";
 
 export function ProfileSetupPage() {
   const navigate = useNavigate();
@@ -117,7 +118,7 @@ export function ProfileSetupPage() {
         const tokens = await login(draft.email, draft.password);
         completeSignup(tokens);
       }
-      navigate("/home");
+      navigate(consumeProjectInvitationPath() ?? "/home", { replace: true });
     } catch (err) {
       if (err instanceof ApiError) {
         setSignupError(err.message);

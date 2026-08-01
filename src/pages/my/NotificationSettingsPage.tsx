@@ -1,21 +1,50 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Layout } from "../../components/Layout";
+import { AlertModal } from "../../components/Modal";
 import { MySubpageHeader } from "../../components/my/MySubpageHeader";
-
-const NOTIFICATION_STORAGE_KEY = "plog-notifications-enabled";
-
-function readNotificationSetting() {
-  return localStorage.getItem(NOTIFICATION_STORAGE_KEY) !== "false";
-}
+import {
+  disablePushNotifications,
+  enablePushNotifications,
+} from "../../lib/firebaseMessaging";
+import {
+  isNotificationEnabled,
+  setNotificationEnabled,
+} from "../../lib/notificationSettings";
 
 export function NotificationSettingsPage() {
   const navigate = useNavigate();
-  const [enabled, setEnabled] = useState(readNotificationSetting);
+  const [enabled, setEnabled] = useState(
+    () =>
+      isNotificationEnabled() &&
+      "Notification" in window &&
+      Notification.permission === "granted",
+  );
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const save = () => {
-    localStorage.setItem(NOTIFICATION_STORAGE_KEY, String(enabled));
-    navigate("/my");
+  const save = async () => {
+    setSaving(true);
+    try {
+      if (enabled) {
+        await enablePushNotifications();
+      } else {
+        await disablePushNotifications();
+      }
+      setNotificationEnabled(enabled);
+      navigate("/my");
+    } catch (saveError) {
+      const previousEnabled = !enabled;
+      setNotificationEnabled(previousEnabled);
+      setEnabled(previousEnabled);
+      setError(
+        saveError instanceof Error
+          ? saveError.message
+          : "알림 설정을 저장하지 못했습니다.",
+      );
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -24,7 +53,7 @@ export function NotificationSettingsPage() {
 
       <main className="flex-1 px-4 pt-6">
         <p className="px-1.5 text-[12px] font-normal leading-[17px] text-gray-400">
-          연동된 툴의 활동 데이터가 기여도 분석에 자동 반영됩니다
+          프로젝트 채팅의 새로운 멘션을 실시간으로 알려드려요
         </p>
 
         <section className="mt-[23px] flex h-[90px] items-center rounded-16 border border-gray-100 bg-white/10 px-[26px] shadow-card">
@@ -56,7 +85,7 @@ export function NotificationSettingsPage() {
           <p className="mt-4 px-1.5 text-[12px] font-normal leading-[17px] text-gray-400">
             알림 설정은 사용자분들의 원활한 서비스 이용을 위해 만들었어요.
             <br />
-            알림을 켜두시면 @멘션 / Peer 평가 / 리포트 알림을 받으실 수 있어요!
+            알림을 켜두시면 새로운 @멘션 알림을 받을 수 있어요!
           </p>
         )}
       </main>
@@ -64,12 +93,20 @@ export function NotificationSettingsPage() {
       <footer className="shrink-0 border-t border-gray-100 bg-white px-[22px] pb-[26px] pt-4">
         <button
           type="button"
-          onClick={save}
-          className="h-14 w-full rounded-[14px] bg-blue-500 text-[16px] font-semibold text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-300"
+          onClick={() => void save()}
+          disabled={saving}
+          className="h-14 w-full rounded-[14px] bg-blue-500 text-[16px] font-semibold text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-300 disabled:bg-gray-200"
         >
-          저장
+          {saving ? "저장 중..." : "저장"}
         </button>
       </footer>
+
+      <AlertModal
+        open={Boolean(error)}
+        title="알림을 설정하지 못했어요"
+        description={error ?? undefined}
+        onConfirm={() => setError(null)}
+      />
     </Layout>
   );
 }

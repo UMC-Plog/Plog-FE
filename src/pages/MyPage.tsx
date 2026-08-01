@@ -9,8 +9,9 @@ import { getPersistentProfileImage } from "../lib/profileImage";
 import { toAvatarId } from "../lib/profilePreset";
 import { cn } from "../lib/utils";
 import { useAuthStore } from "../store/authStore";
+import { disablePushNotifications } from "../lib/firebaseMessaging";
 
-function PlogMark() {
+export function PlogMark() {
   return (
     <svg width="24" height="24" viewBox="90 8 59 66" fill="none" aria-hidden="true">
       <path
@@ -180,6 +181,7 @@ export default function MyPage() {
                   type="button"
                   onClick={async () => {
                     const refreshToken = useAuthStore.getState().refreshToken;
+                    await disablePushNotifications({ bestEffort: true }).catch(() => undefined);
                     if (refreshToken) {
                       await logoutRequest(refreshToken).catch(() => {});
                     }
