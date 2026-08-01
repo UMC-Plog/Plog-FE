@@ -770,12 +770,6 @@ export default function IntegrationConnectionPage() {
               : `${config.name} 연동을 해제하시겠습니까?`}
           </h2>
           <p className="mt-8 text-[13px] leading-[21px] text-gray-400">
-            {isGooglePicker && (
-              <>
-                두 서비스는 하나의 Google 계정으로 연동되어 함께 해제됩니다
-                <br />
-              </>
-            )}
             연동된 툴의 활동 데이터가 기여도 분석에 자동 반영됩니다
             <br />
             연동을 해제하면 기여도 분석 정확도가 낮아질 수 있어요!
