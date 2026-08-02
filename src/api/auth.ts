@@ -10,8 +10,14 @@ export interface ProfileResponse {
   email: string;
   name: string;
   nickname: string;
-  profilePreset: string | null;
+  profilePreset: ProfilePreset | null;
   nameChangeAvailable: boolean;
+}
+
+export interface ProfileUpdateRequest {
+  name?: string;
+  nickname?: string;
+  preset?: ProfilePreset;
 }
 
 export type AgreementType = "SERVICE_TERMS" | "PRIVACY" | "EXTERNAL_DATA" | "MARKETING";
@@ -50,8 +56,18 @@ export function login(email: string, password: string) {
   return apiRequest<TokenResponse>("/api/auth/login", { method: "POST", body: { email, password } });
 }
 
-export function fetchProfile(accessToken: string) {
+export function fetchProfile(accessToken?: string) {
   return apiRequest<ProfileResponse>("/api/profile", { accessToken });
+}
+
+export function updateProfile(payload: ProfileUpdateRequest) {
+  return apiRequest<void>("/api/profile", { method: "PATCH", body: payload });
+}
+
+export function checkProfileNicknameAvailable(nickname: string) {
+  return apiRequest<void>(
+    `/api/profile/nickname/check?nickname=${encodeURIComponent(nickname)}`
+  );
 }
 
 export function sendPasswordResetCode(email: string) {

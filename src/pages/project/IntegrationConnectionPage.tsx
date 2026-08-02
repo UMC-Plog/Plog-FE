@@ -311,10 +311,12 @@ export default function IntegrationConnectionPage() {
       ? "googleDocs"
       : providerId === "slides"
         ? "googleSlides"
-        : providerId;
-  const mockConnected = useIntegrationStore((state) => state.accounts[storeProvider]);
-  const connectMock = useIntegrationStore((state) => state.connect);
-  const disconnectMock = useIntegrationStore((state) => state.disconnect);
+        : (provider as Exclude<IntegrationProvider, "googleDocs" | "googleSlides">);
+  const mockConnected = useIntegrationStore(
+    (state) => state.projectAccounts[id]?.[storeProvider] ?? false
+  );
+  const connectMock = useIntegrationStore((state) => state.connectProject);
+  const disconnectMock = useIntegrationStore((state) => state.disconnectProject);
   const navigationState = location.state as IntegrationNavigationState | null;
   const navigationConnected = navigationState?.isConnected;
   const navigationMockConnected = Boolean(navigationState?.isMockConnected);
@@ -676,10 +678,10 @@ export default function IntegrationConnectionPage() {
     if (currentStep === 4) {
       if (!isServer) {
         if (isGooglePicker) {
-          connectMock("googleDocs");
-          connectMock("googleSlides");
+          connectMock(id, "googleDocs");
+          connectMock(id, "googleSlides");
         } else {
-          connectMock(storeProvider);
+          connectMock(id, storeProvider);
         }
       }
       navigate(`/project/${id}/settings`);
@@ -730,10 +732,10 @@ export default function IntegrationConnectionPage() {
     try {
       if (!isServer && (navigationMockConnected || mockConnected)) {
         if (isGooglePicker) {
-          disconnectMock("googleDocs");
-          disconnectMock("googleSlides");
+          disconnectMock(id, "googleDocs");
+          disconnectMock(id, "googleSlides");
         } else {
-          disconnectMock(storeProvider);
+          disconnectMock(id, storeProvider);
         }
         navigate(`/project/${id}/settings`, { replace: true });
         return;

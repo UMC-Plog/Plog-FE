@@ -8,6 +8,8 @@ import {
 } from "../../api/projectApi";
 import { Button } from "../../components/Button";
 import { AlertModal } from "../../components/Modal";
+import { rememberProjectInvitationPath } from "../../lib/projectInvitation";
+import { useAuthStore } from "../../store/authStore";
 import { useProjectStore } from "../../store/projectStore";
 import type { ProjectInvitationPreviewResponse } from "../../types/project";
 import { PlogMark } from "../MyPage";
@@ -23,6 +25,7 @@ function formatEndDay(value: string) {
 export function ProjectInvitationPage() {
   const { inviteCode = "" } = useParams();
   const navigate = useNavigate();
+  const accessToken = useAuthStore((state) => state.accessToken);
   const fetchProjects = useProjectStore((state) => state.fetchProjects);
   const [invitation, setInvitation] =
     useState<ProjectInvitationPreviewResponse | null>(null);
@@ -37,6 +40,12 @@ export function ProjectInvitationPage() {
     if (!inviteCode) {
       setError("유효하지 않은 초대 링크예요.");
       setIsLoading(false);
+      return;
+    }
+
+    if (!accessToken) {
+      rememberProjectInvitationPath(inviteCode);
+      navigate("/login", { replace: true });
       return;
     }
 
@@ -60,7 +69,7 @@ export function ProjectInvitationPage() {
     return () => {
       isActive = false;
     };
-  }, [inviteCode]);
+  }, [accessToken, inviteCode, navigate]);
 
   const handleAccept = async () => {
     if (!inviteCode || joinStartedRef.current) return;

@@ -5,6 +5,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { createProjectInvitationUrl } from "../../lib/projectInvitation";
 import {
   getProjectSettings,
+  isOwnerMustTransferError,
   leaveProject,
   toApiProjectType,
   updateProjectSettings,
@@ -18,11 +19,16 @@ import docsIcon from "../../assets/integrations/google-docs.svg";
 import slidesIcon from "../../assets/integrations/google-slides.svg";
 import { Modal } from "../../components/Modal";
 import { useProjectStore } from "../../store/projectStore";
+import {
+  useIntegrationStore,
+  type IntegrationProvider,
+} from "../../store/integrationStore";
 import type {
   ProjectIntegrationType,
   ProjectSettingsResponse,
   ProjectType,
 } from "../../types/project";
+import { getDaysFromToday } from "../../lib/projectDate";
 
 const INTEGRATIONS = [
   { id: "github", label: "GitHub", icon: githubIcon, logo: 32, type: "GITHUB" },
@@ -71,7 +77,10 @@ function getErrorMessage(error: unknown) {
     case "E400_INVALID_DATE":
       return "프로젝트명과 예상 종료일을 확인해 주세요.";
     case "OWNER_MUST_TRANSFER":
-      return "방장은 다른 팀원에게 권한을 이전한 뒤 나갈 수 있어요.";
+      return "프로젝트 생성자는 다른 팀원에게 방장 권한을 이전해야 나갈 수 있어요.";
+    case "PROJECT_ACTIVE_MEMBER_REQUIRED":
+    case "ACTIVE_MEMBER_REQUIRED":
+      return "이미 나갔거나 참여 중이 아닌 프로젝트예요.";
     default:
       return error.message || "요청을 처리하지 못했어요.";
   }
@@ -137,11 +146,13 @@ function SelectBox({
 function ProjectLeaveDialog({
   open,
   isLeaving,
+  errorMessage,
   onConfirm,
   onCancel,
 }: {
   open: boolean;
   isLeaving: boolean;
+  errorMessage: string | null;
   onConfirm: () => void;
   onCancel: () => void;
 }) {
@@ -149,9 +160,10 @@ function ProjectLeaveDialog({
     <Modal
       open={open}
       onClose={isLeaving ? undefined : onCancel}
-      contentClassName="h-[436px] max-w-[362px] rounded-[22px] px-6 pb-[26px] pt-[42px]"
+      contentClassName="max-w-[362px] rounded-[22px] px-6 pb-[26px] pt-[42px]"
     >
-      <div className="flex h-full flex-col">
+      {/* 실패 메시지가 붙으면 아래로 늘어나도록 고정 높이 대신 최소 높이(436px - 상하 패딩)를 쓴다. */}
+      <div className="flex min-h-[368px] flex-col">
         <h2 className="text-center text-[18px] font-semibold leading-[26px] text-gray-900">
           프로젝트에서 나가시겠습니까?
         </h2>
@@ -173,7 +185,13 @@ function ProjectLeaveDialog({
           프로젝트에서 나간 후 연동된 워크스페이스를 탈퇴해주세요.
         </p>
 
-        <div className="mt-auto grid grid-cols-2 gap-4">
+        {errorMessage && (
+          <p className="mt-[18px] text-[13px] leading-5 text-error" role="alert">
+            {errorMessage}
+          </p>
+        )}
+
+        <div className="mt-auto grid grid-cols-2 gap-4 pt-[18px]">
           <button
             type="button"
             onClick={onCancel}
@@ -196,11 +214,49 @@ function ProjectLeaveDialog({
   );
 }
 
+/** 400 OWNER_MUST_TRANSFER 응답 전용 안내 — 방장 권한을 넘긴 뒤에야 나갈 수 있다. */
+function OwnerTransferDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
+  return (
+    <Modal
+      open={open}
+      onClose={onClose}
+      contentClassName="max-w-[362px] rounded-[22px] px-6 pb-[26px] pt-[38px]"
+    >
+      <div className="flex flex-col">
+        <h2 className="text-center text-[18px] font-semibold leading-[26px] text-gray-900">
+          방장 권한을 먼저 이전해 주세요
+        </h2>
+
+        <ul className="mt-[28px] space-y-[18px] pl-4 text-[13px] leading-[21px] text-gray-400">
+          <li className="list-disc pl-1">
+            프로젝트 생성자는 다른 팀원에게 방장 권한을 이전해야 프로젝트에서 나갈 수 있습니다
+          </li>
+          <li className="list-disc pl-1">
+            남은 팀원이 없어 혼자만 활동 중이라면 권한 이전 없이 바로 나갈 수 있으며, 이때
+            프로젝트도 함께 삭제됩니다
+          </li>
+        </ul>
+
+        <button
+          type="button"
+          onClick={onClose}
+          className="mt-[30px] h-14 w-full rounded-[14px] bg-blue-500 text-[16px] font-semibold text-white"
+        >
+          확인
+        </button>
+      </div>
+    </Modal>
+  );
+}
+
 export function ProjectSettingsPage() {
   const { id = "" } = useParams();
   const navigate = useNavigate();
   const fetchProjects = useProjectStore((state) => state.fetchProjects);
   const removeProject = useProjectStore((state) => state.removeProject);
+  const mockIntegrationAccounts = useIntegrationStore(
+    (state) => state.projectAccounts[id]
+  );
   const [settings, setSettings] = useState<ProjectSettingsResponse | null>(null);
   const [integrationLinks, setIntegrationLinks] = useState<
     Partial<Record<ProjectIntegrationType, boolean>>
@@ -209,6 +265,8 @@ export function ProjectSettingsPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [isLeaving, setIsLeaving] = useState(false);
   const [isLeaveDialogOpen, setIsLeaveDialogOpen] = useState(false);
+  const [leaveError, setLeaveError] = useState<string | null>(null);
+  const [isOwnerTransferOpen, setIsOwnerTransferOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
@@ -288,7 +346,8 @@ export function ProjectSettingsPage() {
   const isFormValid =
     trimmedName.length >= 2 &&
     trimmedName.length <= 20 &&
-    isValidDate(year, month, day);
+    isValidDate(year, month, day) &&
+    getDaysFromToday(`${year}-${month}-${day}`) >= 0;
 
   const handleSave = async () => {
     if (!settings || isSaving || isCompleted || !isFormValid) return;
@@ -338,13 +397,21 @@ export function ProjectSettingsPage() {
     }
   };
 
+  const openLeaveDialog = () => {
+    setLeaveError(null);
+    setIsLeaveDialogOpen(true);
+  };
+
   const handleLeave = async () => {
     if (isLeaving) return;
     setIsLeaving(true);
-    setError(null);
+    setLeaveError(null);
     try {
       const response = await leaveProject(id);
-      if (!response.success) throw new Error("프로젝트 나가기 응답이 올바르지 않습니다.");
+      if (!response?.success) throw new Error("프로젝트 나가기 응답이 올바르지 않습니다.");
+      setIsLeaveDialogOpen(false);
+      // 마지막 활성 멤버가 나가면 서버에서 프로젝트까지 삭제되므로, 목록 재조회 전에 로컬에서도 먼저 지운다.
+      removeProject(id);
       try {
         await fetchProjects(true);
       } catch {
@@ -352,9 +419,14 @@ export function ProjectSettingsPage() {
       }
       removeProject(id);
       navigate("/home", { replace: true });
-    } catch (leaveError) {
-      setError(getErrorMessage(leaveError));
-      setIsLeaveDialogOpen(false);
+    } catch (requestError) {
+      // 방장에게 다른 활성 팀원이 남아 있으면 400 OWNER_MUST_TRANSFER — 권한 이전 안내로 바꿔 띄운다.
+      if (isOwnerMustTransferError(requestError)) {
+        setIsLeaveDialogOpen(false);
+        setIsOwnerTransferOpen(true);
+      } else {
+        setLeaveError(getErrorMessage(requestError));
+      }
     } finally {
       setIsLeaving(false);
     }
@@ -387,7 +459,7 @@ export function ProjectSettingsPage() {
         <footer className="fixed bottom-0 left-1/2 z-20 h-[92px] w-full max-w-mobile -translate-x-1/2 border-t border-gray-100 bg-white px-5 pt-[10px]">
           <button
             type="button"
-            onClick={() => setIsLeaveDialogOpen(true)}
+            onClick={openLeaveDialog}
             disabled={isLeaving}
             className="h-14 w-full rounded-[14px] border border-error text-[16px] font-semibold text-error disabled:opacity-50"
           >
@@ -398,10 +470,16 @@ export function ProjectSettingsPage() {
         <ProjectLeaveDialog
           open={isLeaveDialogOpen}
           isLeaving={isLeaving}
+          errorMessage={leaveError}
           onConfirm={() => void handleLeave()}
           onCancel={() => {
             if (!isLeaving) setIsLeaveDialogOpen(false);
           }}
+        />
+
+        <OwnerTransferDialog
+          open={isOwnerTransferOpen}
+          onClose={() => setIsOwnerTransferOpen(false)}
         />
       </div>
     );
@@ -463,6 +541,9 @@ export function ProjectSettingsPage() {
               {DAYS.map((item) => <option key={item}>{item}</option>)}
             </SelectBox>
           </div>
+          {isValidDate(year, month, day) && getDaysFromToday(`${year}-${month}-${day}`) < 0 && (
+            <p className="mt-1.5 text-caption font-normal text-error">오늘 또는 이후 날짜를 선택해 주세요</p>
+          )}
         </fieldset>
 
         <section className="mt-[22px]">
@@ -484,12 +565,20 @@ export function ProjectSettingsPage() {
           <p className="mt-1 text-[12px] font-normal text-gray-400">워크스페이스를 소유한 팀원만 연동할 수 있어요.</p>
           <div className="mt-2 rounded-[16px] border border-gray-100 bg-white/10 px-[18px] shadow-card">
             {INTEGRATIONS.map((integration) => {
-              const connected =
+              const serverConnected =
                 integrationLinks[integration.type] ??
                 settings.externalConnections.some(
                   (connection) =>
                     connection.linkType === integration.type && connection.isLinked
                 );
+              const storeProvider: IntegrationProvider =
+                integration.id === "docs"
+                  ? "googleDocs"
+                  : integration.id === "slides"
+                    ? "googleSlides"
+                    : integration.id;
+              const mockConnected = mockIntegrationAccounts?.[storeProvider] ?? false;
+              const connected = serverConnected || mockConnected;
               const openIntegration = (entryMode: "disconnect" | "resources") =>
                 navigate(`/project/${id}/settings/integrations/${integration.id}`, {
                   state: {
@@ -498,7 +587,6 @@ export function ProjectSettingsPage() {
                     entryMode,
                   },
                 });
-
               return (
                 <div key={integration.id} className="flex h-[61px] w-full items-center">
                   <span className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-[10px] bg-white">
@@ -528,7 +616,7 @@ export function ProjectSettingsPage() {
       </main>
 
       <footer className="fixed bottom-0 left-1/2 z-20 grid h-[92px] w-full max-w-mobile -translate-x-1/2 grid-cols-[1fr_1fr] gap-4 border-t border-gray-100 bg-white px-5 pt-[10px]">
-        <button type="button" onClick={() => setIsLeaveDialogOpen(true)} disabled={isLeaving} className="h-14 rounded-[14px] border border-error text-[16px] font-semibold text-error disabled:opacity-50">
+        <button type="button" onClick={openLeaveDialog} disabled={isLeaving} className="h-14 rounded-[14px] border border-error text-[16px] font-semibold text-error disabled:opacity-50">
           프로젝트 나가기
         </button>
         <button type="button" onClick={() => void handleSave()} disabled={!isFormValid || formDisabled} className="h-14 rounded-[14px] bg-blue-500 text-[16px] font-semibold text-white disabled:bg-gray-200 disabled:text-gray-400">
@@ -551,10 +639,16 @@ export function ProjectSettingsPage() {
       <ProjectLeaveDialog
         open={isLeaveDialogOpen}
         isLeaving={isLeaving}
+        errorMessage={leaveError}
         onConfirm={() => void handleLeave()}
         onCancel={() => {
           if (!isLeaving) setIsLeaveDialogOpen(false);
         }}
+      />
+
+      <OwnerTransferDialog
+        open={isOwnerTransferOpen}
+        onClose={() => setIsOwnerTransferOpen(false)}
       />
 
       <Modal open={isQrOpen} onClose={() => setIsQrOpen(false)}>

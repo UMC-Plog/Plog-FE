@@ -13,7 +13,7 @@ import QRCode from "qrcode";
 import { Button } from "../../components/Button";
 import { Input } from "../../components/Input";
 import { AlertModal, BottomSheet, Modal } from "../../components/Modal";
-import { isFutureDate } from "../../lib/projectDate";
+import { getDaysFromToday } from "../../lib/projectDate";
 import { createProjectInvitationUrl } from "../../lib/projectInvitation";
 import { cn } from "../../lib/utils";
 import inviteLinkIcon from "../../assets/invite-link-icon.svg";
@@ -272,7 +272,7 @@ export function CreateProjectPage() {
     year && month && day
       ? `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`
       : "";
-  const dateValid = isFutureDate(expectedEndDate);
+  const dateValid = Boolean(expectedEndDate) && getDaysFromToday(expectedEndDate) >= 0;
   const infoValid = nameValid && projectType !== "" && dateValid;
 
   const nameError =
@@ -396,7 +396,7 @@ export function CreateProjectPage() {
                   </SelectField>
                 </div>
                 {expectedEndDate && !dateValid && (
-                  <p className="mt-1.5 text-caption font-normal text-error">오늘보다 이후 날짜를 선택해 주세요</p>
+                  <p className="mt-1.5 text-caption font-normal text-error">오늘 또는 이후 날짜를 선택해 주세요</p>
                 )}
               </fieldset>
             </div>

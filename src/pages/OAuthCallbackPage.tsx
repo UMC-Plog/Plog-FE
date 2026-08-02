@@ -7,6 +7,7 @@ import { consumeOAuthState, type SocialOAuthProvider } from "../lib/oauth";
 import { toAvatarId } from "../lib/profilePreset";
 import { useAuthStore } from "../store/authStore";
 import { AlertModal } from "../components/Modal";
+import { consumeProjectInvitationPath } from "../lib/projectInvitation";
 
 export function OAuthCallbackPage() {
   const { provider } = useParams<{ provider: SocialOAuthProvider }>();
@@ -53,7 +54,7 @@ export function OAuthCallbackPage() {
             },
             tokens
           );
-          navigate("/home", { replace: true });
+          navigate(consumeProjectInvitationPath() ?? "/home", { replace: true });
           return;
         }
 

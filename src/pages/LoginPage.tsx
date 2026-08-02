@@ -11,6 +11,7 @@ import { fetchProfile, login as loginRequest } from "../api/auth";
 import { ApiError } from "../api/client";
 import { toAvatarId } from "../lib/profilePreset";
 import { startOAuth } from "../lib/oauth";
+import { consumeProjectInvitationPath } from "../lib/projectInvitation";
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -52,7 +53,7 @@ export function LoginPage() {
         },
         tokens
       );
-      navigate("/home");
+      navigate(consumeProjectInvitationPath() ?? "/home", { replace: true });
     } catch (err) {
       if (err instanceof ApiError) {
         setLoginFailed(true);

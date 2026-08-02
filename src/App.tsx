@@ -33,12 +33,16 @@ import PeerEvalListPage from './pages/project/PeerEvalListPage'
 import PeerEvalStarPage from './pages/project/PeerEvalStarPage'
 import PeerEvalKeywordPage from './pages/project/PeerEvalKeywordPage'
 import SelfFeedbackPage from './pages/project/SelfFeedbackPage'
+import PeerEvalAccountSelectPage from './pages/project/PeerEvalAccountSelectPage'
 import { ProjectDataLoader } from './components/ProjectDataLoader'
 import { ProjectInvitationPage } from './pages/project/ProjectInvitationPage'
+import NotificationPage from './pages/NotificationPage'
+import { PushNotificationManager } from './components/PushNotificationManager'
 
 function App() {
   return (
     <BrowserRouter>
+      <PushNotificationManager />
       <Routes>
         {/* 담당자 A — 인증/온보딩 (페이지 ID는 팀 노션 "역할 분담 상세" 문서 기준) */}
         <Route path="/" element={<SplashPage />} />
@@ -65,6 +69,7 @@ function App() {
         <Route path="/my/profile" element={<ProfileEditPage />} />
         <Route path="/my/accounts" element={<AccountConnectionsPage />} />
         <Route path="/my/notifications" element={<NotificationSettingsPage />} />
+        <Route path="/notifications" element={<NotificationPage />} />
         <Route path="/my/withdraw" element={<WithdrawPage />} />
         <Route path="/project/new" element={<CreateProjectPage />} />
         <Route path="/project/:id/settings" element={<ProjectSettingsPage />} />
@@ -73,6 +78,7 @@ function App() {
           {/* Peer 평가 플로우 — ProjectTabBar 밖 독립 화면 */}
           <Route path="/project/:id/peer-eval" element={<PeerEvalListPage />} />
           <Route path="/project/:id/peer-eval/self" element={<SelfFeedbackPage />} />
+          <Route path="/project/:id/peer-eval/accounts/:provider" element={<PeerEvalAccountSelectPage />} />
           <Route path="/project/:id/peer-eval/:memberId/star" element={<PeerEvalStarPage />} />
           <Route path="/project/:id/peer-eval/:memberId/keyword" element={<PeerEvalKeywordPage />} />
 

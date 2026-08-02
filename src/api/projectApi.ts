@@ -10,10 +10,14 @@ import type {
   CreateProjectRequest,
   CreateProjectResponse,
   CreatedProject,
+  IntegrationActorMappingListResponse,
+  IntegrationActorMappingResponse,
   Project,
   ProjectApiType,
+  ProjectIntegrationStatusResponse,
   ProjectListItemResponse,
   ProjectListResponse,
+  ProjectIntegrationDisconnectResponse,
   ProjectInvitationPreviewResponse,
   ProjectJoinRequest,
   ProjectJoinResponse,
@@ -152,6 +156,20 @@ export function mapProjectResponseToProject(response: ProjectListItemResponse): 
   };
 }
 
+function assertProjectListItem(response: ProjectListItemResponse) {
+  if (
+    !Number.isSafeInteger(response.projectId) ||
+    response.projectId <= 0 ||
+    !Number.isSafeInteger(response.myProjectMemberId) ||
+    response.myProjectMemberId <= 0
+  ) {
+    throw new ApiError(
+      "INVALID_PROJECT_LIST_RESPONSE",
+      "프로젝트 목록 응답 형식이 올바르지 않습니다."
+    );
+  }
+}
+
 export function mapCreatedProjectResponse(response: CreateProjectResponse): CreatedProject {
   return {
     id: String(response.projectId),
@@ -173,6 +191,7 @@ export async function getProjects(): Promise<Project[]> {
     );
     validateProjectListResponse(response);
 
+    response.content.forEach(assertProjectListItem);
     projects.push(...response.content.map(mapProjectResponseToProject));
     hasNext = response.hasNext === true;
     page += 1;
@@ -224,9 +243,44 @@ export function updateProjectSettings(
   );
 }
 
+/**
+ * 방장이 다른 활성 팀원을 남겨둔 채 나가려 할 때 서버가 400으로 내려주는 코드.
+ * 마지막 활성 멤버인 방장은 권한 이전 없이 나갈 수 있고, 이때 프로젝트도 함께 삭제된다.
+ */
+export const OWNER_MUST_TRANSFER_CODE = "OWNER_MUST_TRANSFER";
+
+export function isOwnerMustTransferError(error: unknown) {
+  return error instanceof ApiError && error.code === OWNER_MUST_TRANSFER_CODE;
+}
+
 export function leaveProject(projectId: string) {
   return apiRequest<ProjectLeaveResponse>(`/api/projects/${projectId}/members/me`, {
     method: "DELETE",
   });
 }
 
+export function getProjectIntegrations(projectId: string) {
+  return apiRequest<ProjectIntegrationStatusResponse>(
+    `/api/projects/${projectId}/integrations`
+  );
+}
+
+export function getIntegrationActorMappings(projectId: string, provider: string) {
+  return apiRequest<IntegrationActorMappingListResponse>(
+    `/api/projects/${projectId}/integrations/${provider}/actor-mappings`
+  );
+}
+
+export function saveMyActorMapping(projectId: string, provider: string, actorKey: string) {
+  return apiRequest<IntegrationActorMappingResponse>(
+    `/api/projects/${projectId}/integrations/${provider}/actor-mappings/me`,
+    { method: "PUT", body: { actorKey } }
+  );
+}
+
+export function disconnectProjectIntegration(projectId: string, provider: string) {
+  return apiRequest<ProjectIntegrationDisconnectResponse>(
+    `/api/projects/${projectId}/integrations/${provider}`,
+    { method: "DELETE" }
+  );
+}

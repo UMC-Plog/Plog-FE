@@ -1,11 +1,15 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ChevronRight, LogOut } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { fetchProfile, logoutRequest } from "../api/auth";
+import { ApiError } from "../api/client";
 import { AVATAR_PRESETS } from "../components/AvatarPicker";
+import { AlertModal } from "../components/Modal";
 import { getPersistentProfileImage } from "../lib/profileImage";
+import { toAvatarId } from "../lib/profilePreset";
 import { cn } from "../lib/utils";
 import { useAuthStore } from "../store/authStore";
-import { logoutRequest } from "../api/auth";
+import { disablePushNotifications } from "../lib/firebaseMessaging";
 
 export function PlogMark() {
   return (
@@ -34,11 +38,46 @@ export default function MyPage() {
   const navigate = useNavigate();
   const user = useAuthStore((state) => state.user);
   const logout = useAuthStore((state) => state.logout);
+  const syncProfile = useAuthStore((state) => state.syncProfile);
   const [logoutOpen, setLogoutOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const avatar = AVATAR_PRESETS.find((preset) => preset.id === user?.avatarId) ?? AVATAR_PRESETS[0];
   const avatarSrc = getPersistentProfileImage(user?.avatarImageUrl) ?? avatar.src;
   const displayRealName = user?.realName?.trim() || "이름 없음";
   const displayNickname = user?.nickname?.trim() || "닉네임 없음";
+  const displayEmail = user?.email?.trim() || "이메일 없음";
+
+  useEffect(() => {
+    let active = true;
+
+    void fetchProfile()
+      .then((profile) => {
+        if (!active) return;
+        syncProfile({
+          email: profile.email,
+          realName: profile.name,
+          nickname: profile.nickname,
+          avatarId: toAvatarId(profile.profilePreset),
+          avatarImageUrl: null,
+        });
+      })
+      .catch((error) => {
+        if (!active) return;
+        setLoadError(
+          error instanceof ApiError
+            ? error.message
+            : "사용자 정보를 불러오지 못했어요."
+        );
+      })
+      .finally(() => {
+        if (active) setIsLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [syncProfile]);
 
   return (
     <div className="min-h-full bg-gray-25">
@@ -48,31 +87,41 @@ export default function MyPage() {
       </header>
 
       <div className="px-4 pt-7">
-        <button
-          type="button"
-          onClick={() => navigate("/my/profile")}
-          aria-label="프로필 수정"
-          className="flex h-[78px] w-full items-center rounded-16 border border-gray-100 bg-white/10 px-4 text-left shadow-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-300"
-        >
-          <img
-            src={avatarSrc}
-            alt={`${displayNickname} 프로필`}
-            className="h-[60px] w-[60px] shrink-0 rounded-full object-cover"
-            onError={(event) => {
-              event.currentTarget.onerror = null;
-              event.currentTarget.src = avatar.src;
-            }}
-          />
-          <span className="ml-4 min-w-0 flex-1">
-            <strong className="block truncate text-[16px] font-normal leading-[22px] text-gray-900">
-              {displayNickname}
-            </strong>
-            <span className="mt-0.5 block truncate text-[12px] font-normal leading-[17px] text-gray-400">
-              {displayRealName}
+        {isLoading ? (
+          <div
+            className="flex h-[78px] items-center justify-center"
+            role="status"
+            aria-label="사용자 정보 불러오는 중"
+          >
+            <span className="h-8 w-8 animate-spin rounded-full border-4 border-blue-100 border-t-blue-500" />
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={() => navigate("/my/profile")}
+            aria-label="프로필 수정"
+            className="flex h-[78px] w-full items-center rounded-16 border border-gray-100 bg-white/10 px-4 text-left shadow-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-300"
+          >
+            <img
+              src={avatarSrc}
+              alt={`${displayNickname} 프로필`}
+              className="h-[60px] w-[60px] shrink-0 rounded-full object-cover"
+              onError={(event) => {
+                event.currentTarget.onerror = null;
+                event.currentTarget.src = avatar.src;
+              }}
+            />
+            <span className="ml-4 min-w-0 flex-1">
+              <strong className="block truncate text-[16px] font-normal leading-[22px] text-gray-900">
+                {displayNickname}
+              </strong>
+              <span className="mt-0.5 block truncate text-[12px] font-normal leading-[17px] text-gray-400">
+                {displayRealName} · {displayEmail}
+              </span>
             </span>
-          </span>
-          <ChevronRight size={20} strokeWidth={1.7} className="text-gray-400" aria-hidden="true" />
-        </button>
+            <ChevronRight size={20} strokeWidth={1.7} className="text-gray-400" aria-hidden="true" />
+          </button>
+        )}
 
         <section className="mt-[38px]" aria-labelledby="settings-title">
           <h2 id="settings-title" className="text-[18px] font-normal leading-[25px] text-gray-500">설정</h2>
@@ -132,6 +181,7 @@ export default function MyPage() {
                   type="button"
                   onClick={async () => {
                     const refreshToken = useAuthStore.getState().refreshToken;
+                    await disablePushNotifications({ bestEffort: true }).catch(() => undefined);
                     if (refreshToken) {
                       await logoutRequest(refreshToken).catch(() => {});
                     }
@@ -147,6 +197,12 @@ export default function MyPage() {
           </section>
         </div>
       )}
+
+      <AlertModal
+        open={Boolean(loadError)}
+        title={loadError ?? ""}
+        onConfirm={() => setLoadError(null)}
+      />
     </div>
   );
 }

@@ -7,6 +7,7 @@ const WS_BASE_URL = 'https://api.umc-plog.site'
 // destination 출처: 백엔드 API 명세서(Notion) — Swagger는 REST만 다뤄서 별도 확인받음
 export const chatDestinations = {
   subscribeRoom: (roomId: number) => `/topic/chat-rooms/${roomId}`,
+  subscribeAttachments: (roomId: number) => `/topic/chat-rooms/${roomId}/attachments`,
   subscribeErrors: () => '/user/queue/errors',
   publishMessage: (roomId: number) => `/app/chat-rooms/${roomId}/messages`,
 }
