@@ -5,7 +5,7 @@ import { AlertModal } from '../../components/Modal';
 import { useAuthStore } from '../../store/authStore';
 import { AVATAR_PRESETS } from '../../components/AvatarPicker';
 import { toAvatarId } from '../../lib/profilePreset';
-import { fetchChannels, fetchMessages, markRoomAsRead, type ChatAttachmentThumbnailResponse, type ChatMessageAttachmentResponse, type ChatMessageResponse } from '../../api/chat';
+import { fetchChannels, fetchMessages, markRoomAsRead, type ChatAttachmentThumbnailResponse, type ChatChannelParticipantResponse, type ChatMessageAttachmentResponse, type ChatMessageResponse } from '../../api/chat';
 import { createChatStompClient, subscribeToDestination, publishToDestination, chatDestinations } from '../../api/chatSocket';
 import { ApiError, reissueAccessToken } from '../../api/client';
 import { uploadFile } from '../../api/file';
@@ -221,9 +221,14 @@ export default function ProjectChatPage() {
   const [messages, setMessages] = useState<ChatMessageResponse[]>([]);
   const [pendingAttachments, setPendingAttachments] = useState<PendingChatAttachment[]>([]);
   const [memberNicknames, setMemberNicknames] = useState<Set<string>>(new Set());
+  const [participants, setParticipants] = useState<ChatChannelParticipantResponse[]>([]);
   const [roomId, setRoomId] = useState<number | null>(null);
+  const [mentionQuery, setMentionQuery] = useState<string | null>(null);
+  const [mentionStartIndex, setMentionStartIndex] = useState<number | null>(null);
+  const [activeMentionIndex, setActiveMentionIndex] = useState(0);
   const chatPageRef = useRef<HTMLDivElement>(null);
   const messagesRef = useRef<HTMLDivElement>(null);
+  const textInputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const stompClientRef = useRef<Client | null>(null);
@@ -245,6 +250,7 @@ export default function ProjectChatPage() {
         }
         setRoomId(channel.roomId);
         setMemberNicknames(new Set(channel.participants.map((p) => p.nickname)));
+        setParticipants(channel.participants);
       })
       .catch(() => {
         if (!cancelled) setNotice('채팅방 정보를 불러오지 못했어요. 다시 시도해 주세요.');
@@ -440,6 +446,41 @@ export default function ProjectChatPage() {
     }
   }, [pendingAttachments]);
 
+  // 커서 바로 앞의 "@단어"를 찾아 멘션 자동완성 트리거 여부를 판단한다.
+  const detectMentionTrigger = (value: string, cursor: number) => {
+    const beforeCursor = value.slice(0, cursor);
+    const at = beforeCursor.lastIndexOf('@');
+    if (at === -1) return null;
+    const query = beforeCursor.slice(at + 1);
+    if (/\s/.test(query)) return null;
+    return { start: at, query };
+  };
+
+  const filteredMentions = mentionQuery === null
+    ? []
+    : participants
+        .filter((p) => p.nickname.toLowerCase().includes(mentionQuery.toLowerCase()))
+        .slice(0, 6);
+
+  const selectMention = (nickname: string) => {
+    if (mentionStartIndex === null) return;
+    const cursor = textInputRef.current?.selectionStart ?? input.length;
+    const before = input.slice(0, mentionStartIndex);
+    const after = input.slice(cursor);
+    const inserted = `@${nickname} `;
+    setInput(`${before}${inserted}${after}`);
+    setMentionQuery(null);
+    setMentionStartIndex(null);
+    setActiveMentionIndex(0);
+    requestAnimationFrame(() => {
+      const el = textInputRef.current;
+      if (!el) return;
+      el.focus();
+      const pos = before.length + inserted.length;
+      el.setSelectionRange(pos, pos);
+    });
+  };
+
   const hasUploadingAttachment = pendingAttachments.some((attachment) => attachment.status === 'UPLOADING');
   const hasAttachmentError = pendingAttachments.some((attachment) => attachment.status === 'ERROR');
   const canSend =
@@ -474,7 +515,30 @@ export default function ProjectChatPage() {
         </div>
       </div>
 
-      <div className="shrink-0 border-t border-gray-100 bg-white px-4 pb-[max(12px,env(safe-area-inset-bottom))] pt-3">
+      <div className="relative shrink-0 border-t border-gray-100 bg-white px-4 pb-[max(12px,env(safe-area-inset-bottom))] pt-3">
+        {mentionQuery !== null && filteredMentions.length > 0 && (
+          <div className="absolute bottom-full left-4 right-4 z-10 mb-2 max-h-56 overflow-y-auto rounded-2xl border border-gray-100 bg-white py-1 shadow-lg">
+            {filteredMentions.map((participant, index) => (
+              <button
+                key={participant.userId}
+                type="button"
+                onMouseDown={(event) => event.preventDefault()}
+                onClick={() => selectMention(participant.nickname)}
+                className={`flex w-full items-center gap-2 px-3 py-2 text-left ${
+                  index === activeMentionIndex ? 'bg-gray-100' : ''
+                }`}
+              >
+                <img
+                  src={avatarUrl(participant.profilePreset)}
+                  alt=""
+                  className="size-7 shrink-0 rounded-full object-cover"
+                  aria-hidden
+                />
+                <span className="truncate text-body-sm text-gray-900">{participant.nickname}</span>
+              </button>
+            ))}
+          </div>
+        )}
         {pendingAttachments.length > 0 && (
           <div className="mb-3 flex gap-2 overflow-x-auto pb-1">
             {pendingAttachments.map((attachment) => (
@@ -534,10 +598,35 @@ export default function ProjectChatPage() {
 
           {/* 텍스트 입력 */}
           <input
+            ref={textInputRef}
             type="text"
             placeholder="메시지를 입력하세요"
             value={input}
-            onChange={(e) => setInput(e.target.value)}
+            onChange={(e) => {
+              const value = e.target.value;
+              setInput(value);
+              const trigger = detectMentionTrigger(value, e.target.selectionStart ?? value.length);
+              setMentionStartIndex(trigger?.start ?? null);
+              setMentionQuery(trigger?.query ?? null);
+              setActiveMentionIndex(0);
+            }}
+            onKeyDown={(event) => {
+              if (mentionQuery === null || filteredMentions.length === 0) return;
+              if (event.key === 'ArrowDown') {
+                event.preventDefault();
+                setActiveMentionIndex((prev) => (prev + 1) % filteredMentions.length);
+              } else if (event.key === 'ArrowUp') {
+                event.preventDefault();
+                setActiveMentionIndex((prev) => (prev - 1 + filteredMentions.length) % filteredMentions.length);
+              } else if (event.key === 'Enter') {
+                event.preventDefault();
+                selectMention(filteredMentions[activeMentionIndex].nickname);
+              } else if (event.key === 'Escape') {
+                setMentionQuery(null);
+                setMentionStartIndex(null);
+              }
+            }}
+            onBlur={() => setMentionQuery(null)}
             onFocus={() => {
               window.setTimeout(() => {
                 const container = messagesRef.current;
