@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import {
   ArrowLeft,
-  ChevronDown,
   CircleCheck,
   FileText,
   Folder,
@@ -38,8 +37,10 @@ function ProjectCreationProgress({ step }: { step: CreationStep }) {
       </p>
       <div className="mt-3 h-2 overflow-hidden rounded-full bg-gray-100">
         <div
-          className="h-full rounded-full bg-gradient-to-r from-blue-500 to-aqua-500 transition-all"
-          style={{ width: isInfoStep ? "51%" : "100%" }}
+          className={cn(
+            "h-full w-[51.13%] rounded-full bg-gradient-to-r from-blue-500 to-aqua-500 transition-all",
+            !isInfoStep && "ml-auto"
+          )}
         />
       </div>
     </div>
@@ -59,28 +60,21 @@ function SelectField({
   onChange: (value: string) => void;
   children: React.ReactNode;
 }) {
+  void children;
   return (
     <label className="block min-w-0 flex-1">
       {label && <span className="mb-2 block text-body-sm font-medium text-gray-700">{label}</span>}
-      <span className="relative block">
-        <select
-          aria-label={ariaLabel}
-          value={value}
-          onChange={(event) => onChange(event.target.value)}
-          className={cn(
-            "h-14 w-full appearance-none rounded-lg border border-gray-200 bg-white px-4 pr-10 text-body outline-none",
-            value ? "text-gray-900" : "text-gray-400",
-            "focus:border-blue-500"
-          )}
-        >
-          {children}
-        </select>
-        <ChevronDown
-          size={18}
-          aria-hidden="true"
-          className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-gray-400"
-        />
-      </span>
+      <DateDropdownSelect
+        ariaLabel={ariaLabel ?? label ?? "선택"}
+        value={value}
+        onChange={onChange}
+        placeholder="유형을 선택하세요"
+        rounded="xl"
+        options={[
+          { value: "DEVELOPMENT", label: "개발 프로젝트" },
+          { value: "GENERAL", label: "일반 프로젝트" },
+        ]}
+      />
     </label>
   );
 }
@@ -163,10 +157,9 @@ export function CreateProjectPage() {
   const [step, setStep] = useState<CreationStep>("info");
   const [projectName, setProjectName] = useState("");
   const [projectType, setProjectType] = useState<ProjectType | "">("");
-  const [year, setYear] = useState(String(today.getFullYear()));
-  const [month, setMonth] = useState(String(today.getMonth() + 1));
-  const [day, setDay] = useState(String(today.getDate()));
-  const [nameTouched, setNameTouched] = useState(false);
+  const [year, setYear] = useState("");
+  const [month, setMonth] = useState("");
+  const [day, setDay] = useState("");
   const [createdProject, setCreatedProject] = useState<CreatedProject | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -201,8 +194,8 @@ export function CreateProjectPage() {
     setQrError(false);
 
     void QRCode.toDataURL(invitationUrl, {
-      width: 208,
-      margin: 1,
+      width: 254,
+      margin: 4,
       errorCorrectionLevel: "M",
     })
       .then((dataUrl) => {
@@ -230,13 +223,6 @@ export function CreateProjectPage() {
   const dateValid = Boolean(expectedEndDate) && getDaysFromToday(expectedEndDate) >= 0;
   const infoValid = nameValid && projectType !== "" && dateValid;
 
-  const nameError =
-    nameTouched && !nameValid
-      ? normalizedName.length === 0
-        ? "프로젝트명을 입력해 주세요"
-        : "프로젝트명은 앞뒤 공백 제외 2~20자로 입력해 주세요"
-      : undefined;
-
   const handleMonthChange = (nextMonth: string) => {
     setMonth(nextMonth);
     if (year && day) {
@@ -247,7 +233,6 @@ export function CreateProjectPage() {
 
   const handleInfoSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    setNameTouched(true);
     if (infoValid) setStep("tools");
   };
 
@@ -310,21 +295,19 @@ export function CreateProjectPage() {
       <BottomSheet
         open={!createdProject}
         onClose={() => navigate("/home")}
-        contentClassName={step === "tools" ? "px-5 pb-[38px]" : undefined}
+        contentClassName="h-[588px] rounded-t-[26px] px-5 pb-8 pt-6 [&>div:first-child]:-top-[10px] [&>div:first-child]:mb-[18px]"
       >
         {step === "info" ? (
           <form className="flex min-h-[506px] flex-col pb-4" onSubmit={handleInfoSubmit} noValidate>
             <ProjectCreationProgress step={step} />
 
-            <div className="mt-6 space-y-4">
+            <div className="mt-5 space-y-4 [&>fieldset]:!mt-5 [&_label]:text-[14px] [&_label]:leading-[21px]">
               <Input
                 label="프로젝트명"
                 placeholder="예: 앱 리디자인 프로젝트"
                 value={projectName}
                 onChange={(event) => setProjectName(event.target.value)}
-                onBlur={() => setNameTouched(true)}
-                errorText={nameError}
-                className="h-14 rounded-lg"
+                className="h-14 rounded-[14px]"
                 autoFocus
               />
 
@@ -336,29 +319,45 @@ export function CreateProjectPage() {
 
               <fieldset>
                 <legend className="mb-2 text-body-sm font-medium text-gray-700">예상 종료일</legend>
-                <div className="flex gap-2">
-                  <DateDropdownSelect ariaLabel="예상 종료 연도" value={year} onChange={setYear} options={years.map(String)} />
+                <div className="grid grid-cols-[117px_116px_1fr] gap-[7px]">
+                  <DateDropdownSelect
+                    ariaLabel="예상 종료 연도"
+                    value={year}
+                    onChange={setYear}
+                    options={years.map(String)}
+                    placeholder="YYYY"
+                    rounded="xl"
+                  />
                   <DateDropdownSelect
                     ariaLabel="예상 종료 월"
-                    value={month.padStart(2, "0")}
+                    value={month ? month.padStart(2, "0") : ""}
                     onChange={handleMonthChange}
                     options={Array.from({ length: 12 }, (_, index) => String(index + 1).padStart(2, "0"))}
+                    placeholder="MM"
+                    rounded="xl"
                   />
                   <DateDropdownSelect
                     ariaLabel="예상 종료 일"
-                    value={day.padStart(2, "0")}
+                    value={day ? day.padStart(2, "0") : ""}
                     onChange={setDay}
                     options={Array.from({ length: daysInSelectedMonth }, (_, index) => String(index + 1).padStart(2, "0"))}
+                    placeholder="DD"
+                    rounded="xl"
                   />
                 </div>
-                {expectedEndDate && !dateValid && (
-                  <p className="mt-1.5 text-caption font-normal text-error">이미 지난 날짜는 예상 종료일로 설정할 수 없습니다.</p>
-                )}
+                <p
+                  className="mt-1.5 min-h-[17px] text-caption font-normal text-error"
+                  aria-live="polite"
+                >
+                  {expectedEndDate && !dateValid
+                    ? "이미 지난 날짜는 예상 종료일로 설정할 수 없습니다."
+                    : ""}
+                </p>
               </fieldset>
             </div>
 
             <div className="mt-auto pt-6">
-              <Button type="submit" size="lg" disabled={!infoValid}>다음</Button>
+              <Button type="submit" size="lg" disabled={!infoValid} className="rounded-[14px]">다음</Button>
               <button
                 type="button"
                 onClick={() => navigate("/home")}
@@ -372,7 +371,7 @@ export function CreateProjectPage() {
           <div className="flex min-h-[506px] flex-col">
             <ProjectCreationProgress step={step} />
 
-            <div className="mt-[21px] flex min-h-[71px] items-start gap-2 rounded-[12px] bg-blue-50 px-[18px] py-[11px] text-[12px] leading-[17px] text-blue-500">
+            <div className="mt-[21px] flex h-[71px] items-start gap-3 rounded-[12px] bg-blue-50 px-[18px] py-[11px] text-[12px] leading-[17px] text-blue-500">
               <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
               <p>
                 <strong className="font-semibold">프로젝트 분석을 위해 계정 연동이 필요해요</strong>
@@ -383,7 +382,7 @@ export function CreateProjectPage() {
               </p>
             </div>
 
-            <ul className="mt-[28px] space-y-[16px] px-[18px] text-[12px] leading-[17px] text-gray-700">
+            <ul className="mt-[30px] space-y-[16px] px-[18px] text-[12px] leading-[17px] text-gray-700">
               <li className="flex min-h-8 items-start gap-4">
                 <CircleCheck className="mt-0.5 h-4 w-4 shrink-0 text-blue-500" strokeWidth={1.5} aria-hidden />
                 <span>GitHub, Notion, Google Docs, Slides, Figma 등 외부도구<br />활동을 연동해주세요</span>
@@ -402,7 +401,7 @@ export function CreateProjectPage() {
               </li>
             </ul>
 
-            <div className="mt-auto pt-5">
+            <div className="mt-auto pt-[11px]">
               <Button type="button" size="lg" onClick={handleCreate} loading={isSubmitting} className="rounded-[14px]">
                 다음
               </Button>
@@ -461,31 +460,32 @@ export function CreateProjectPage() {
       <Modal
         open={createdProject !== null}
         onClose={handleEnterProject}
-        contentClassName="rounded-[24px] p-[22px]"
+        overlayClassName="bg-[#14161A]/45 px-5"
+        contentClassName="h-[438px] max-w-[362px] rounded-[24px] p-0 shadow-none"
       >
         {createdProject && (
-          <div>
-            <div className="flex items-start justify-between gap-4">
+          <div className="relative h-full">
+            <div className="absolute left-[22px] right-6 top-7 flex items-start justify-between gap-4">
               <div>
                 <h2 className="text-title font-bold text-gray-900">팀원 초대</h2>
-                <p className="mt-1.5 text-body-sm text-gray-400">QR 또는 링크로 팀원을 초대하세요</p>
+                <p className="mt-2 text-body-sm text-gray-400">QR 또는 링크로 팀원을 초대하세요</p>
               </div>
               <button
                 type="button"
                 aria-label="초대 창 닫기"
                 onClick={handleEnterProject}
-                className="flex h-8 w-8 items-center justify-center rounded-full bg-gray-100 text-gray-400"
+                className="flex h-7 w-7 items-center justify-center rounded-full bg-gray-100 text-gray-400"
               >
-                <X size={18} aria-hidden="true" />
+                <X size={12} strokeWidth={1.6} aria-hidden="true" />
               </button>
             </div>
 
-            <div className="mt-4 flex min-h-64 items-center justify-center rounded-lg bg-gray-25 p-5">
+            <div className="absolute left-[22px] top-[92px] flex h-[260px] w-[318px] items-center justify-center overflow-hidden rounded-[18px] bg-gray-25">
               {qrDataUrl ? (
                 <img
                   src={qrDataUrl}
                   alt={`${createdProject.name} 프로젝트 초대 QR 코드`}
-                  className="h-52 w-52"
+                  className="h-[254px] w-[254px]"
                 />
               ) : qrError ? (
                 <p className="text-body-sm text-gray-500">
@@ -503,7 +503,7 @@ export function CreateProjectPage() {
             <button
               type="button"
               onClick={handleCopyLink}
-              className="mt-4 flex h-14 w-full items-center justify-center gap-2 rounded-lg border border-blue-500 text-body font-semibold text-blue-500"
+              className="absolute bottom-[22px] left-[22px] flex h-14 w-[318px] items-center justify-center gap-2 rounded-[14px] border border-blue-500 text-body font-semibold text-blue-500"
             >
               <img src={inviteLinkIcon} alt="" className="h-4 w-4" aria-hidden="true" />
               <span aria-live="polite">{copied ? "복사 완료" : "초대 링크 복사"}</span>

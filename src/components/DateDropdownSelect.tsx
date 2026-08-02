@@ -5,11 +5,12 @@ import { cn } from "../lib/utils";
 
 interface DateDropdownSelectProps {
   value: string;
-  options: readonly string[];
+  options: readonly (string | { value: string; label: string })[];
   onChange: (value: string) => void;
   ariaLabel: string;
   disabled?: boolean;
   rounded?: "lg" | "xl";
+  placeholder?: string;
 }
 
 interface DropdownPosition {
@@ -26,11 +27,19 @@ export function DateDropdownSelect({
   ariaLabel,
   disabled = false,
   rounded = "lg",
+  placeholder,
 }: DateDropdownSelectProps) {
   const [open, setOpen] = useState(false);
   const [position, setPosition] = useState<DropdownPosition | null>(null);
   const rootRef = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLUListElement>(null);
+  const selectedOption = options.find((option) =>
+    (typeof option === "string" ? option : option.value) === value
+  );
+  const displayValue =
+    typeof selectedOption === "string"
+      ? selectedOption
+      : selectedOption?.label;
 
   useLayoutEffect(() => {
     if (!open) {
@@ -106,7 +115,9 @@ export function DateDropdownSelect({
           rounded === "xl" ? "rounded-[14px] px-[18px] text-[15px]" : "rounded-lg"
         )}
       >
-        <span>{value}</span>
+        <span className={value ? undefined : "text-gray-400"}>
+          {displayValue || placeholder}
+        </span>
         <ChevronDown className="h-[18px] w-[18px] shrink-0 text-gray-400" aria-hidden />
       </button>
 
@@ -126,24 +137,29 @@ export function DateDropdownSelect({
             rounded === "xl" ? "rounded-[14px]" : "rounded-lg"
           )}
         >
-          {options.map((option) => (
-            <li key={option} role="option" aria-selected={option === value}>
+          {options.map((option) => {
+            const optionValue = typeof option === "string" ? option : option.value;
+            const optionLabel = typeof option === "string" ? option : option.label;
+            const selected = optionValue === value;
+            return (
+            <li key={optionValue} role="option" aria-selected={selected}>
               <button
                 type="button"
                 onClick={() => {
-                  onChange(option);
+                  onChange(optionValue);
                   setOpen(false);
                 }}
                 className={cn(
                   "flex w-full items-center justify-between px-4 py-2.5 text-left text-body-sm hover:bg-blue-50",
-                  option === value ? "font-semibold text-blue-500" : "text-gray-900"
+                  selected ? "font-semibold text-blue-500" : "text-gray-900"
                 )}
               >
-                {option}
-                {option === value && <Check className="h-4 w-4" aria-hidden />}
+                {optionLabel}
+                {selected && <Check className="h-4 w-4" aria-hidden />}
               </button>
             </li>
-          ))}
+            );
+          })}
         </ul>,
         document.body
       )}

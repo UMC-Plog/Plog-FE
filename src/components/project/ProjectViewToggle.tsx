@@ -1,4 +1,5 @@
-import { Grid2X2, List } from "lucide-react";
+import type { SVGProps } from "react";
+import { Menu } from "lucide-react";
 import { cn } from "../../lib/utils";
 import type { ProjectViewMode } from "../../types/project";
 
@@ -7,15 +8,26 @@ interface ProjectViewToggleProps {
   onChange: (value: ProjectViewMode) => void;
 }
 
+function GalleryIcon({ size = 17, ...props }: SVGProps<SVGSVGElement> & { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 18 18" fill="none" {...props}>
+      <rect x="3.25" y="3.25" width="4.7" height="4.7" rx="1" stroke="currentColor" strokeWidth="1.06" />
+      <rect x="10.05" y="3.25" width="4.7" height="4.7" rx="1" stroke="currentColor" strokeWidth="1.06" />
+      <rect x="3.25" y="10.05" width="4.7" height="4.7" rx="1" stroke="currentColor" strokeWidth="1.06" />
+      <rect x="10.05" y="10.05" width="4.7" height="4.7" rx="1" stroke="currentColor" strokeWidth="1.06" />
+    </svg>
+  );
+}
+
 const VIEW_OPTIONS = [
-  { value: "list" as const, label: "리스트 보기", icon: List },
-  { value: "grid" as const, label: "갤러리 보기", icon: Grid2X2 },
+  { value: "list" as const, label: "리스트 보기", icon: Menu },
+  { value: "grid" as const, label: "갤러리 보기", icon: GalleryIcon },
 ];
 
 export function ProjectViewToggle({ value, onChange }: ProjectViewToggleProps) {
   return (
     <div
-      className="flex h-8 items-center rounded-full border border-gray-200 bg-white p-px"
+      className="flex h-8 w-[72px] items-center gap-px rounded-full border border-gray-200 bg-white px-[5px]"
       role="group"
       aria-label="프로젝트 보기 방식"
     >
@@ -31,11 +43,18 @@ export function ProjectViewToggle({ value, onChange }: ProjectViewToggleProps) {
             aria-pressed={selected}
             onClick={() => onChange(option.value)}
             className={cn(
-              "flex h-7 w-7 items-center justify-center rounded-full transition-colors",
-              selected ? "bg-blue-100 text-blue-500" : "text-gray-400 hover:text-gray-600"
+              "flex h-full flex-1 items-center justify-center text-gray-400 transition-colors hover:text-gray-600",
+              selected && "text-blue-500"
             )}
           >
-            <Icon size={17} aria-hidden="true" />
+            <span
+              className={cn(
+                "flex h-5 w-[29px] items-center justify-center rounded-full",
+                selected && "bg-blue-100"
+              )}
+            >
+              <Icon size={17} aria-hidden="true" />
+            </span>
           </button>
         );
       })}

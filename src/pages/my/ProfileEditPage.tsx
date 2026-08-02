@@ -31,6 +31,10 @@ export function ProfileEditPage() {
   const storedImageUrl = getPersistentProfileImage(user?.avatarImageUrl);
   const storedAvatarId = user?.avatarId ?? (storedImageUrl ? null : "otter");
 
+  const [originalRealName, setOriginalRealName] = useState(user?.realName ?? "");
+  const [realName, setRealName] = useState(user?.realName ?? "");
+  const [nameChangeAvailable, setNameChangeAvailable] = useState(false);
+  const [nameEditing, setNameEditing] = useState(false);
   const [originalNickname, setOriginalNickname] = useState(user?.nickname ?? "");
   const [initialAvatarId, setInitialAvatarId] = useState<AvatarPresetId | null>(storedAvatarId);
   const [initialCustomImageUrl, setInitialCustomImageUrl] = useState<string | null>(storedImageUrl);
@@ -62,6 +66,10 @@ export function ProfileEditPage() {
         avatarId: nextAvatarId,
         avatarImageUrl: null,
       });
+      setOriginalRealName(profile.name);
+      setRealName(profile.name);
+      setNameChangeAvailable(profile.nameChangeAvailable);
+      setNameEditing(false);
       setOriginalNickname(profile.nickname);
       setInitialAvatarId(nextAvatarId);
       setInitialCustomImageUrl(null);
@@ -101,6 +109,9 @@ export function ProfileEditPage() {
     };
   }, [applyProfile]);
 
+  const normalizedRealName = realName.trim();
+  const realNameValid = normalizedRealName.length > 0;
+  const realNameUnchanged = normalizedRealName === originalRealName;
   const normalizedNickname = nickname.trim();
   const nicknameValid = normalizedNickname.length >= 2 && normalizedNickname.length <= 6;
   const nicknameUnchanged = normalizedNickname === originalNickname;
@@ -108,12 +119,14 @@ export function ProfileEditPage() {
     checkState === "available" && checkedNickname === normalizedNickname;
   const avatarSelected = avatarId !== null || customImageUrl !== null;
   const hasChanges =
+    (!realNameUnchanged && nameChangeAvailable) ||
     normalizedNickname !== originalNickname ||
     avatarId !== initialAvatarId ||
     customImageUrl !== initialCustomImageUrl;
   const canSave =
     user !== null &&
     hasChanges &&
+    realNameValid &&
     nicknameValid &&
     (nicknameUnchanged || nicknameChecked) &&
     avatarSelected &&
@@ -202,6 +215,9 @@ export function ProfileEditPage() {
     setErrorMessage(null);
     try {
       await updateProfileRequest({
+        ...(!realNameUnchanged && nameChangeAvailable
+          ? { name: normalizedRealName }
+          : {}),
         ...(normalizedNickname !== originalNickname
           ? { nickname: normalizedNickname }
           : {}),
@@ -273,16 +289,24 @@ export function ProfileEditPage() {
                   실명
                 </label>
                 <span className="text-caption font-normal text-gray-400">
-                  * 실명은 변경할 수 없습니다
+                  * 분석 리포트의 신뢰도를 위해 가입 후 1회만 변경 가능합니다
                 </span>
               </div>
               <Input
                 id="profile-real-name"
-                value={user?.realName ?? ""}
-                locked
+                value={realName}
+                onChange={(event) => setRealName(event.target.value)}
+                locked={!nameChangeAvailable || !nameEditing}
                 className="h-14 w-[354px] rounded-lg bg-white text-gray-900 disabled:text-gray-900"
                 suffix={
-                  <Button type="button" size="sm" fullWidth={false} disabled className="h-10 px-4">
+                  <Button
+                    type="button"
+                    size="sm"
+                    fullWidth={false}
+                    disabled={!nameChangeAvailable || nameEditing}
+                    onClick={() => setNameEditing(true)}
+                    className="h-10 px-4"
+                  >
                     변경
                   </Button>
                 }

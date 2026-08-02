@@ -5,6 +5,7 @@ import { fetchProfile, logoutRequest } from "../api/auth";
 import { ApiError } from "../api/client";
 import { AVATAR_PRESETS } from "../components/AvatarPicker";
 import { AlertModal } from "../components/Modal";
+import { PlogIcon } from "../components/PlogIcon";
 import { getPersistentProfileImage } from "../lib/profileImage";
 import { toAvatarId } from "../lib/profilePreset";
 import { cn } from "../lib/utils";
@@ -13,7 +14,9 @@ import { disablePushNotifications } from "../lib/firebaseMessaging";
 
 export function PlogMark() {
   return (
-    <svg width="24" height="24" viewBox="90 8 59 66" fill="none" aria-hidden="true">
+    <span className="contents" aria-hidden="true">
+    <PlogIcon />
+    <svg className="hidden" width="24" height="24" viewBox="90 8 59 66" fill="none">
       <path
         d="M118.221 9.10547C123.148 8.78656 125.009 10.7605 128.988 13.2605L135.151 17.0525L139.148 19.5511C140.878 20.6102 143.039 21.5472 143.557 23.7109C144.472 27.532 139.302 29.3804 136.837 30.8569L131.36 34.1163C130.126 34.8386 128.09 36.1478 126.734 36.4806C123.671 37.2327 121.101 36.898 118.391 35.3057C117.522 34.8809 116.652 34.1638 115.797 33.6888C112.73 31.9942 109.743 30.0236 106.727 28.2527C103.952 26.6229 102.827 28.4619 100.461 29.2982C98.5068 29.9887 96.8877 28.2348 95.2594 27.4412C93.7342 26.6979 92.6612 25.2361 93.6786 23.4948C94.6897 21.928 97.1879 20.966 98.7405 19.9804C99.7346 19.3493 100.688 18.7736 101.672 18.1628C102.478 17.6631 103.326 17.2273 104.136 16.7441L109.794 13.3743C112.543 11.7031 115.079 9.91358 118.221 9.10547ZM123.418 29.1026C126.04 29.212 126.784 28.2092 128.963 26.9312C129.833 26.4205 133.082 24.8843 131.099 23.2721C128.79 21.3945 125.721 19.9598 123.279 18.2399C121.998 17.3958 121.034 17.1061 119.529 17.1003C119.421 17.0998 119.313 17.1013 119.205 17.1047C118.758 17.1327 118.396 17.1973 117.977 17.3742C117.081 17.7524 111.858 20.7382 111.373 21.3101C111.24 21.4676 111.111 21.6785 111.134 21.8953C111.173 22.2551 111.438 22.5487 111.713 22.7521C112.638 23.4356 113.755 23.8777 114.734 24.4781L119.304 27.298C120.326 27.9162 122.172 29.1625 123.418 29.1026Z"
         fill="#126FFB"
@@ -31,6 +34,7 @@ export function PlogMark() {
         fill="#126FFB"
       />
     </svg>
+    </span>
   );
 }
 
@@ -46,7 +50,6 @@ export default function MyPage() {
   const avatarSrc = getPersistentProfileImage(user?.avatarImageUrl) ?? avatar.src;
   const displayRealName = user?.realName?.trim() || "이름 없음";
   const displayNickname = user?.nickname?.trim() || "닉네임 없음";
-  const displayEmail = user?.email?.trim() || "이메일 없음";
 
   useEffect(() => {
     let active = true;
@@ -81,12 +84,12 @@ export default function MyPage() {
 
   return (
     <div className="min-h-full bg-gray-25">
-      <header className="flex h-[58px] items-center gap-[18px] border-b border-gray-100 bg-gray-25 px-7 shadow-sm">
+      <header className="flex h-14 items-center gap-2 border-b border-gray-100 bg-gray-25 px-6">
         <PlogMark />
-        <h1 className="text-[18px] font-bold leading-[25px] text-gray-900">마이페이지</h1>
+        <h1 className="text-title text-gray-900">마이페이지</h1>
       </header>
 
-      <div className="px-4 pt-7">
+      <div className="px-5 pt-6">
         {isLoading ? (
           <div
             className="flex h-[78px] items-center justify-center"
@@ -105,7 +108,7 @@ export default function MyPage() {
             <img
               src={avatarSrc}
               alt={`${displayNickname} 프로필`}
-              className="h-[60px] w-[60px] shrink-0 rounded-full object-cover"
+              className="h-[65px] w-[65px] shrink-0 rounded-full object-cover"
               onError={(event) => {
                 event.currentTarget.onerror = null;
                 event.currentTarget.src = avatar.src;
@@ -116,16 +119,16 @@ export default function MyPage() {
                 {displayNickname}
               </strong>
               <span className="mt-0.5 block truncate text-[12px] font-normal leading-[17px] text-gray-400">
-                {displayRealName} · {displayEmail}
+                {displayRealName}
               </span>
             </span>
             <ChevronRight size={20} strokeWidth={1.7} className="text-gray-400" aria-hidden="true" />
           </button>
         )}
 
-        <section className="mt-[38px]" aria-labelledby="settings-title">
+        <section className="mt-9" aria-labelledby="settings-title">
           <h2 id="settings-title" className="text-[18px] font-normal leading-[25px] text-gray-500">설정</h2>
-          <div className="mt-2 rounded-16 border border-gray-100 bg-white/10 px-[18px] shadow-card">
+          <div className="mt-2 grid h-40 grid-rows-3 rounded-16 border border-gray-100 bg-white/10 px-[18px] shadow-card">
             {[
               { label: "알림 설정", danger: false, onClick: () => navigate("/my/notifications") },
               { label: "로그아웃", danger: false, onClick: () => setLogoutOpen(true) },
@@ -135,7 +138,7 @@ export default function MyPage() {
                 type="button"
                 key={setting.label}
                 onClick={setting.onClick}
-                className="flex h-[52.66px] w-full items-center text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-300"
+                className="flex h-full w-full items-center text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-300"
               >
                 <span className={cn("flex-1 text-[15px] font-normal leading-[21px]", setting.danger ? "text-error" : "text-gray-700")}>
                   {setting.label}
