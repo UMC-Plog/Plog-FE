@@ -332,11 +332,7 @@ export default function IntegrationConnectionPage() {
   const [isDisconnecting, setIsDisconnecting] = useState(false);
   const [disconnectError, setDisconnectError] = useState<string | null>(null);
   const [step, setStep] = useState(() =>
-    navigationConnected === true && navigationEntryMode === "resources"
-      ? providerId === "github"
-        ? 4
-        : 3
-      : 1
+    navigationConnected === true ? (providerId === "github" ? 4 : 3) : 1
   );
   const [url, setUrl] = useState("");
   const [files, setFiles] = useState(() => {
@@ -446,7 +442,7 @@ export default function IntegrationConnectionPage() {
         setAccountName(integration?.connectedAccountName ?? null);
         setIsConnected(connected);
         setIsDisconnectOpen(connected && navigationEntryMode !== "resources");
-        if (connected && navigationEntryMode === "resources") {
+        if (connected) {
           setStep(isGithub ? 4 : 3);
         }
       })

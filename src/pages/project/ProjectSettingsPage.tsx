@@ -11,7 +11,7 @@ import {
   toApiProjectType,
   updateProjectSettings,
 } from "../../api/projectApi";
-import { getIntegrationStatus } from "../../api/integrationApi";
+import { disconnectIntegration, getIntegrationStatus } from "../../api/integrationApi";
 import { ApiError } from "../../api/client";
 import githubIcon from "../../assets/integrations/github.svg";
 import figmaIcon from "../../assets/integrations/figma.svg";
@@ -29,18 +29,21 @@ import type {
 import { getDaysFromToday } from "../../lib/projectDate";
 
 const INTEGRATIONS = [
-  { id: "github", label: "GitHub", icon: githubIcon, logo: 32, type: "GITHUB" },
-  { id: "figma", label: "Figma", icon: figmaIcon, logo: 22, type: "FIGMA" },
-  { id: "notion", label: "Notion", icon: notionIcon, logo: 16, type: "NOTION" },
-  { id: "docs", label: "Google Docs", icon: docsIcon, logo: 19, type: "GOOGLE" },
-  { id: "slides", label: "Google Slides", icon: slidesIcon, logo: 19, type: "GOOGLE" },
+  { id: "github", label: "GitHub", icon: githubIcon, logo: 32, type: "GITHUB", provider: "github" },
+  { id: "figma", label: "Figma", icon: figmaIcon, logo: 22, type: "FIGMA", provider: "figma" },
+  { id: "notion", label: "Notion", icon: notionIcon, logo: 16, type: "NOTION", provider: "notion" },
+  { id: "docs", label: "Google Docs", icon: docsIcon, logo: 19, type: "GOOGLE", provider: "google" },
+  { id: "slides", label: "Google Slides", icon: slidesIcon, logo: 19, type: "GOOGLE", provider: "google" },
 ] as const satisfies ReadonlyArray<{
   id: string;
   label: string;
   icon: string;
   logo: number;
   type: ProjectIntegrationType;
+  provider: "github" | "figma" | "notion" | "google";
 }>;
+
+type IntegrationItem = (typeof INTEGRATIONS)[number];
 
 const MONTHS = Array.from({ length: 12 }, (_, index) => String(index + 1).padStart(2, "0"));
 const DAYS = Array.from({ length: 31 }, (_, index) => String(index + 1).padStart(2, "0"));
@@ -230,6 +233,9 @@ export function ProjectSettingsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isIntegrationLoading, setIsIntegrationLoading] = useState(true);
   const [integrationError, setIntegrationError] = useState<string | null>(null);
+  const [disconnectTarget, setDisconnectTarget] = useState<IntegrationItem | null>(null);
+  const [isDisconnecting, setIsDisconnecting] = useState(false);
+  const [disconnectError, setDisconnectError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [isLeaving, setIsLeaving] = useState(false);
   const [isLeaveDialogOpen, setIsLeaveDialogOpen] = useState(false);
@@ -382,6 +388,42 @@ export function ProjectSettingsPage() {
       setIsQrOpen(true);
     } catch {
       setNotice("QR 코드를 만들지 못했어요.");
+    }
+  };
+
+  const openDisconnectDialog = (integration: IntegrationItem) => {
+    setDisconnectError(null);
+    setDisconnectTarget(integration);
+  };
+
+  const closeDisconnectDialog = () => {
+    if (isDisconnecting) return;
+    setDisconnectTarget(null);
+    setDisconnectError(null);
+  };
+
+  const handleDisconnectIntegration = async () => {
+    if (!disconnectTarget || isDisconnecting) return;
+
+    setIsDisconnecting(true);
+    setDisconnectError(null);
+    try {
+      await disconnectIntegration(id, disconnectTarget.provider);
+      setIntegrationLinks((links) => ({ ...links, [disconnectTarget.type]: false }));
+      setDisconnectTarget(null);
+      setNotice(
+        disconnectTarget.type === "GOOGLE"
+          ? "Google Docs와 Google Slides 연동을 해제했어요."
+          : `${disconnectTarget.label} 연동을 해제했어요.`
+      );
+    } catch (requestError) {
+      setDisconnectError(
+        requestError instanceof ApiError
+          ? requestError.message
+          : "연동을 해제하지 못했어요. 다시 시도해 주세요."
+      );
+    } finally {
+      setIsDisconnecting(false);
     }
   };
 
@@ -580,7 +622,11 @@ export function ProjectSettingsPage() {
                     <span className="ml-3 flex-1 text-left text-[15px] font-normal text-gray-900">{integration.label}</span>
                     <button
                       type="button"
-                      onClick={() => openIntegration(connected ? "disconnect" : "resources")}
+                      onClick={() =>
+                        connected
+                          ? openDisconnectDialog(integration)
+                          : openIntegration("resources")
+                      }
                       className={`mr-[14px] rounded-full px-[14px] py-[5px] text-[12px] ${connected ? "bg-[#E9F8F0] text-success" : "bg-[#FDEDEE] text-error"}`}
                     >
                       {connected ? "연동" : "미연동"}
@@ -636,6 +682,48 @@ export function ProjectSettingsPage() {
         open={isOwnerTransferOpen}
         onClose={() => setIsOwnerTransferOpen(false)}
       />
+
+      <Modal
+        open={disconnectTarget !== null}
+        onClose={isDisconnecting ? undefined : closeDisconnectDialog}
+        contentClassName="h-[292px] max-w-[362px] rounded-[22px] px-6 pb-[26px] pt-[42px]"
+      >
+        <div className="flex h-full flex-col items-center text-center">
+          <h2 className="text-[18px] font-semibold leading-[26px] text-gray-900">
+            {disconnectTarget?.type === "GOOGLE"
+              ? "Google Docs와 Google Slides 연동을 모두 해제하시겠습니까?"
+              : `${disconnectTarget?.label ?? "외부 서비스"} 연동을 해제하시겠습니까?`}
+          </h2>
+          <p className="mt-8 text-[13px] leading-[21px] text-gray-400">
+            연동 해제 시 자동 데이터가 기여도 분석에 반영되지 않으며,
+            <br />
+            기여도 분석 정확도가 낮아질 수 있어요!
+          </p>
+          {disconnectError && (
+            <p className="mt-3 text-[12px] text-error" role="alert">
+              {disconnectError}
+            </p>
+          )}
+          <div className="mt-auto grid w-full grid-cols-2 gap-4">
+            <button
+              type="button"
+              onClick={closeDisconnectDialog}
+              disabled={isDisconnecting}
+              className="h-14 rounded-[14px] bg-gray-100 text-[16px] font-semibold text-gray-400 disabled:opacity-50"
+            >
+              취소
+            </button>
+            <button
+              type="button"
+              onClick={() => void handleDisconnectIntegration()}
+              disabled={isDisconnecting}
+              className="h-14 rounded-[14px] bg-error text-[16px] font-semibold text-white disabled:opacity-60"
+            >
+              {isDisconnecting ? "해제 중..." : "연동 해제"}
+            </button>
+          </div>
+        </div>
+      </Modal>
 
       <Modal open={isQrOpen} onClose={() => setIsQrOpen(false)}>
         <div className="flex flex-col items-center text-center">
