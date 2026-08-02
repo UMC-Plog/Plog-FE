@@ -352,7 +352,7 @@ export function CreateProjectPage() {
                   />
                 </div>
                 {expectedEndDate && !dateValid && (
-                  <p className="mt-1.5 text-caption font-normal text-error">오늘 또는 이후 날짜를 선택해 주세요</p>
+                  <p className="mt-1.5 text-caption font-normal text-error">이미 지난 날짜는 예상 종료일로 설정할 수 없습니다.</p>
                 )}
               </fieldset>
             </div>

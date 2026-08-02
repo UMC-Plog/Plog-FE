@@ -491,7 +491,7 @@ export function ProjectSettingsPage() {
             <DateDropdownSelect value={day} onChange={setDay} options={DAYS} ariaLabel="종료 일" disabled={formDisabled} rounded="xl" />
           </div>
           {isValidDate(year, month, day) && getDaysFromToday(`${year}-${month}-${day}`) < 0 && (
-            <p className="mt-1.5 text-caption font-normal text-error">오늘 또는 이후 날짜를 선택해 주세요</p>
+            <p className="mt-1.5 text-caption font-normal text-error">이미 지난 날짜는 예상 종료일로 설정할 수 없습니다.</p>
           )}
         </fieldset>
 
