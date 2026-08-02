@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ChevronDown, ChevronLeft, ChevronRight, Link2, QrCode } from "lucide-react";
+import { ChevronDown, ChevronLeft, ChevronRight, QrCode } from "lucide-react";
+import inviteLinkIcon from "../../assets/project-settings-invite-link-icon.svg";
 import QRCode from "qrcode";
 import { useNavigate, useParams } from "react-router-dom";
 import { createProjectInvitationUrl } from "../../lib/projectInvitation";
@@ -14,7 +15,7 @@ import { getIntegrationStatus } from "../../api/integrationApi";
 import { ApiError } from "../../api/client";
 import githubIcon from "../../assets/integrations/github.svg";
 import figmaIcon from "../../assets/integrations/figma.svg";
-import notionIcon from "../../assets/integrations/notion.png";
+import notionIcon from "../../assets/integrations/notion-figma.png";
 import docsIcon from "../../assets/integrations/google-docs.svg";
 import slidesIcon from "../../assets/integrations/google-slides.svg";
 import { Modal } from "../../components/Modal";
@@ -31,8 +32,8 @@ const INTEGRATIONS = [
   { id: "github", label: "GitHub", icon: githubIcon, logo: 32, type: "GITHUB" },
   { id: "figma", label: "Figma", icon: figmaIcon, logo: 22, type: "FIGMA" },
   { id: "notion", label: "Notion", icon: notionIcon, logo: 16, type: "NOTION" },
-  { id: "docs", label: "Google docs", icon: docsIcon, logo: 19, type: "GOOGLE" },
-  { id: "slides", label: "Google slides", icon: slidesIcon, logo: 19, type: "GOOGLE" },
+  { id: "docs", label: "Google Docs", icon: docsIcon, logo: 19, type: "GOOGLE" },
+  { id: "slides", label: "Google Slides", icon: slidesIcon, logo: 19, type: "GOOGLE" },
 ] as const satisfies ReadonlyArray<{
   id: string;
   label: string;
@@ -481,7 +482,7 @@ export function ProjectSettingsPage() {
         <h1 className="text-[18px] font-semibold text-gray-900">프로젝트 설정</h1>
       </header>
 
-      <main className="px-5 pt-[18px]">
+      <main className="px-5 pt-6">
         {isCompleted && (
           <p className="mb-4 rounded-[12px] bg-gray-100 px-4 py-3 text-[13px] text-gray-600">
             완료된 프로젝트의 설정은 변경할 수 없어요.
@@ -495,13 +496,13 @@ export function ProjectSettingsPage() {
             onChange={(event) => setName(event.target.value)}
             disabled={formDisabled}
             maxLength={20}
-            className="mt-[11px] h-14 w-full rounded-[14px] border border-gray-200 bg-transparent px-[18px] text-[15px] text-gray-900 outline-none focus:border-blue-500 disabled:bg-gray-50 disabled:text-gray-400"
+            className="mt-3 h-14 w-full rounded-[14px] border border-gray-200 bg-transparent px-[18px] text-[15px] text-gray-900 outline-none focus:border-blue-500 disabled:bg-gray-50 disabled:text-gray-400"
           />
         </label>
 
-        <label className="mt-[22px] block text-[14px] font-normal text-gray-700">
+        <label className="mt-6 block text-[14px] font-normal text-gray-700">
           프로젝트 유형
-          <div className="relative mt-[11px]">
+          <div className="relative mt-3">
             <select
               value={type}
               onChange={(event) => setType(event.target.value as ProjectType)}
@@ -515,9 +516,9 @@ export function ProjectSettingsPage() {
           </div>
         </label>
 
-        <fieldset className="mt-[22px]">
+        <fieldset className="mt-6">
           <legend className="text-[14px] font-normal text-gray-700">예상 종료일</legend>
-          <div className="mt-[11px] flex gap-[7px]">
+          <div className="mt-3 flex gap-[7px]">
             <DateDropdownSelect value={year} onChange={setYear} options={years} ariaLabel="종료 연도" disabled={formDisabled} rounded="xl" />
             <DateDropdownSelect value={month} onChange={setMonth} options={MONTHS} ariaLabel="종료 월" disabled={formDisabled} rounded="xl" />
             <DateDropdownSelect value={day} onChange={setDay} options={DAYS} ariaLabel="종료 일" disabled={formDisabled} rounded="xl" />
@@ -527,23 +528,23 @@ export function ProjectSettingsPage() {
           )}
         </fieldset>
 
-        <section className="mt-[22px]">
+        <section className="mt-6">
           <h2 className="text-[14px] font-normal text-gray-700">팀원 초대</h2>
-          <div className="mt-[11px] grid grid-cols-2 gap-4">
+          <div className="mt-3 grid grid-cols-2 gap-4">
             <button type="button" onClick={() => void handleCopyInvite()} className="flex h-14 items-center justify-center gap-2 rounded-[14px] bg-blue-100 text-[16px] font-semibold text-navy-700">
-              <Link2 className="h-[18px] w-[18px]" /> 링크 초대
+              <img src={inviteLinkIcon} alt="" className="h-4 w-4" aria-hidden="true" /> 링크 초대
             </button>
             <button type="button" onClick={() => void handleOpenQr()} className="flex h-14 items-center justify-center gap-2 rounded-[14px] bg-blue-100 text-[16px] font-semibold text-navy-700">
-              <QrCode className="h-[18px] w-[18px]" /> QR 초대
+              <QrCode className="h-4 w-4" /> QR 초대
             </button>
           </div>
         </section>
 
-        <section className="mt-[17px]">
+        <section className="mt-5">
           <h2 className="text-[14px] font-normal text-gray-900">
-            팀 워크스페이스 연동 <span className="text-error">*</span>
+            팀(워크) 스페이스 연동 <span className="text-error">*</span>
           </h2>
-          <p className="mt-1 text-[12px] font-normal text-gray-400">워크스페이스를 소유한 팀원만 연동할 수 있어요.</p>
+          <p className="mt-1 text-[12px] font-normal text-gray-400">워크스페이스의 소유자(생성자)의 연동이 필요합니다</p>
           <div className="mt-2 rounded-[16px] border border-gray-100 bg-white/10 px-[18px] shadow-card">
             {isIntegrationLoading ? (
               <div className="flex h-[61px] items-center justify-center text-[13px] text-gray-400" role="status">

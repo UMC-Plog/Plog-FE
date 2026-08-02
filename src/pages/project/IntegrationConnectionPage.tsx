@@ -11,7 +11,6 @@ import {
 } from "lucide-react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import {
-  collectIntegrationData,
   createIntegrationAuthorization,
   disconnectIntegration,
   getIntegrationResources,
@@ -29,9 +28,10 @@ import { PermissionIcon } from "../../components/project/PermissionIcon";
 import type { PermissionIconName } from "../../components/project/PermissionIcon";
 import githubIcon from "../../assets/integrations/github.svg";
 import figmaIcon from "../../assets/integrations/figma.svg";
-import notionIcon from "../../assets/integrations/notion.png";
+import notionIcon from "../../assets/integrations/notion-figma.png";
 import docsIcon from "../../assets/integrations/google-docs.svg";
 import slidesIcon from "../../assets/integrations/google-slides.svg";
+import accountAvatarIcon from "../../assets/integrations/account-avatar.svg";
 import type {
   IntegrationLinkType,
   IntegrationProviderPath,
@@ -103,10 +103,11 @@ const GITHUB_NOTE =
   "GitHub는 설치 과정에서 Repository를 선택하므로 Plog에서 별도의 2차 선택 화면은 제공되지 않아요";
 
 /** step4(연동 완료) 안내 문구는 5개 서비스 공통 */
-const COMPLETE_NOTE = "저장 후 데이터 수집이 시작돼요\n언제든지 설정에서 연동 내용 변경이 가능해요";
+const COMPLETE_NOTE = "저장 후 데이터 수집이 시작돼요\n언제든지 설정에서 연동 설정을 변경할 수 있어요";
 
 /** notion/docs/slides 공통 - 2차 선택이 있는 서비스의 step1 불릿 */
 const SHARED_ONLY_GUIDE = ["공유된 페이지/데이터베이스만 조회돼요"];
+const GOOGLE_FILE_GUIDE = ["Google 계정에서 접근 권한이 있는 파일만 조회돼요"];
 
 const PROVIDERS: Record<ProviderId, Provider> = {
   github: {
@@ -114,7 +115,7 @@ const PROVIDERS: Record<ProviderId, Provider> = {
     icon: githubIcon,
     tileLogo: 64,
     listLogo: 32,
-    description: "GitHub 계정을 연결하려면 Repository, Issue, PR등 모든 데이터를 가져올 수 있습니다",
+    description: "GitHub 계정을 연결하면 Repository, Issue, PR 등 필요한 데이터를 가져올 수 있습니다",
     account: "유재석",
     accountType: "GitHub 계정",
     guide: [
@@ -146,7 +147,7 @@ const PROVIDERS: Record<ProviderId, Provider> = {
     notes: {
       1: "Figma는 Plog 내에서 파일을 미리 선택할 필요가 없어요\n계정을 먼저 연결한 후, 필요한 파일 URL을 등록해 주세요!",
       2: "다음 단계에서는 Figma 파일 URL을 등록해요\n여러 개의 Figma 파일 URL을 추가해 연동 가능해요",
-      3: "Figma 파일의 필요한 데이터를 수집할 수 있어요\n여러 파일 URL을 추가해 점진적으로 연동 가능해요",
+      3: "Figma 파일에서 필요한 데이터를 수집할 수 있어요\n여러 파일 URL을 추가해 점진적으로 연동할 수 있어요",
     },
     items: ["파일 정보", "코멘트", "버전 이력", "댓글", "작성자 및 수정 메타데이터", "기타 활동 데이터"],
     permissions: [
@@ -166,7 +167,7 @@ const PROVIDERS: Record<ProviderId, Provider> = {
     accountType: "Notion 계정",
     guide: SHARED_ONLY_GUIDE,
     notes: {
-      1: "Notion은 연동 후 2차 설정이 필요해요\n워크 스페이스 선택 후 페이지와 DB를 고를 수 있어요",
+      1: "Notion은 연동 후 2차 설정이 필요해요\n워크스페이스 선택 후 페이지와 DB를 고를 수 있어요",
       2: "다음 단계에서 분석할 페이지와 DB를 선택해요",
       3: "생성자, 마지막 편집자, 댓글 정보를 수집할 수 있어요",
     },
@@ -179,18 +180,18 @@ const PROVIDERS: Record<ProviderId, Provider> = {
     ],
   },
   docs: {
-    name: "Google docs",
+    name: "Google Docs",
     icon: docsIcon,
     tileLogo: 38,
     listLogo: 19,
-    description: "Google 계정을 연결한 후, 분석할 페이지와 데이터베이스를 선택할 수 있습니다",
+    description: "Google 계정을 연결한 후, 분석할 문서 파일을 선택할 수 있습니다",
     account: "plog@naver.com",
     accountType: "Google 계정",
-    guide: SHARED_ONLY_GUIDE,
+    guide: GOOGLE_FILE_GUIDE,
     notes: {
-      1: "Google docs는 연동 후 2차 설정이 필요해요\n워크 스페이스 선택한 후 파일을 고를 수 있어요",
+      1: "Google Docs는 연동 후 파일 선택이 필요해요\nGoogle Picker에서 분석할 문서를 고를 수 있어요",
       2: "문서의 내용, 작성자, 마지막 수정자, 댓글 등을 수집할 수 있어요",
-      3: "선택한 파일의 데이터만 수집하고 있어요",
+      3: "선택한 문서 파일의 데이터만 수집해요",
     },
     items: ["문서 파일", "생성자", "최종 수정자", "댓글", "최종 변경 이력"],
     permissions: [
@@ -201,18 +202,18 @@ const PROVIDERS: Record<ProviderId, Provider> = {
     ],
   },
   slides: {
-    name: "Google slides",
+    name: "Google Slides",
     icon: slidesIcon,
     tileLogo: 39,
     listLogo: 19,
-    description: "Google 계정을 연결한 후, 분석할 페이지와 데이터베이스를 선택할 수 있습니다",
+    description: "Google 계정을 연결한 후, 분석할 프레젠테이션 파일을 선택할 수 있습니다",
     account: "plog@naver.com",
     accountType: "Google 계정",
-    guide: SHARED_ONLY_GUIDE,
+    guide: GOOGLE_FILE_GUIDE,
     notes: {
-      1: "Google slides은 연동 후 2차 설정이 필요해요\n워크 스페이스 선택한 후 파일을 고를 수 있어요",
+      1: "Google Slides는 연동 후 파일 선택이 필요해요\nGoogle Picker에서 분석할 프레젠테이션을 고를 수 있어요",
       2: "슬라이드 내용, 작성자, 마지막 수정자, 댓글 등을 수집할 수 있어요",
-      3: "선택한 파일의 데이터만 수집하고 있어요",
+      3: "선택한 프레젠테이션 파일의 데이터만 수집해요",
     },
     items: ["프레젠테이션 파일", "슬라이드 내용", "작성자", "댓글", "슬라이드 별 수정정보", "최종 변경 이력"],
     permissions: [
@@ -360,8 +361,6 @@ export default function IntegrationConnectionPage() {
   const [saveError, setSaveError] = useState<string | null>(null);
   const [isRegistering, setIsRegistering] = useState(false);
   const [isPickerOpening, setIsPickerOpening] = useState(false);
-  const [isCollecting, setIsCollecting] = useState(false);
-  const [collectMessage, setCollectMessage] = useState<string | null>(null);
   const authAbortRef = useRef<AbortController | null>(null);
 
   const isGithub = providerId === "github";
@@ -653,27 +652,6 @@ export default function IntegrationConnectionPage() {
     }
   };
 
-  const handleCollect = async () => {
-    if (isCollecting) return;
-
-    setIsCollecting(true);
-    setCollectMessage(null);
-
-    try {
-      const result = await collectIntegrationData(id);
-      const failed = result.failures.length;
-      setCollectMessage(
-        `${result.requestedResourceCount}개 중 ${result.collectedResourceCount}개를 수집했어요.` +
-          (failed > 0 ? ` (실패 ${failed}개: ${result.failures.map((item) => item.resourceName).join(", ")})` : "")
-      );
-      void loadResources();
-    } catch (error) {
-      setCollectMessage(getErrorMessage(error, "데이터 수집에 실패했어요. 잠시 후 다시 시도해 주세요."));
-    } finally {
-      setIsCollecting(false);
-    }
-  };
-
   const next = () => {
     if (currentStep === 4) {
       if (!isServer) {
@@ -830,7 +808,7 @@ export default function IntegrationConnectionPage() {
       <Stepper step={currentStep} />
 
       <main className="px-5">
-        <section className="rounded-[16px] border border-gray-100 bg-white/10 px-[21px] py-[24px] shadow-card">
+        <section className="rounded-[16px] border border-gray-100 bg-white/[0.01] px-[21px] py-[24px] shadow-card">
           {currentStep === 4 ? (
             /* Figma: 카드 높이 고정(429) + 내용 세로 중앙 정렬. 목록이 있으면 카드가 늘어남 */
             <div className="flex min-h-[381px] flex-col items-center justify-center text-center">
@@ -855,23 +833,6 @@ export default function IntegrationConnectionPage() {
                     items={resourceItems}
                     onRemove={isServer ? undefined : (key) => setFiles((items) => items.filter((item) => item !== key))}
                   />
-                </div>
-              )}
-              {isServer && (
-                <div className="mt-6 w-full text-left">
-                  <button
-                    type="button"
-                    onClick={() => void handleCollect()}
-                    disabled={isCollecting}
-                    className="text-[13px] font-semibold text-blue-500 disabled:text-gray-400"
-                  >
-                    {isCollecting ? "수집 중..." : "지금 데이터 수집하기"}
-                  </button>
-                  {collectMessage && (
-                    <p className="mt-2 text-[12px] leading-[18px] text-gray-500" role="status">
-                      {collectMessage}
-                    </p>
-                  )}
                 </div>
               )}
             </div>
@@ -1123,7 +1084,8 @@ export default function IntegrationConnectionPage() {
 function AccountRow({ account, accountType }: { account: string; accountType: string }) {
   return (
     <div className="flex items-center py-[22px]">
-      <div className="ml-[58px] min-w-0">
+      <img src={accountAvatarIcon} alt="" className="h-[46px] w-[46px] shrink-0" />
+      <div className="ml-[13px] min-w-0">
         <p className="truncate text-[18px] text-gray-900">{account}</p>
         <p className="mt-1 text-[12px] text-gray-400">{accountType}</p>
       </div>
