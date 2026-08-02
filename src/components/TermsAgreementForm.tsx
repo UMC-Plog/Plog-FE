@@ -60,7 +60,7 @@ export function TermsAgreementForm({ value, onChange }: TermsAgreementFormProps)
         type="button"
         onClick={toggleAll}
         className={cn(
-          "mb-3 flex w-full items-center gap-2.5 rounded-md px-3 py-3 text-left text-body font-semibold",
+          "mb-3 flex w-full items-center gap-2.5 rounded-md py-3 text-left text-body font-semibold",
           allChecked(value) ? "bg-blue-50 text-blue-600" : "bg-gray-50 text-gray-700"
         )}
       >

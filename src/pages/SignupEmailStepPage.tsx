@@ -1,9 +1,8 @@
 import { useMemo, useState } from "react";
-import { Eye, EyeOff, User } from "lucide-react";
+import { Check, Eye, EyeOff, User } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { cn } from "../lib/utils";
 import { AuthHeader } from "../components/AuthHeader";
-import { PasswordStrengthBar } from "../components/PasswordStrengthBar";
 import { ProgressBar } from "../components/ProgressBar";
 import {
   TermsAgreementForm,
@@ -186,35 +185,41 @@ export function SignupEmailStepPage() {
               }
             />
 
-            {emailSent && (
-              <Input
-                label="인증번호 확인"
-                placeholder="인증번호 입력"
-                value={code}
-                onChange={(e) => {
-                  setCode(e.target.value);
-                  setCodeError(undefined);
-                  setEmailVerified(false);
-                }}
-                maxLength={6}
-                errorText={codeError}
-                successText={emailVerified ? "인증이 완료되었습니다" : undefined}
-                suffix={
-                  <button
-                    type="button"
-                    onClick={handleVerifyCode}
-                    disabled={code.trim().length !== 6 || verifyingCode}
-                    className="h-9 shrink-0 rounded-md bg-blue-500 px-3 text-body-sm font-semibold text-white disabled:bg-gray-200 disabled:text-gray-400"
-                  >
-                    {verifyingCode ? "확인 중" : "확인"}
-                  </button>
-                }
-              />
-            )}
+            <Input
+              label="인증번호 확인"
+              placeholder="인증번호 입력"
+              value={code}
+              onChange={(e) => {
+                setCode(e.target.value);
+                setCodeError(undefined);
+                setEmailVerified(false);
+              }}
+              maxLength={6}
+              errorText={codeError}
+              successText={emailVerified ? "인증이 완료되었습니다" : undefined}
+              suffix={
+                <button
+                  type="button"
+                  onClick={handleVerifyCode}
+                  disabled={code.trim().length !== 6 || verifyingCode}
+                  className="h-9 shrink-0 rounded-md bg-blue-500 px-3 text-body-sm font-semibold text-white disabled:bg-gray-200 disabled:text-gray-400"
+                >
+                  {verifyingCode ? "확인 중" : "확인"}
+                </button>
+              }
+            />
 
             <div>
+              <div className="mb-1.5 flex items-center gap-2">
+                <label htmlFor="signup-password" className="text-body font-normal text-gray-900">
+                  비밀번호
+                </label>
+                <span className="text-caption font-normal text-gray-400">
+                  *영문+숫자 조합 8~16자 이내로 입력해주세요
+                </span>
+              </div>
               <Input
-                label="비밀번호"
+                id="signup-password"
                 type={showPassword ? "text" : "password"}
                 placeholder="8자 이상, 영문 + 숫자 포함"
                 value={password}
@@ -230,7 +235,6 @@ export function SignupEmailStepPage() {
                   </button>
                 }
               />
-              <PasswordStrengthBar password={password} />
             </div>
 
             <Input
@@ -304,7 +308,11 @@ export function SignupEmailStepPage() {
 
       <AlertModal
         open={completeModalOpen}
-        icon={<span className="text-3xl">✅</span>}
+        icon={
+          <span className="flex h-[52px] w-[52px] items-center justify-center rounded-full bg-blue-100">
+            <Check className="h-5 w-5 text-blue-500" strokeWidth={2.5} aria-hidden />
+          </span>
+        }
         title="이메일 인증이 완료되었어요"
         description="이어서 프로필을 설정해 주세요"
         confirmText="다음"
