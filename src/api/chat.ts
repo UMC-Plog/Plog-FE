@@ -30,6 +30,13 @@ export interface ChatMessageAttachmentResponse {
   fileName: string
   fileSize: number
   fileUrl: string
+  thumbnailUrl: string | null
+  thumbnailPending: boolean
+}
+
+export interface ChatAttachmentThumbnailResponse {
+  chatAttachmentId: number
+  thumbnailUrl: string
 }
 
 export interface ChatMessageResponse {
@@ -39,7 +46,7 @@ export interface ChatMessageResponse {
   senderMemberId: number
   senderNickname: string
   profilePreset: ProfilePreset | null
-  message: string
+  message: string | null
   attachments: ChatMessageAttachmentResponse[]
   createdAt: string
 }

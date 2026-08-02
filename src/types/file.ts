@@ -1,6 +1,6 @@
 import type { ApiError } from '../api/client'
 
-export type FileUploadUsage = 'POST' | 'TASK'
+export type FileUploadUsage = 'POST' | 'TASK' | 'CHAT'
 
 export interface PresignedUploadRequest {
   fileName: string

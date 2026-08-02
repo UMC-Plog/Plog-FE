@@ -5,10 +5,24 @@ import { AlertModal } from '../../components/Modal';
 import { useAuthStore } from '../../store/authStore';
 import { AVATAR_PRESETS } from '../../components/AvatarPicker';
 import { toAvatarId } from '../../lib/profilePreset';
-import { fetchChannels, fetchMessages, markRoomAsRead, type ChatMessageResponse } from '../../api/chat';
+import { fetchChannels, fetchMessages, markRoomAsRead, type ChatAttachmentThumbnailResponse, type ChatMessageAttachmentResponse, type ChatMessageResponse } from '../../api/chat';
 import { createChatStompClient, subscribeToDestination, publishToDestination, chatDestinations } from '../../api/chatSocket';
-import { ApiError } from '../../api/client';
+import { ApiError, reissueAccessToken } from '../../api/client';
+import { uploadFile } from '../../api/file';
 import docFileIcon from '../../assets/doc-file-icon.png';
+
+const MAX_CHAT_ATTACHMENTS = 10;
+const CHAT_FILE_ACCEPT = '.pdf,.pptx,.docx,.zip,.fig,.jpg,.jpeg,.png,.webp,.gif,image/jpeg,image/png,image/webp,image/gif';
+
+interface PendingChatAttachment {
+  id: string;
+  file: File;
+  fileName: string;
+  fileSize: number;
+  status: 'UPLOADING' | 'SUCCESS' | 'ERROR';
+  fileKey?: string;
+  error?: string;
+}
 
 const formatTime = (value: string) =>
   new Intl.DateTimeFormat('ko-KR', { hour: '2-digit', minute: '2-digit', hour12: false }).format(new Date(value));
@@ -64,6 +78,77 @@ function SendIcon() {
   );
 }
 
+function AuthenticatedImage({
+  src,
+  alt,
+  className,
+}: {
+  src: string;
+  alt: string;
+  className: string;
+}) {
+  const [imageSrc, setImageSrc] = useState(src);
+  const retriedRef = useRef(false);
+
+  useEffect(() => {
+    setImageSrc(src);
+    retriedRef.current = false;
+  }, [src]);
+
+  return (
+    <img
+      src={imageSrc}
+      alt={alt}
+      className={className}
+      onError={() => {
+        if (retriedRef.current) return;
+        retriedRef.current = true;
+        void reissueAccessToken().then((token) => {
+          if (!token) return;
+          const separator = src.includes('?') ? '&' : '?';
+          setImageSrc(`${src}${separator}retry=${Date.now()}`);
+        });
+      }}
+    />
+  );
+}
+
+function ChatAttachment({
+  attachment,
+  isMine,
+}: {
+  attachment: ChatMessageAttachmentResponse;
+  isMine: boolean;
+}) {
+  if (isImageFile(attachment.fileName)) {
+    const imageUrl = attachment.thumbnailUrl ?? attachment.fileUrl;
+    return (
+      <a href={attachment.fileUrl} target="_blank" rel="noopener noreferrer">
+        <AuthenticatedImage
+          src={imageUrl}
+          alt={attachment.fileName}
+          className="max-h-[240px] max-w-[200px] rounded-2xl object-cover shadow-sm"
+        />
+      </a>
+    );
+  }
+
+  return (
+    <div className={`${isMine ? 'bg-primary' : 'bg-white shadow-sm'} flex w-56 items-center gap-3 rounded-2xl p-3`}>
+      <div className="flex size-9 shrink-0 items-center justify-center rounded-md border border-gray-100 bg-white p-px text-gray-400">
+        <DocIcon />
+      </div>
+      <div className="min-w-0 flex-1">
+        <p className={`truncate text-caption font-semibold ${isMine ? 'text-gray-25' : 'text-navy-700'}`}>{attachment.fileName}</p>
+        <p className={`text-caption ${isMine ? 'text-gray-25' : 'text-gray-400'}`}>{formatFileSize(attachment.fileSize)}</p>
+      </div>
+      <a href={attachment.fileUrl} target="_blank" rel="noopener noreferrer" className={`${isMine ? 'text-gray-25' : 'text-gray-400'} shrink-0`} aria-label={`${attachment.fileName} 다운로드`}>
+        <DownloadIcon />
+      </a>
+    </div>
+  );
+}
+
 // ── 멘션 파싱 (@닉네임이 실제 프로젝트 멤버와 일치할 때만 강조) ──────────────
 
 function renderText(text: string, isMine: boolean, memberNicknames: Set<string>) {
@@ -82,7 +167,6 @@ function renderText(text: string, isMine: boolean, memberNicknames: Set<string>)
 // ── 말풍선 컴포넌트 ──────────────────────────────────────────────────────────
 
 function OtherBubble({ msg, memberNicknames }: { msg: ChatMessageResponse; memberNicknames: Set<string> }) {
-  const attachment = msg.attachments[0];
   return (
     <div className="flex items-start gap-2">
       <img
@@ -93,30 +177,16 @@ function OtherBubble({ msg, memberNicknames }: { msg: ChatMessageResponse; membe
       <div className="flex flex-col gap-1">
         <span className="text-caption text-gray-500">{msg.senderNickname}</span>
         <div className="flex items-end gap-2">
-          {!attachment ? (
-            <div className="bg-white shadow-sm rounded-tl rounded-tr-2xl rounded-br-2xl rounded-bl-2xl px-3.5 py-3 text-body-sm text-gray-900 max-w-xs">
-              {renderText(msg.message, false, memberNicknames)}
-            </div>
-          ) : isImageFile(attachment.fileName) ? (
-            <img
-              src={attachment.fileUrl}
-              alt={attachment.fileName}
-              className="max-w-[200px] max-h-[240px] rounded-tl rounded-tr-2xl rounded-br-2xl rounded-bl-2xl shadow-sm object-cover"
-            />
-          ) : (
-            <div className="bg-white shadow-sm rounded-tl rounded-tr-2xl rounded-br-2xl rounded-bl-2xl p-3 flex items-center gap-3 w-56">
-              <div className="size-9 bg-white border border-gray-100 p-px rounded-md flex items-center justify-center text-gray-400 shrink-0">
-                <DocIcon />
+          <div className="flex max-w-xs flex-col items-start gap-1.5">
+            {msg.message?.trim() && (
+              <div className="rounded-bl-2xl rounded-br-2xl rounded-tl rounded-tr-2xl bg-white px-3.5 py-3 text-body-sm text-gray-900 shadow-sm">
+                {renderText(msg.message, false, memberNicknames)}
               </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-caption font-semibold text-navy-700 truncate">{attachment.fileName}</p>
-                <p className="text-caption text-gray-400">{formatFileSize(attachment.fileSize)}</p>
-              </div>
-              <a href={attachment.fileUrl} target="_blank" rel="noopener noreferrer" className="text-gray-400 shrink-0" aria-label={`${attachment.fileName} 다운로드`}>
-                <DownloadIcon />
-              </a>
-            </div>
-          )}
+            )}
+            {msg.attachments.map((attachment) => (
+              <ChatAttachment key={attachment.chatAttachmentId} attachment={attachment} isMine={false} />
+            ))}
+          </div>
           <time dateTime={msg.createdAt} className="shrink-0 text-chat-time text-gray-400">{formatTime(msg.createdAt)}</time>
         </div>
       </div>
@@ -125,34 +195,19 @@ function OtherBubble({ msg, memberNicknames }: { msg: ChatMessageResponse; membe
 }
 
 function MyBubble({ msg, memberNicknames }: { msg: ChatMessageResponse; memberNicknames: Set<string> }) {
-  const attachment = msg.attachments[0];
   return (
     <div className="flex items-end justify-end gap-2">
       <time dateTime={msg.createdAt} className="shrink-0 text-chat-time text-gray-400">{formatTime(msg.createdAt)}</time>
-      {!attachment ? (
-        <div className="bg-primary rounded-tl-2xl rounded-tr rounded-br-2xl rounded-bl-2xl px-3.5 py-3 text-body-sm text-gray-25 max-w-xs">
-          {renderText(msg.message, true, memberNicknames)}
-        </div>
-      ) : isImageFile(attachment.fileName) ? (
-        <img
-          src={attachment.fileUrl}
-          alt={attachment.fileName}
-          className="max-w-[200px] max-h-[240px] rounded-tl-2xl rounded-tr rounded-br-2xl rounded-bl-2xl shadow-sm object-cover"
-        />
-      ) : (
-        <div className="bg-primary rounded-tl-2xl rounded-tr rounded-br-2xl rounded-bl-2xl p-3 flex items-center gap-3 w-56">
-          <div className="size-9 bg-white border border-gray-100 p-px rounded-md flex items-center justify-center shrink-0">
-            <DocIcon />
+      <div className="flex max-w-xs flex-col items-end gap-1.5">
+        {msg.message?.trim() && (
+          <div className="rounded-bl-2xl rounded-br-2xl rounded-tl-2xl rounded-tr bg-primary px-3.5 py-3 text-body-sm text-gray-25">
+            {renderText(msg.message, true, memberNicknames)}
           </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-caption font-semibold text-gray-25 truncate">{attachment.fileName}</p>
-            <p className="text-caption text-gray-25">{formatFileSize(attachment.fileSize)}</p>
-          </div>
-          <a href={attachment.fileUrl} target="_blank" rel="noopener noreferrer" className="text-gray-25 shrink-0" aria-label={`${attachment.fileName} 다운로드`}>
-            <DownloadIcon />
-          </a>
-        </div>
-      )}
+        )}
+        {msg.attachments.map((attachment) => (
+          <ChatAttachment key={attachment.chatAttachmentId} attachment={attachment} isMine />
+        ))}
+      </div>
     </div>
   );
 }
@@ -164,6 +219,7 @@ export default function ProjectChatPage() {
   const [input, setInput] = useState('');
   const [notice, setNotice] = useState<string | null>(null);
   const [messages, setMessages] = useState<ChatMessageResponse[]>([]);
+  const [pendingAttachments, setPendingAttachments] = useState<PendingChatAttachment[]>([]);
   const [memberNicknames, setMemberNicknames] = useState<Set<string>>(new Set());
   const [roomId, setRoomId] = useState<number | null>(null);
   const chatPageRef = useRef<HTMLDivElement>(null);
@@ -171,6 +227,7 @@ export default function ProjectChatPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const stompClientRef = useRef<Client | null>(null);
+  const thumbnailUrlsRef = useRef(new Map<number, string>());
   const myNickname = useAuthStore((s) => s.user?.nickname);
 
   // 채팅방 목록에서 현재 프로젝트에 해당하는 roomId/참여자 조회 (프로젝트별 단건 조회 API가 없음)
@@ -219,12 +276,34 @@ export default function ProjectChatPage() {
   // roomId가 확정되면 STOMP 연결 + 실시간 구독
   useEffect(() => {
     if (roomId === null) return;
+    thumbnailUrlsRef.current.clear();
     const client = createChatStompClient(
       () => {
         subscribeToDestination(client, chatDestinations.subscribeRoom(roomId), (frame) => {
           const incoming = JSON.parse(frame.body) as ChatMessageResponse;
-          setMessages((prev) => [...prev, incoming]);
+          const hydratedIncoming = {
+            ...incoming,
+            attachments: incoming.attachments.map((attachment) => {
+              const thumbnailUrl = thumbnailUrlsRef.current.get(attachment.chatAttachmentId);
+              return thumbnailUrl
+                ? { ...attachment, thumbnailUrl, thumbnailPending: false }
+                : attachment;
+            }),
+          };
+          setMessages((prev) => [...prev, hydratedIncoming]);
           markRoomAsRead(roomId, incoming.chatId).catch(() => undefined);
+        });
+        subscribeToDestination(client, chatDestinations.subscribeAttachments(roomId), (frame) => {
+          const thumbnail = JSON.parse(frame.body) as ChatAttachmentThumbnailResponse;
+          thumbnailUrlsRef.current.set(thumbnail.chatAttachmentId, thumbnail.thumbnailUrl);
+          setMessages((prev) => prev.map((message) => ({
+            ...message,
+            attachments: message.attachments.map((attachment) =>
+              attachment.chatAttachmentId === thumbnail.chatAttachmentId
+                ? { ...attachment, thumbnailUrl: thumbnail.thumbnailUrl, thumbnailPending: false }
+                : attachment
+            ),
+          })));
         });
         subscribeToDestination(client, chatDestinations.subscribeErrors(), (frame) => {
           setNotice(frame.body || '메시지 전송 중 오류가 발생했어요.');
@@ -283,18 +362,90 @@ export default function ProjectChatPage() {
 
   const handleSend = useCallback(() => {
     const text = input.trim();
-    if (!text || roomId === null || !stompClientRef.current?.connected) return;
+    const attachments = pendingAttachments.flatMap((attachment) =>
+      attachment.status === 'SUCCESS' && attachment.fileKey
+        ? [{
+            fileKey: attachment.fileKey,
+            fileName: attachment.fileName,
+            fileSize: attachment.fileSize,
+          }]
+        : []
+    );
+    if (
+      (!text && attachments.length === 0) ||
+      pendingAttachments.some((attachment) => attachment.status !== 'SUCCESS') ||
+      roomId === null ||
+      !stompClientRef.current?.connected
+    ) return;
     publishToDestination(stompClientRef.current, chatDestinations.publishMessage(roomId), {
       message: text,
       clientMessageId: crypto.randomUUID(),
+      attachments,
     });
     setInput('');
-  }, [input, roomId]);
+    setPendingAttachments([]);
+  }, [input, pendingAttachments, roomId]);
 
-  const handleFile = (file?: File) => {
-    if (!file) return;
-    setNotice('파일 첨부는 곧 지원 예정이에요.');
-  };
+  const handleFiles = useCallback((files: File[]) => {
+    if (files.length === 0) return;
+    if (pendingAttachments.length + files.length > MAX_CHAT_ATTACHMENTS) {
+      setNotice(`첨부는 최대 ${MAX_CHAT_ATTACHMENTS}개까지 추가할 수 있어요.`);
+      return;
+    }
+
+    const existing = new Set(
+      pendingAttachments.map((attachment) =>
+        `${attachment.file.name}\u0000${attachment.file.size}\u0000${attachment.file.lastModified}`
+      )
+    );
+    const uniqueFiles = files.filter((file) => {
+      const fingerprint = `${file.name}\u0000${file.size}\u0000${file.lastModified}`;
+      if (existing.has(fingerprint)) return false;
+      existing.add(fingerprint);
+      return true;
+    });
+    if (uniqueFiles.length !== files.length) {
+      setNotice('같은 파일은 중복으로 첨부할 수 없어요.');
+    }
+
+    const nextAttachments = uniqueFiles.map<PendingChatAttachment>((file) => ({
+      id: crypto.randomUUID(),
+      file,
+      fileName: file.name,
+      fileSize: file.size,
+      status: 'UPLOADING',
+    }));
+    setPendingAttachments((prev) => [...prev, ...nextAttachments]);
+
+    for (const attachment of nextAttachments) {
+      void uploadFile(attachment.file, 'CHAT')
+        .then((uploaded) => {
+          setPendingAttachments((prev) => prev.map((item) =>
+            item.id === attachment.id
+              ? { ...item, status: 'SUCCESS', fileKey: uploaded.fileKey, error: undefined }
+              : item
+          ));
+        })
+        .catch((error: unknown) => {
+          const message = error instanceof ApiError
+            ? error.message
+            : '파일 업로드에 실패했어요.';
+          setPendingAttachments((prev) => prev.map((item) =>
+            item.id === attachment.id
+              ? { ...item, status: 'ERROR', error: message }
+              : item
+          ));
+          setNotice(message);
+        });
+    }
+  }, [pendingAttachments]);
+
+  const hasUploadingAttachment = pendingAttachments.some((attachment) => attachment.status === 'UPLOADING');
+  const hasAttachmentError = pendingAttachments.some((attachment) => attachment.status === 'ERROR');
+  const canSend =
+    (Boolean(input.trim()) || pendingAttachments.length > 0) &&
+    !hasUploadingAttachment &&
+    !hasAttachmentError;
 
   return (
     <div
@@ -324,6 +475,33 @@ export default function ProjectChatPage() {
       </div>
 
       <div className="shrink-0 border-t border-gray-100 bg-white px-4 pb-[max(12px,env(safe-area-inset-bottom))] pt-3">
+        {pendingAttachments.length > 0 && (
+          <div className="mb-3 flex gap-2 overflow-x-auto pb-1">
+            {pendingAttachments.map((attachment) => (
+              <div key={attachment.id} className="flex min-w-[180px] max-w-[220px] items-center gap-2 rounded-xl border border-gray-100 bg-gray-25 px-3 py-2">
+                <DocIcon />
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-caption font-semibold text-navy-700">{attachment.fileName}</p>
+                  <p className={`text-chat-time ${attachment.status === 'ERROR' ? 'text-error' : 'text-gray-400'}`}>
+                    {attachment.status === 'UPLOADING'
+                      ? '업로드 중...'
+                      : attachment.status === 'ERROR'
+                      ? '업로드 실패'
+                      : formatFileSize(attachment.fileSize)}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setPendingAttachments((prev) => prev.filter((item) => item.id !== attachment.id))}
+                  className="flex size-6 shrink-0 items-center justify-center rounded-full text-lg text-gray-400"
+                  aria-label={`${attachment.fileName} 첨부 삭제`}
+                >
+                  ×
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
         <form
           className="flex min-w-0 items-center gap-3"
           onSubmit={(event) => {
@@ -343,11 +521,12 @@ export default function ProjectChatPage() {
             <input
               ref={fileInputRef}
               type="file"
-              accept="image/*,video/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.zip"
+              accept={CHAT_FILE_ACCEPT}
+              multiple
               className="hidden"
               aria-label="첨부할 파일 선택"
               onChange={(event) => {
-                handleFile(event.target.files?.[0]);
+                handleFiles(Array.from(event.target.files ?? []));
                 event.target.value = '';
               }}
             />
@@ -372,7 +551,7 @@ export default function ProjectChatPage() {
           {/* 전송 버튼 */}
           <button
             type="submit"
-            disabled={!input.trim()}
+            disabled={!canSend}
             className="size-10 bg-primary rounded-md flex items-center justify-center shrink-0 text-gray-25 hover:bg-primary-600 disabled:bg-gray-200 disabled:hover:bg-gray-200 transition-colors"
             aria-label="전송"
           >
