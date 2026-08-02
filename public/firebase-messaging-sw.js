@@ -10,6 +10,7 @@ self.addEventListener('activate', (event) => {
 
 // FCM이 자체 notificationclick 핸들러를 등록하기 전에 앱 이동 로직을 등록한다.
 self.addEventListener('notificationclick', (event) => {
+  event.stopImmediatePropagation()
   event.notification.close()
   const fcmData = event.notification.data?.FCM_MSG?.data ?? event.notification.data ?? {}
   const targetUrl = fcmData.projectId
