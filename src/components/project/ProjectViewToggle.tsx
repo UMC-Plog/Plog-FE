@@ -15,7 +15,7 @@ const VIEW_OPTIONS = [
 export function ProjectViewToggle({ value, onChange }: ProjectViewToggleProps) {
   return (
     <div
-      className="flex h-8 rounded-full border border-gray-200 bg-white p-0.5"
+      className="flex h-8 items-center rounded-full border border-gray-200 bg-white p-px"
       role="group"
       aria-label="프로젝트 보기 방식"
     >
