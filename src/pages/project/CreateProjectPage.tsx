@@ -2,8 +2,10 @@ import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import {
   ArrowLeft,
   ChevronDown,
+  CircleCheck,
   FileText,
   Folder,
+  Info,
   MessageSquare,
   UserRound,
   X,
@@ -24,17 +26,6 @@ import { useProjectStore } from "../../store/projectStore";
 import type { CreatedProject, ProjectType } from "../../types/project";
 
 type CreationStep = "info" | "tools";
-type ToolKey = "github" | "figma" | "notion";
-
-const TOOL_OPTIONS: Array<{
-  key: ToolKey;
-  name: string;
-  description: string;
-}> = [
-  { key: "github", name: "GitHub", description: "커밋/PR 자동 수집" },
-  { key: "figma", name: "Figma", description: "파일 업로드 추적" },
-  { key: "notion", name: "Notion", description: "문서 작성 기록" },
-];
 
 function ProjectCreationProgress({ step }: { step: CreationStep }) {
   const isInfoStep = step === "info";
@@ -43,7 +34,7 @@ function ProjectCreationProgress({ step }: { step: CreationStep }) {
     <div>
       <h1 className="text-h3 font-bold text-gray-900">프로젝트 생성</h1>
       <p className="mt-1.5 text-caption font-normal text-gray-400">
-        {isInfoStep ? "1단계 · 프로젝트 정보 (필수)" : "2단계 · 툴 연동 (선택)"}
+        {isInfoStep ? "1단계 · 프로젝트 정보 (필수)" : "2단계 · 계정연동 안내"}
       </p>
       <div className="mt-3 h-2 overflow-hidden rounded-full bg-gray-100">
         <div
@@ -106,38 +97,6 @@ function ProjectCreationBackdrop() {
         <div className="mt-4 h-44 rounded-lg border border-gray-100 bg-white shadow-md" />
       </div>
     </div>
-  );
-}
-
-function ToolLogo({ tool }: { tool: (typeof TOOL_OPTIONS)[number] }) {
-  if (tool.key === "github") {
-    return (
-      <span className="flex h-11 w-11 items-center justify-center rounded-md bg-gray-900 text-white">
-        <svg width="23" height="23" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-          <path d="M12 2a10 10 0 0 0-3.16 19.49c.5.09.68-.22.68-.48v-1.87c-2.78.6-3.37-1.18-3.37-1.18-.45-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.61.07-.61 1 .07 1.53 1.03 1.53 1.03.9 1.53 2.35 1.09 2.92.83.09-.65.35-1.09.64-1.34-2.22-.25-4.55-1.11-4.55-4.94 0-1.09.39-1.98 1.03-2.68-.1-.25-.45-1.27.1-2.64 0 0 .84-.27 2.75 1.02A9.6 9.6 0 0 1 12 6.82a9.6 9.6 0 0 1 2.5.34c1.91-1.29 2.75-1.02 2.75-1.02.55 1.37.2 2.39.1 2.64.64.7 1.03 1.59 1.03 2.68 0 3.84-2.34 4.68-4.57 4.93.36.31.68.92.68 1.85v2.77c0 .27.18.58.69.48A10 10 0 0 0 12 2Z" />
-        </svg>
-      </span>
-    );
-  }
-
-  if (tool.key === "figma") {
-    return (
-      <span className="flex h-11 w-11 items-center justify-center rounded-md bg-white">
-        <svg width="20" height="28" viewBox="0 0 20 28" fill="none" aria-hidden="true">
-          <circle cx="14" cy="14" r="4" fill="#1ABCFE" />
-          <path d="M2 6a4 4 0 0 1 4-4h4v8H6a4 4 0 0 1-4-4Z" fill="#F24E1E" />
-          <path d="M10 2h4a4 4 0 1 1 0 8h-4V2Z" fill="#FF7262" />
-          <path d="M2 14a4 4 0 0 1 4-4h4v8H6a4 4 0 0 1-4-4Z" fill="#A259FF" />
-          <path d="M2 22a4 4 0 0 1 4-4h4v4a4 4 0 1 1-8 0Z" fill="#0ACF83" />
-        </svg>
-      </span>
-    );
-  }
-
-  return (
-    <span className="flex h-11 w-11 items-center justify-center rounded-md bg-white text-title font-extrabold text-gray-900">
-      N
-    </span>
   );
 }
 
@@ -208,11 +167,6 @@ export function CreateProjectPage() {
   const [month, setMonth] = useState(String(today.getMonth() + 1));
   const [day, setDay] = useState(String(today.getDate()));
   const [nameTouched, setNameTouched] = useState(false);
-  const [connectedTools, setConnectedTools] = useState<Record<ToolKey, boolean>>({
-    github: true,
-    figma: false,
-    notion: true,
-  });
   const [createdProject, setCreatedProject] = useState<CreatedProject | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -353,7 +307,11 @@ export function CreateProjectPage() {
         </div>
       )}
 
-      <BottomSheet open={!createdProject} onClose={() => navigate("/home")}>
+      <BottomSheet
+        open={!createdProject}
+        onClose={() => navigate("/home")}
+        contentClassName={step === "tools" ? "px-5 pb-[38px]" : undefined}
+      >
         {step === "info" ? (
           <form className="flex min-h-[506px] flex-col pb-4" onSubmit={handleInfoSubmit} noValidate>
             <ProjectCreationProgress step={step} />
@@ -411,24 +369,69 @@ export function CreateProjectPage() {
             </div>
           </form>
         ) : (
-          <div className="flex min-h-[506px] flex-col pb-4">
+          <div className="flex min-h-[506px] flex-col">
             <ProjectCreationProgress step={step} />
-            <p className="mt-6 text-body-sm text-gray-400">
+
+            <div className="mt-[21px] flex min-h-[71px] items-start gap-2 rounded-[12px] bg-blue-50 px-[18px] py-[11px] text-[12px] leading-[17px] text-blue-500">
+              <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
+              <p>
+                <strong className="font-semibold">프로젝트 분석을 위해 계정 연동이 필요해요</strong>
+                <br />
+                계정을 연동 시 팀원들의 활동 데이터를 자동으로 수집해 AI 분석
+                <br />
+                기능을 사용할 수 있어요
+              </p>
+            </div>
+
+            <ul className="mt-[28px] space-y-[16px] px-[18px] text-[12px] leading-[17px] text-gray-700">
+              <li className="flex min-h-8 items-start gap-4">
+                <CircleCheck className="mt-0.5 h-4 w-4 shrink-0 text-blue-500" strokeWidth={1.5} aria-hidden />
+                <span>GitHub, Notion, Google Docs, Slides, Figma 등 외부도구<br />활동을 연동해주세요</span>
+              </li>
+              <li className="flex min-h-8 items-start gap-4">
+                <CircleCheck className="mt-0.5 h-4 w-4 shrink-0 text-blue-500" strokeWidth={1.5} aria-hidden />
+                <span>연동계정 등록은 워크스페이스 소유자(생성자)만이 진행할 수<br />있어요</span>
+              </li>
+              <li className="flex min-h-8 items-start gap-4">
+                <CircleCheck className="mt-0.5 h-4 w-4 shrink-0 text-blue-500" strokeWidth={1.5} aria-hidden />
+                <span>프로젝트 생성 후 [프로젝트 설정] &gt; [계정 연동]에서 추가 또는<br />변경할 수 있어요</span>
+              </li>
+              <li className="flex min-h-8 items-start gap-4">
+                <CircleCheck className="mt-0.5 h-4 w-4 shrink-0 text-blue-500" strokeWidth={1.5} aria-hidden />
+                <span>연동한 데이터는 프로젝트 멤버 모두가 확인할 수 있어요</span>
+              </li>
+            </ul>
+
+            <div className="mt-auto pt-5">
+              <Button type="button" size="lg" onClick={handleCreate} loading={isSubmitting} className="rounded-[14px]">
+                다음
+              </Button>
+              <button
+                type="button"
+                onClick={() => navigate("/home")}
+                disabled={isSubmitting}
+                className="mt-[21px] w-full text-center text-[16px] font-semibold text-gray-400 disabled:opacity-50"
+              >
+                취소
+              </button>
+            </div>
+
+            <p className="hidden">
               외부 툴을 연동하면 활동 데이터를 자동으로 수집할 수 있어요
             </p>
 
-            <div className="mt-5 space-y-3">
-              {TOOL_OPTIONS.map((tool) => {
-                const connected = connectedTools[tool.key];
+            <div className="hidden">
+              {([] as Array<{ key: string; name: string; description: string }>).map((tool) => {
+                const connected = false;
                 return (
                   <button
                     key={tool.key}
                     type="button"
                     aria-pressed={connected}
-                    onClick={() => setConnectedTools((current) => ({ ...current, [tool.key]: !connected }))}
+                    onClick={() => undefined}
                     className="flex h-20 w-full items-center gap-4 rounded-lg bg-gray-50 px-4 text-left"
                   >
-                    <ToolLogo tool={tool} />
+                    <span />
                     <span className="min-w-0 flex-1">
                       <strong className="block text-title font-bold text-gray-900">{tool.name}</strong>
                       <span className="mt-0.5 block text-caption font-normal text-gray-400">{tool.description}</span>
@@ -446,7 +449,7 @@ export function CreateProjectPage() {
               })}
             </div>
 
-            <div className="mt-auto pt-6">
+            <div className="hidden">
               <Button type="button" size="lg" onClick={handleCreate} loading={isSubmitting}>
                 프로젝트 시작하기
               </Button>
