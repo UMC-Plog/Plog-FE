@@ -14,7 +14,6 @@ const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 export function FindPasswordPage() {
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
-  const [sent, setSent] = useState(false);
   const [sending, setSending] = useState(false);
   const [sendErrorMessage, setSendErrorMessage] = useState<string | null>(null);
   const [code, setCode] = useState("");
@@ -30,7 +29,6 @@ export function FindPasswordPage() {
     setSending(true);
     try {
       await sendPasswordResetCode(email.trim());
-      setSent(true);
       setCode("");
       setCodeError(undefined);
       setVerified(false);
@@ -89,7 +87,6 @@ export function FindPasswordPage() {
             value={email}
             onChange={(e) => {
               setEmail(e.target.value);
-              setSent(false);
               setVerified(false);
             }}
           />
@@ -104,51 +101,47 @@ export function FindPasswordPage() {
             인증 코드 발송
           </Button>
 
-          {sent && (
-            <div>
-              <div className="flex items-center gap-2">
-                <Info size={20} className="shrink-0 text-[#3182F6]" strokeWidth={1.7} aria-hidden />
-                <p className="text-body font-bold text-gray-900">이메일이 오지 않나요?</p>
-              </div>
-              <p className="mt-2 text-body-sm font-normal leading-[1.4] text-gray-400">
-                스팸함을 확인하거나 1-2분 후 다시 시도해보세요.
-                <br />
-                문제가 지속되면 고객센터로 문의해 주세요.
-              </p>
+          <div>
+            <div className="flex items-center gap-2">
+              <Info size={20} className="shrink-0 text-[#3182F6]" strokeWidth={1.7} aria-hidden />
+              <p className="text-body font-bold text-gray-900">이메일이 오지 않나요?</p>
             </div>
-          )}
+            <p className="mt-2 text-body-sm font-normal leading-[1.4] text-gray-400">
+              스팸함을 확인하거나 1-2분 후 다시 시도해보세요.
+              <br />
+              문제가 지속되면 고객센터로 문의해 주세요.
+            </p>
+          </div>
 
-          {sent && (
-            <div>
-              <Input
-                label="인증번호 확인"
-                placeholder="인증번호 입력"
-                value={code}
-                onChange={(e) => {
-                  setCode(e.target.value);
-                  setCodeError(undefined);
-                  setVerified(false);
-                }}
-                maxLength={6}
-                errorText={codeError}
-                suffix={
-                  <button
-                    type="button"
-                    onClick={handleVerify}
-                    disabled={code.trim().length !== 6 || verifying}
-                    className="h-9 shrink-0 rounded-md bg-blue-500 px-3 text-body-sm font-normal text-white disabled:bg-gray-100 disabled:text-gray-400"
-                  >
-                    {verifying ? "확인 중" : "확인"}
-                  </button>
-                }
-              />
-              {verified && (
-                <p className="mt-1.5 flex items-center gap-1 text-caption font-normal text-success">
-                  ✓ 인증이 완료되었습니다
-                </p>
-              )}
-            </div>
-          )}
+          <div>
+            <Input
+              label="인증번호 확인"
+              placeholder="인증번호 입력"
+              value={code}
+              onChange={(e) => {
+                setCode(e.target.value);
+                setCodeError(undefined);
+                setVerified(false);
+              }}
+              maxLength={6}
+              errorText={codeError}
+              suffix={
+                <button
+                  type="button"
+                  onClick={handleVerify}
+                  disabled={code.trim().length !== 6 || verifying}
+                  className="h-9 shrink-0 rounded-md bg-blue-500 px-3 text-body-sm font-normal text-white disabled:bg-gray-100 disabled:text-gray-400"
+                >
+                  {verifying ? "확인 중" : "확인"}
+                </button>
+              }
+            />
+            {verified && (
+              <p className="mt-1.5 flex items-center gap-1 text-caption font-normal text-success">
+                ✓ 인증이 완료되었습니다
+              </p>
+            )}
+          </div>
         </div>
 
         <div className="mt-auto pb-8 pt-8">
