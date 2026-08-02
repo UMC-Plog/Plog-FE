@@ -53,7 +53,7 @@ export function NotificationSettingsPage() {
 
       <main className="flex-1 px-4 pt-6">
         <p className="px-1.5 text-[12px] font-normal leading-[17px] text-gray-400">
-          프로젝트 채팅의 새로운 멘션을 실시간으로 알려드려요
+          연동된 툴의 활동 데이터가 기여도 분석에 자동 반영됩니다
         </p>
 
         <section className="mt-[23px] flex h-[90px] items-center rounded-16 border border-gray-100 bg-white/10 px-[26px] shadow-card">
@@ -83,9 +83,9 @@ export function NotificationSettingsPage() {
 
         {!enabled && (
           <p className="mt-4 px-1.5 text-[12px] font-normal leading-[17px] text-gray-400">
-            알림 설정은 사용자분들의 원활한 서비스 이용을 위해 만들었어요.
+            알림 설정은 사용자분들의 원활한 서비스 이용을 위해 만들었어요
             <br />
-            알림을 켜두시면 새로운 @멘션 알림을 받을 수 있어요!
+            알림을 켜두시면 @멘션 / Peer 평가 / 리포트 알림을 받으실 수 있어요!
           </p>
         )}
       </main>

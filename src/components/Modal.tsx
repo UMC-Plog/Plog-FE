@@ -8,10 +8,18 @@ interface ModalProps {
   children: ReactNode;
   ariaLabelledby?: string;
   contentClassName?: string;
+  overlayClassName?: string;
 }
 
 /** Plog 전역 공통 Modal — 중앙 정렬 팝업 (업무카드 상세, 삭제확인 등) */
-export function Modal({ open, onClose, children, ariaLabelledby, contentClassName }: ModalProps) {
+export function Modal({
+  open,
+  onClose,
+  children,
+  ariaLabelledby,
+  contentClassName,
+  overlayClassName,
+}: ModalProps) {
   useEffect(() => {
     if (!open) return;
     const onKeyDown = (e: KeyboardEvent) => {
@@ -25,7 +33,10 @@ export function Modal({ open, onClose, children, ariaLabelledby, contentClassNam
 
   return createPortal(
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/40 px-[21px]"
+      className={cn(
+        "fixed inset-0 z-50 flex items-center justify-center bg-gray-900/40 px-[21px]",
+        overlayClassName
+      )}
       onClick={onClose}
     >
       <div

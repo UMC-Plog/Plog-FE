@@ -1,6 +1,5 @@
 import { User } from "lucide-react";
 import { cn } from "../lib/utils";
-import cameraBadge from "../assets/profile-camera-badge.svg";
 import otterImg from "../assets/otter.png";
 import penguinImg from "../assets/penguin.png";
 import frogImg from "../assets/frog.png";
@@ -79,14 +78,6 @@ export function AvatarPicker({
               <User className="h-1/2 w-1/2 text-gray-25" strokeWidth={1.5} fill="currentColor" aria-hidden />
             )}
           </div>
-          {size === "profile-edit" && (
-            <img
-              src={cameraBadge}
-              alt=""
-              className="absolute bottom-0 right-0 h-8 w-8"
-              aria-hidden="true"
-            />
-          )}
         </div>
       </div>
 
