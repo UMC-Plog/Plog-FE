@@ -490,29 +490,37 @@ export function ProjectSettingsPage() {
                   (connection) =>
                     connection.linkType === integration.type && connection.isLinked
                 );
+              const openIntegration = (entryMode: "disconnect" | "resources") =>
+                navigate(`/project/${id}/settings/integrations/${integration.id}`, {
+                  state: {
+                    isConnected: connected,
+                    isMockConnected: false,
+                    entryMode,
+                  },
+                });
+
               return (
-                <button
-                  key={integration.id}
-                  type="button"
-                  onClick={() =>
-                    navigate(`/project/${id}/settings/integrations/${integration.id}`, {
-                      state: {
-                        isConnected: connected,
-                        isMockConnected: false,
-                      },
-                    })
-                  }
-                  className="flex h-[61px] w-full items-center"
-                >
+                <div key={integration.id} className="flex h-[61px] w-full items-center">
                   <span className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-[10px] bg-white">
                     <img src={integration.icon} alt="" className="object-contain" style={{ width: integration.logo, height: integration.logo }} />
                   </span>
                   <span className="ml-3 flex-1 text-left text-[15px] font-normal text-gray-900">{integration.label}</span>
-                  <span className={`mr-[14px] rounded-full px-[14px] py-[5px] text-[12px] ${connected ? "bg-[#E9F8F0] text-success" : "bg-[#FDEDEE] text-error"}`}>
+                  <button
+                    type="button"
+                    onClick={() => openIntegration(connected ? "disconnect" : "resources")}
+                    className={`mr-[14px] rounded-full px-[14px] py-[5px] text-[12px] ${connected ? "bg-[#E9F8F0] text-success" : "bg-[#FDEDEE] text-error"}`}
+                  >
                     {connected ? "연동" : "미연동"}
-                  </span>
-                  <ChevronRight className="h-5 w-5 shrink-0 text-gray-400" aria-hidden />
-                </button>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => openIntegration("resources")}
+                    aria-label={`${integration.label} ${connected ? "파일 추가" : "연동 설정"}`}
+                    className="flex h-10 w-8 shrink-0 items-center justify-end"
+                  >
+                    <ChevronRight className="h-5 w-5 text-gray-400" aria-hidden />
+                  </button>
+                </div>
               );
             })}
           </div>

@@ -48,6 +48,7 @@ type NotionFilter = "전체" | "페이지" | "DB";
 type IntegrationNavigationState = {
   isConnected?: boolean;
   isMockConnected?: boolean;
+  entryMode?: "disconnect" | "resources";
 };
 
 type Permission = {
@@ -317,16 +318,23 @@ export default function IntegrationConnectionPage() {
   const navigationState = location.state as IntegrationNavigationState | null;
   const navigationConnected = navigationState?.isConnected;
   const navigationMockConnected = Boolean(navigationState?.isMockConnected);
+  const navigationEntryMode = navigationState?.entryMode;
   const [isConnected, setIsConnected] = useState<boolean | null>(
     navigationConnected ?? null
   );
   const [isDisconnectOpen, setIsDisconnectOpen] = useState(
-    navigationConnected === true
+    navigationConnected === true && navigationEntryMode !== "resources"
   );
   const [connectionLoadError, setConnectionLoadError] = useState<string | null>(null);
   const [isDisconnecting, setIsDisconnecting] = useState(false);
   const [disconnectError, setDisconnectError] = useState<string | null>(null);
-  const [step, setStep] = useState(1);
+  const [step, setStep] = useState(() =>
+    navigationConnected === true && navigationEntryMode === "resources"
+      ? providerId === "github"
+        ? 4
+        : 3
+      : 1
+  );
   const [url, setUrl] = useState("");
   const [files, setFiles] = useState(() => {
     if (providerId === "docs") return ["프로젝트 도구", "시장 조사 보고서"];
@@ -392,16 +400,25 @@ export default function IntegrationConnectionPage() {
     () => new Set(resources.map((resource) => resource.providerResourceId)),
     [resources]
   );
+  const displayResources = useMemo(() => {
+    if (providerId === "docs") {
+      return resources.filter((resource) => resource.resourceType === "GOOGLE_DOCUMENT");
+    }
+    if (providerId === "slides") {
+      return resources.filter((resource) => resource.resourceType === "GOOGLE_PRESENTATION");
+    }
+    return resources;
+  }, [providerId, resources]);
   const resourceItems = useMemo(
     () =>
       isServer
-        ? resources.map(toResourceItem)
+        ? displayResources.map(toResourceItem)
         : files.map((file) => ({
             key: file,
             name: file,
             subtitle: "마지막 수정: 2026.06.21 10:30",
           })),
-    [files, isServer, resources]
+    [displayResources, files, isServer]
   );
   const accountLabel = isServer ? accountName ?? `${config.name} 계정` : config.account;
 
@@ -427,7 +444,10 @@ export default function IntegrationConnectionPage() {
         const connected = Boolean(integration?.linked) || (!isServer && mockConnected);
         setAccountName(integration?.connectedAccountName ?? null);
         setIsConnected(connected);
-        setIsDisconnectOpen(connected);
+        setIsDisconnectOpen(connected && navigationEntryMode !== "resources");
+        if (connected && navigationEntryMode === "resources") {
+          setStep(isGithub ? 4 : 3);
+        }
       })
       .catch((error) => {
         if (!active) return;
@@ -442,7 +462,7 @@ export default function IntegrationConnectionPage() {
     return () => {
       active = false;
     };
-  }, [id, isServer, linkType, mockConnected, navigationConnected]);
+  }, [id, isGithub, isServer, linkType, mockConnected, navigationConnected, navigationEntryMode]);
 
   const loadResources = useCallback(async () => {
     if (!isServer) return;
@@ -679,8 +699,14 @@ export default function IntegrationConnectionPage() {
         void handleSaveNotionSelection();
         return;
       }
-      if (resources.length === 0) {
-        setSaveError("Figma Design File URL을 1개 이상 등록해 주세요.");
+      if (displayResources.length === 0) {
+        setSaveError(
+          isGooglePicker
+            ? providerId === "docs"
+              ? "Google Docs 파일을 1개 이상 선택해 주세요."
+              : "Google Slides 파일을 1개 이상 선택해 주세요."
+            : "Figma Design File URL을 1개 이상 등록해 주세요."
+        );
         return;
       }
       setStep(4);
@@ -691,16 +717,10 @@ export default function IntegrationConnectionPage() {
     else setStep((value) => value + 1);
   };
 
-  /** 이미 연결된 상태로 들어왔을 때 해제 대신 리소스 화면으로 이어간다 */
+  /** 연동 해제를 취소하면 프로젝트 설정 화면으로 돌아간다 */
   const handleKeepConnection = () => {
     if (isDisconnecting) return;
-
-    if (!isServer) {
-      navigate(`/project/${id}/settings`);
-      return;
-    }
-    setIsDisconnectOpen(false);
-    setStep(isGithub ? 4 : 3);
+    navigate(`/project/${id}/settings`);
   };
 
   const handleDisconnect = async () => {
