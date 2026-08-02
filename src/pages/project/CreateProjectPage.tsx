@@ -11,6 +11,7 @@ import {
 import { useNavigate } from "react-router-dom";
 import QRCode from "qrcode";
 import { Button } from "../../components/Button";
+import { DateDropdownSelect } from "../../components/DateDropdownSelect";
 import { Input } from "../../components/Input";
 import { AlertModal, BottomSheet, Modal } from "../../components/Modal";
 import { getDaysFromToday } from "../../lib/projectDate";
@@ -196,16 +197,16 @@ export function CreateProjectPage() {
   const createProject = useProjectStore((state) => state.createProject);
   const today = useMemo(() => new Date(), []);
   const years = useMemo(
-    () => Array.from({ length: 6 }, (_, index) => today.getFullYear() + index),
+    () => Array.from({ length: 10 }, (_, index) => today.getFullYear() + index),
     [today]
   );
 
   const [step, setStep] = useState<CreationStep>("info");
   const [projectName, setProjectName] = useState("");
   const [projectType, setProjectType] = useState<ProjectType | "">("");
-  const [year, setYear] = useState("");
-  const [month, setMonth] = useState("");
-  const [day, setDay] = useState("");
+  const [year, setYear] = useState(String(today.getFullYear()));
+  const [month, setMonth] = useState(String(today.getMonth() + 1));
+  const [day, setDay] = useState(String(today.getDate()));
   const [nameTouched, setNameTouched] = useState(false);
   const [connectedTools, setConnectedTools] = useState<Record<ToolKey, boolean>>({
     github: true,
@@ -378,22 +379,19 @@ export function CreateProjectPage() {
               <fieldset>
                 <legend className="mb-2 text-body-sm font-medium text-gray-700">예상 종료일</legend>
                 <div className="flex gap-2">
-                  <SelectField ariaLabel="예상 종료 연도" value={year} onChange={setYear}>
-                    <option value="" disabled>YYYY</option>
-                    {years.map((item) => <option key={item} value={item}>{item}</option>)}
-                  </SelectField>
-                  <SelectField ariaLabel="예상 종료 월" value={month} onChange={handleMonthChange}>
-                    <option value="" disabled>MM</option>
-                    {Array.from({ length: 12 }, (_, index) => index + 1).map((item) => (
-                      <option key={item} value={item}>{String(item).padStart(2, "0")}</option>
-                    ))}
-                  </SelectField>
-                  <SelectField ariaLabel="예상 종료 일" value={day} onChange={setDay}>
-                    <option value="" disabled>DD</option>
-                    {Array.from({ length: daysInSelectedMonth }, (_, index) => index + 1).map((item) => (
-                      <option key={item} value={item}>{String(item).padStart(2, "0")}</option>
-                    ))}
-                  </SelectField>
+                  <DateDropdownSelect ariaLabel="예상 종료 연도" value={year} onChange={setYear} options={years.map(String)} />
+                  <DateDropdownSelect
+                    ariaLabel="예상 종료 월"
+                    value={month.padStart(2, "0")}
+                    onChange={handleMonthChange}
+                    options={Array.from({ length: 12 }, (_, index) => String(index + 1).padStart(2, "0"))}
+                  />
+                  <DateDropdownSelect
+                    ariaLabel="예상 종료 일"
+                    value={day.padStart(2, "0")}
+                    onChange={setDay}
+                    options={Array.from({ length: daysInSelectedMonth }, (_, index) => String(index + 1).padStart(2, "0"))}
+                  />
                 </div>
                 {expectedEndDate && !dateValid && (
                   <p className="mt-1.5 text-caption font-normal text-error">오늘 또는 이후 날짜를 선택해 주세요</p>

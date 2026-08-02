@@ -17,6 +17,7 @@ import notionIcon from "../../assets/integrations/notion.png";
 import docsIcon from "../../assets/integrations/google-docs.svg";
 import slidesIcon from "../../assets/integrations/google-slides.svg";
 import { Modal } from "../../components/Modal";
+import { DateDropdownSelect } from "../../components/DateDropdownSelect";
 import { useProjectStore } from "../../store/projectStore";
 import {
   useIntegrationStore,
@@ -111,35 +112,6 @@ async function copyText(value: string) {
   const copied = document.execCommand("copy");
   document.body.removeChild(textarea);
   if (!copied) throw new Error("클립보드 복사에 실패했습니다.");
-}
-
-function SelectBox({
-  value,
-  onChange,
-  children,
-  ariaLabel,
-  disabled,
-}: {
-  value: string;
-  onChange: (value: string) => void;
-  children: React.ReactNode;
-  ariaLabel: string;
-  disabled: boolean;
-}) {
-  return (
-    <div className="relative flex-1">
-      <select
-        aria-label={ariaLabel}
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-        disabled={disabled}
-        className="h-14 w-full appearance-none rounded-[14px] border border-gray-200 bg-transparent px-[18px] text-[15px] text-gray-900 outline-none focus:border-blue-500 disabled:bg-gray-50 disabled:text-gray-400"
-      >
-        {children}
-      </select>
-      <ChevronDown className="pointer-events-none absolute right-[18px] top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" aria-hidden />
-    </div>
-  );
 }
 
 function ProjectLeaveDialog({
@@ -514,15 +486,9 @@ export function ProjectSettingsPage() {
         <fieldset className="mt-[22px]">
           <legend className="text-[14px] font-normal text-gray-700">예상 종료일</legend>
           <div className="mt-[11px] flex gap-[7px]">
-            <SelectBox value={year} onChange={setYear} ariaLabel="종료 연도" disabled={formDisabled}>
-              {years.map((item) => <option key={item}>{item}</option>)}
-            </SelectBox>
-            <SelectBox value={month} onChange={setMonth} ariaLabel="종료 월" disabled={formDisabled}>
-              {MONTHS.map((item) => <option key={item}>{item}</option>)}
-            </SelectBox>
-            <SelectBox value={day} onChange={setDay} ariaLabel="종료 일" disabled={formDisabled}>
-              {DAYS.map((item) => <option key={item}>{item}</option>)}
-            </SelectBox>
+            <DateDropdownSelect value={year} onChange={setYear} options={years} ariaLabel="종료 연도" disabled={formDisabled} rounded="xl" />
+            <DateDropdownSelect value={month} onChange={setMonth} options={MONTHS} ariaLabel="종료 월" disabled={formDisabled} rounded="xl" />
+            <DateDropdownSelect value={day} onChange={setDay} options={DAYS} ariaLabel="종료 일" disabled={formDisabled} rounded="xl" />
           </div>
           {isValidDate(year, month, day) && getDaysFromToday(`${year}-${month}-${day}`) < 0 && (
             <p className="mt-1.5 text-caption font-normal text-error">오늘 또는 이후 날짜를 선택해 주세요</p>
