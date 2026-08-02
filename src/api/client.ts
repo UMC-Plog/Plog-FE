@@ -29,6 +29,7 @@ interface ApiRequestOptions {
 async function rawRequest<T>(path: string, options: ApiRequestOptions, token?: string) {
   const res = await fetch(`${BASE_URL}${path}`, {
     method: options.method ?? 'GET',
+    credentials: 'include',
     headers: {
       'Content-Type': 'application/json',
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
@@ -44,7 +45,7 @@ let reissuePromise: Promise<string | null> | null = null
 
 // accessToken 만료(401) 시 refreshToken으로 한 번만 재발급 시도. 동시에 여러 요청이 401을 받아도
 // 재발급 API는 한 번만 호출되도록 진행 중인 Promise를 공유한다 (refreshToken은 재발급마다 회전되므로).
-function reissueAccessToken(): Promise<string | null> {
+export function reissueAccessToken(): Promise<string | null> {
   const refreshToken = useAuthStore.getState().refreshToken
   if (!refreshToken) return Promise.resolve(null)
 
