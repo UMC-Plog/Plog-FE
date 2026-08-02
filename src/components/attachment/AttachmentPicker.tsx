@@ -2,7 +2,6 @@ import {
   Camera,
   FileText,
   FolderOpen,
-  HardDrive,
   Image,
   Images,
   Link as LinkIcon,
@@ -19,7 +18,7 @@ import {
 } from 'react'
 import type { ChangeEvent } from 'react'
 import { ApiError } from '../../api/client'
-import { uploadFile } from '../../api/file'
+import { uploadFile, validateUploadFileType } from '../../api/file'
 import {
   createFileFingerprint,
   formatFileSize,
@@ -220,8 +219,18 @@ export function AttachmentPicker({
     const selectedFingerprints = new Set<string>()
     const uniqueFiles: File[] = []
     let duplicateFound = false
+    let invalidFileError: string | undefined
 
     for (const file of files) {
+      if (variant === 'post') {
+        try {
+          validateUploadFileType(file)
+        } catch (error: unknown) {
+          invalidFileError ??= `${file.name}: ${getErrorMessage(error)}`
+          continue
+        }
+      }
+
       const fingerprint = createFileFingerprint(file)
       if (
         existingFingerprints.has(fingerprint) ||
@@ -239,9 +248,11 @@ export function AttachmentPicker({
       return
     }
 
-    if (duplicateFound) {
-      setAttachmentError('같은 파일은 중복으로 첨부할 수 없습니다.')
-    }
+    const selectionErrors = [
+      invalidFileError,
+      duplicateFound ? '같은 파일은 중복으로 첨부할 수 없습니다.' : undefined,
+    ].filter((message): message is string => Boolean(message))
+    setAttachmentError(selectionErrors.join(' ') || undefined)
 
     const newDrafts: NewFileAttachmentDraft[] = uniqueFiles.map((file) => ({
       localId: createLocalId(),
@@ -564,7 +575,7 @@ export function AttachmentPicker({
             ref={cameraInputRef}
             type="file"
             className="hidden"
-            accept="image/*"
+            accept={IMAGE_ACCEPT}
             capture="environment"
             aria-label="카메라로 첨부할 사진 촬영"
             onChange={handleFileInputChange}
@@ -574,7 +585,7 @@ export function AttachmentPicker({
             type="file"
             className="hidden"
             multiple
-            accept="image/*"
+            accept={IMAGE_ACCEPT}
             aria-label="사진 라이브러리에서 첨부할 이미지 선택"
             onChange={handleFileInputChange}
           />
@@ -602,14 +613,6 @@ export function AttachmentPicker({
           <div className="mt-4 flex flex-col">
             <button
               ref={firstAttachmentOptionRef}
-              type="button"
-              onClick={openNativeFilePicker}
-              className="flex min-h-12 items-center gap-3 rounded-md px-2 text-left text-body-sm text-gray-700 hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-            >
-              <HardDrive className="h-5 w-5 text-primary" aria-hidden />
-              Google Drive
-            </button>
-            <button
               type="button"
               onClick={openNativeFilePicker}
               className="flex min-h-12 items-center gap-3 rounded-md px-2 text-left text-body-sm text-gray-700 hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
