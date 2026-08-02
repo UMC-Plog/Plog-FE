@@ -19,10 +19,6 @@ import docsIcon from "../../assets/integrations/google-docs.svg";
 import slidesIcon from "../../assets/integrations/google-slides.svg";
 import { Modal } from "../../components/Modal";
 import { useProjectStore } from "../../store/projectStore";
-import {
-  useIntegrationStore,
-  type IntegrationProvider,
-} from "../../store/integrationStore";
 import type {
   ProjectIntegrationType,
   ProjectSettingsResponse,
@@ -254,14 +250,13 @@ export function ProjectSettingsPage() {
   const navigate = useNavigate();
   const fetchProjects = useProjectStore((state) => state.fetchProjects);
   const removeProject = useProjectStore((state) => state.removeProject);
-  const mockIntegrationAccounts = useIntegrationStore(
-    (state) => state.projectAccounts[id]
-  );
   const [settings, setSettings] = useState<ProjectSettingsResponse | null>(null);
   const [integrationLinks, setIntegrationLinks] = useState<
     Partial<Record<ProjectIntegrationType, boolean>>
   >({});
   const [isLoading, setIsLoading] = useState(true);
+  const [isIntegrationLoading, setIsIntegrationLoading] = useState(true);
+  const [integrationError, setIntegrationError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [isLeaving, setIsLeaving] = useState(false);
   const [isLeaveDialogOpen, setIsLeaveDialogOpen] = useState(false);
@@ -272,6 +267,7 @@ export function ProjectSettingsPage() {
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
   const [isQrOpen, setIsQrOpen] = useState(false);
   const requestIdRef = useRef(0);
+  const integrationRequestIdRef = useRef(0);
   const [name, setName] = useState("");
   const [type, setType] = useState<ProjectType>("DEVELOPMENT");
   const [year, setYear] = useState("");
@@ -300,20 +296,9 @@ export function ProjectSettingsPage() {
     setIsLoading(true);
     setError(null);
     try {
-      const [response, integrationStatus] = await Promise.all([
-        getProjectSettings(id),
-        getIntegrationStatus(id),
-      ]);
+      const response = await getProjectSettings(id);
       if (requestId === requestIdRef.current) {
         applySettings(response);
-        setIntegrationLinks(
-          Object.fromEntries(
-            integrationStatus.integrations.map((integration) => [
-              integration.linkType,
-              integration.linked,
-            ])
-          )
-        );
       }
     } catch (loadError) {
       if (requestId === requestIdRef.current) setError(getErrorMessage(loadError));
@@ -322,6 +307,34 @@ export function ProjectSettingsPage() {
     }
   }, [applySettings, id]);
 
+  const loadIntegrationStatus = useCallback(async () => {
+    const requestId = ++integrationRequestIdRef.current;
+    setIsIntegrationLoading(true);
+    setIntegrationError(null);
+
+    try {
+      const integrationStatus = await getIntegrationStatus(id);
+      if (requestId !== integrationRequestIdRef.current) return;
+
+      setIntegrationLinks(
+        Object.fromEntries(
+          integrationStatus.integrations.map((integration) => [
+            integration.linkType,
+            integration.linked,
+          ])
+        )
+      );
+    } catch (loadError) {
+      if (requestId !== integrationRequestIdRef.current) return;
+      setIntegrationLinks({});
+      setIntegrationError(getErrorMessage(loadError));
+    } finally {
+      if (requestId === integrationRequestIdRef.current) {
+        setIsIntegrationLoading(false);
+      }
+    }
+  }, [id]);
+
   useEffect(() => {
     if (!id) {
       setError("프로젝트 정보가 올바르지 않아요.");
@@ -329,10 +342,12 @@ export function ProjectSettingsPage() {
       return;
     }
     void loadSettings();
+    void loadIntegrationStatus();
     return () => {
       requestIdRef.current += 1;
+      integrationRequestIdRef.current += 1;
     };
-  }, [id, loadSettings]);
+  }, [id, loadIntegrationStatus, loadSettings]);
 
   useEffect(() => {
     if (!notice) return;
@@ -564,53 +579,57 @@ export function ProjectSettingsPage() {
           </h2>
           <p className="mt-1 text-[12px] font-normal text-gray-400">워크스페이스를 소유한 팀원만 연동할 수 있어요.</p>
           <div className="mt-2 rounded-[16px] border border-gray-100 bg-white/10 px-[18px] shadow-card">
-            {INTEGRATIONS.map((integration) => {
-              const serverConnected =
-                integrationLinks[integration.type] ??
-                settings.externalConnections.some(
-                  (connection) =>
-                    connection.linkType === integration.type && connection.isLinked
+            {isIntegrationLoading ? (
+              <div className="flex h-[61px] items-center justify-center text-[13px] text-gray-400" role="status">
+                연동 상태를 확인하고 있어요.
+              </div>
+            ) : integrationError ? (
+              <div className="flex min-h-[86px] flex-col items-center justify-center gap-2 py-3 text-center" role="alert">
+                <p className="text-[13px] text-error">연동 상태를 불러오지 못했어요.</p>
+                <button
+                  type="button"
+                  onClick={() => void loadIntegrationStatus()}
+                  className="rounded-[10px] bg-gray-100 px-4 py-2 text-[12px] font-semibold text-gray-600"
+                >
+                  다시 시도
+                </button>
+              </div>
+            ) : (
+              INTEGRATIONS.map((integration) => {
+                const connected = integrationLinks[integration.type] ?? false;
+                const openIntegration = (entryMode: "disconnect" | "resources") =>
+                  navigate(`/project/${id}/settings/integrations/${integration.id}`, {
+                    state: {
+                      isConnected: connected,
+                      isMockConnected: false,
+                      entryMode,
+                    },
+                  });
+                return (
+                  <div key={integration.id} className="flex h-[61px] w-full items-center">
+                    <span className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-[10px] bg-white">
+                      <img src={integration.icon} alt="" className="object-contain" style={{ width: integration.logo, height: integration.logo }} />
+                    </span>
+                    <span className="ml-3 flex-1 text-left text-[15px] font-normal text-gray-900">{integration.label}</span>
+                    <button
+                      type="button"
+                      onClick={() => openIntegration(connected ? "disconnect" : "resources")}
+                      className={`mr-[14px] rounded-full px-[14px] py-[5px] text-[12px] ${connected ? "bg-[#E9F8F0] text-success" : "bg-[#FDEDEE] text-error"}`}
+                    >
+                      {connected ? "연동" : "미연동"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => openIntegration("resources")}
+                      aria-label={`${integration.label} ${connected ? "파일 추가" : "연동 설정"}`}
+                      className="flex h-10 w-8 shrink-0 items-center justify-end"
+                    >
+                      <ChevronRight className="h-5 w-5 text-gray-400" aria-hidden />
+                    </button>
+                  </div>
                 );
-              const storeProvider: IntegrationProvider =
-                integration.id === "docs"
-                  ? "googleDocs"
-                  : integration.id === "slides"
-                    ? "googleSlides"
-                    : integration.id;
-              const mockConnected = mockIntegrationAccounts?.[storeProvider] ?? false;
-              const connected = serverConnected || mockConnected;
-              const openIntegration = (entryMode: "disconnect" | "resources") =>
-                navigate(`/project/${id}/settings/integrations/${integration.id}`, {
-                  state: {
-                    isConnected: connected,
-                    isMockConnected: false,
-                    entryMode,
-                  },
-                });
-              return (
-                <div key={integration.id} className="flex h-[61px] w-full items-center">
-                  <span className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-[10px] bg-white">
-                    <img src={integration.icon} alt="" className="object-contain" style={{ width: integration.logo, height: integration.logo }} />
-                  </span>
-                  <span className="ml-3 flex-1 text-left text-[15px] font-normal text-gray-900">{integration.label}</span>
-                  <button
-                    type="button"
-                    onClick={() => openIntegration(connected ? "disconnect" : "resources")}
-                    className={`mr-[14px] rounded-full px-[14px] py-[5px] text-[12px] ${connected ? "bg-[#E9F8F0] text-success" : "bg-[#FDEDEE] text-error"}`}
-                  >
-                    {connected ? "연동" : "미연동"}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => openIntegration("resources")}
-                    aria-label={`${integration.label} ${connected ? "파일 추가" : "연동 설정"}`}
-                    className="flex h-10 w-8 shrink-0 items-center justify-end"
-                  >
-                    <ChevronRight className="h-5 w-5 text-gray-400" aria-hidden />
-                  </button>
-                </div>
-              );
-            })}
+              })
+            )}
           </div>
         </section>
       </main>
