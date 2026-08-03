@@ -126,11 +126,15 @@ export default {
         // 2026.07 리포트 화면 Figma 스펙 추가분
         card: "0px 4px 12px rgba(16, 24, 40, 0.05)", // 리포트 카드 테두리 그림자
         cta: "0px 10px 14px rgba(25, 28, 32, 0.28)", // 그라데이션 CTA 카드 그림자
+        // Peer 평가 계정 선택 화면 Figma 실측값 (선택된 카드는 card보다 blur 작음)
+        "card-selected": "0px 4px 6px rgba(16, 24, 40, 0.05)",
       },
       backgroundImage: {
         "plog-gradient": "linear-gradient(95deg, #2186FB 0%, #06BCC4 52%, #173E8A 100%)",
         // 프로필설정 화면 Figma 실측값 (Blue → Aqua, plog-gradient와 다른 2단계 그라데이션)
         "progress-gradient": "linear-gradient(90deg, #2186FB 0%, #07BCC5 99.82%)",
+        // Peer 평가 계정 선택 화면 체크박스 선택 상태 Figma 실측값 (세로 방향 2단계 그라데이션)
+        "select-gradient": "linear-gradient(180deg, #2186FB 0%, #07BCC5 100%)",
       },
       maxWidth: {
         mobile: "402px",
