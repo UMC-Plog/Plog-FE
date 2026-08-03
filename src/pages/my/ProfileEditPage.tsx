@@ -362,28 +362,33 @@ export function ProfileEditPage() {
         open={avatarSheetOpen}
         onClose={closeAvatarSheet}
         ariaLabelledby="profile-image-sheet-title"
-        contentClassName="min-h-[564px] [&>div:first-child]:top-0"
+        draggable
+        initialHeight={554}
+        minHeight={236}
+        maxHeight={554}
+        contentClassName="rounded-t-[26px] px-4 pb-[37px] pt-[14px] [&>button:first-child]:top-0"
       >
-        <h2 id="profile-image-sheet-title" className="mt-[10px] text-h3 font-bold text-gray-900">
-          프로필 이미지 변경
-        </h2>
-        <div className="mt-[46px]">
-          <AvatarPicker
-            value={stagedAvatarId}
-            customImageUrl={stagedImageUrl}
-            onSelect={(nextAvatarId) => {
-              setStagedAvatarId(nextAvatarId);
-              setStagedImageUrl(null);
-              setImageError("");
-            }}
-            showLabel={false}
-            size="profile-edit"
-          />
-          <p className="mt-2 min-h-5 text-body-sm text-error" aria-live="polite">
-            {imageError}
-          </p>
-        </div>
-        <div className="mt-4">
+        <div className="flex h-full min-h-0 flex-col overflow-hidden">
+          <h2 id="profile-image-sheet-title" className="mx-1 mt-[10px] shrink-0 text-h3 font-bold text-gray-900">
+            프로필 이미지 변경
+          </h2>
+          <div className="mt-5 min-h-0 flex-1 overflow-hidden px-1">
+            <AvatarPicker
+              value={stagedAvatarId}
+              customImageUrl={stagedImageUrl}
+              onSelect={(nextAvatarId) => {
+                setStagedAvatarId(nextAvatarId);
+                setStagedImageUrl(null);
+                setImageError("");
+              }}
+              showLabel={false}
+              size="profile-edit"
+            />
+            <p className="mt-2 min-h-5 text-body-sm text-error" aria-live="polite">
+              {imageError}
+            </p>
+          </div>
+          <div className="mx-1 shrink-0 bg-white pt-4">
           <Button
             type="button"
             size="lg"
@@ -394,6 +399,7 @@ export function ProfileEditPage() {
           >
             변경
           </Button>
+          </div>
         </div>
       </BottomSheet>
 

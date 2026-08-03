@@ -23,6 +23,7 @@ import { toApiProjectType } from "../../api/projectApi";
 import { ApiError } from "../../api/client";
 import { useProjectStore } from "../../store/projectStore";
 import type { CreatedProject, ProjectType } from "../../types/project";
+import HomePage from "../HomePage";
 
 type CreationStep = "info" | "tools";
 
@@ -76,21 +77,6 @@ function SelectField({
         ]}
       />
     </label>
-  );
-}
-
-function ProjectCreationBackdrop() {
-  return (
-    <div className="min-h-svh bg-gray-25" aria-hidden="true">
-      <header className="flex h-16 items-center gap-3 border-b border-gray-100 px-6 shadow-sm">
-        <Folder size={24} className="text-blue-500" />
-        <strong className="text-title font-bold text-gray-900">프로젝트</strong>
-      </header>
-      <div className="px-5 pt-5">
-        <div className="h-8 w-44 rounded-full bg-gray-100" />
-        <div className="mt-4 h-44 rounded-lg border border-gray-100 bg-white shadow-md" />
-      </div>
-    </div>
   );
 }
 
@@ -288,20 +274,24 @@ export function CreateProjectPage() {
         <CreatedProjectBackdrop projectName={createdProject.name} />
       ) : (
         <div className="pointer-events-none select-none" aria-hidden="true">
-          <ProjectCreationBackdrop />
+          <HomePage />
         </div>
       )}
 
       <BottomSheet
         open={!createdProject}
         onClose={() => navigate("/home")}
-        contentClassName="h-[588px] rounded-t-[26px] px-5 pb-8 pt-6 [&>div:first-child]:-top-[10px] [&>div:first-child]:mb-[18px]"
+        draggable
+        initialHeight={588}
+        minHeight={250}
+        maxHeight={588}
+        contentClassName="rounded-t-[26px] px-5 pb-5 pt-6 [&>button:first-child]:-top-[10px] [&>button:first-child]:mb-[8px]"
       >
         {step === "info" ? (
-          <form className="flex min-h-[506px] flex-col pb-4" onSubmit={handleInfoSubmit} noValidate>
+          <form className="flex h-full min-h-0 flex-col overflow-hidden [&>div:first-child]:shrink-0" onSubmit={handleInfoSubmit} noValidate>
             <ProjectCreationProgress step={step} />
 
-            <div className="mt-5 space-y-4 [&>fieldset]:!mt-5 [&_label]:text-[14px] [&_label]:leading-[21px]">
+            <div className="mt-5 min-h-0 flex-1 space-y-4 overflow-hidden [&>fieldset]:!mt-5 [&_label]:text-[14px] [&_label]:leading-[21px]">
               <Input
                 label="프로젝트명"
                 placeholder="예: 앱 리디자인 프로젝트"
@@ -356,7 +346,7 @@ export function CreateProjectPage() {
               </fieldset>
             </div>
 
-            <div className="mt-auto pt-6">
+            <div className="shrink-0 bg-white pt-3">
               <Button type="submit" size="lg" disabled={!infoValid} className="rounded-[14px]">다음</Button>
               <button
                 type="button"
@@ -368,21 +358,22 @@ export function CreateProjectPage() {
             </div>
           </form>
         ) : (
-          <div className="flex min-h-[506px] flex-col">
+          <div className="flex h-full min-h-0 flex-col overflow-hidden [&>div:first-child]:shrink-0">
             <ProjectCreationProgress step={step} />
 
-            <div className="mt-[21px] flex h-[71px] items-start gap-3 rounded-[12px] bg-blue-50 px-[18px] py-[11px] text-[12px] leading-[17px] text-blue-500">
-              <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
-              <p>
-                <strong className="font-semibold">프로젝트 분석을 위해 계정 연동이 필요해요</strong>
-                <br />
-                계정을 연동 시 팀원들의 활동 데이터를 자동으로 수집해 AI 분석
-                <br />
-                기능을 사용할 수 있어요
-              </p>
-            </div>
+            <div className="min-h-0 flex-1 overflow-hidden">
+              <div className="mt-[21px] flex h-[71px] items-start gap-3 rounded-[12px] bg-blue-50 px-[18px] py-[11px] text-[12px] leading-[17px] text-blue-500">
+                <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
+                <p>
+                  <strong className="font-semibold">프로젝트 분석을 위해 계정 연동이 필요해요</strong>
+                  <br />
+                  계정을 연동 시 팀원들의 활동 데이터를 자동으로 수집해 AI 분석
+                  <br />
+                  기능을 사용할 수 있어요
+                </p>
+              </div>
 
-            <ul className="mt-[30px] space-y-[16px] px-[18px] text-[12px] leading-[17px] text-gray-700">
+              <ul className="mt-[30px] space-y-[16px] px-[18px] text-[12px] leading-[17px] text-gray-700">
               <li className="flex min-h-8 items-start gap-4">
                 <CircleCheck className="mt-0.5 h-4 w-4 shrink-0 text-blue-500" strokeWidth={1.5} aria-hidden />
                 <span>GitHub, Notion, Google Docs, Slides, Figma 등 외부도구<br />활동을 연동해주세요</span>
@@ -399,9 +390,10 @@ export function CreateProjectPage() {
                 <CircleCheck className="mt-0.5 h-4 w-4 shrink-0 text-blue-500" strokeWidth={1.5} aria-hidden />
                 <span>연동한 데이터는 프로젝트 멤버 모두가 확인할 수 있어요</span>
               </li>
-            </ul>
+              </ul>
+            </div>
 
-            <div className="mt-auto pt-[11px]">
+            <div className="mt-auto shrink-0 bg-white pt-3">
               <Button type="button" size="lg" onClick={handleCreate} loading={isSubmitting} className="rounded-[14px]">
                 다음
               </Button>
