@@ -18,7 +18,7 @@ function GradientCheck() {
 
 function NotionSelectedList({ resources }: { resources: IntegrationResourceResponse[] }) {
   return (
-    <div className="mt-3 min-h-[123px] rounded-[16px] border border-gray-100 bg-white px-[18px] shadow-card">
+    <div className="mt-3 rounded-[16px] border border-gray-100 bg-white px-[18px] shadow-card">
       {resources.map((resource) => {
         const isDatabase = resource.resourceType === "NOTION_DATA_SOURCE";
         return (
@@ -86,7 +86,7 @@ export function IntegrationCompleteStep({
   logoSize: number;
 }) {
   return (
-    <div className={`flex flex-col items-center text-center ${isGithub ? "h-full" : "min-h-[381px] justify-center"}`}>
+    <div className={`flex flex-col items-center text-center ${isGithub ? "h-full" : ""}`}>
       <span className={`flex h-[88px] w-[88px] items-center justify-center rounded-full bg-blue-100 ${isGithub ? "mt-[92px]" : ""}`}>
         <GradientCheck />
       </span>
@@ -98,7 +98,7 @@ export function IntegrationCompleteStep({
           <NotionSelectedList resources={resources} />
         </div>
       ) : !isGithub ? (
-        <div className="mt-7 w-full text-left">
+        <div className="-mx-[2px] mt-7 w-[calc(100%+4px)] text-left">
           <h3 className="text-[14px] text-gray-700">등록된 파일 ({resourceItems.length})</h3>
           <IntegrationFileList icon={icon} logoSize={logoSize} items={resourceItems} />
         </div>

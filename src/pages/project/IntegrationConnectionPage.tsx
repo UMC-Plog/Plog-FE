@@ -112,14 +112,15 @@ function isServerProviderId(value: ProviderId): value is ServerProviderId {
 }
 
 const GITHUB_NOTE =
-  "GitHub는 설치 과정에서 Repository를 선택하므로 Plog에서 별도의 2차 선택 화면은 제공되지 않아요";
+  "GitHub는 설치 과정에서 Repository를 선택하므로 Plog에서\n별도의 2차 선택 화면은 제공되지 않아요";
+const GITHUB_ACCOUNT_NOTE =
+  "GitHub는 설치 과정에서 Repository를 선택하므로 Plog에서\n별도의 2차 선택 화면은 제공되지 않아요";
 
 /** step4(연동 완료) 안내 문구는 5개 서비스 공통 */
-const COMPLETE_NOTE = "저장 후 데이터 수집이 시작돼요\n언제든지 설정에서 연동 설정을 변경할 수 있어요";
+const COMPLETE_NOTE = "저장 후 데이터 수집이 시작돼요\n언제든지 설정에서 연동 내용 변경이 가능해요";
 
 /** notion/docs/slides 공통 - 2차 선택이 있는 서비스의 step1 불릿 */
 const SHARED_ONLY_GUIDE = ["공유된 페이지/데이터베이스만 조회돼요"];
-const GOOGLE_FILE_GUIDE = ["Google 계정에서 접근 권한이 있는 파일만 조회돼요"];
 
 const PROVIDERS: Record<ProviderId, Provider> = {
   github: {
@@ -127,7 +128,7 @@ const PROVIDERS: Record<ProviderId, Provider> = {
     icon: githubIcon,
     tileLogo: 64,
     listLogo: 32,
-    description: "GitHub 계정을 연결하면 Repository, Issue, PR 등 필요한 데이터를 가져올 수 있습니다",
+    description: "GitHub 계정을 연결하려면 Repository, Issue,\nPR등 모든 데이터를 가져올 수 있습니다",
     account: "유재석",
     accountType: "GitHub 계정",
     guide: [
@@ -135,7 +136,7 @@ const PROVIDERS: Record<ProviderId, Provider> = {
       "모든 공개/비공개 Repository의 데이터를 가져올 수 있어요",
       "언제든지 연결 해제 및 재연결이 가능해요",
     ],
-    notes: { 1: GITHUB_NOTE, 2: GITHUB_NOTE },
+    notes: { 1: GITHUB_NOTE, 2: GITHUB_ACCOUNT_NOTE },
     items: ["Repository", "Issue", "Pull Request", "Commit", "User", "그 외 다수"],
     permissions: [
       { title: "Repository 정보 및 읽기", desc: "저장소 정보 및 파일, 브랜치, 태그 읽기", icon: "folder" },
@@ -199,14 +200,14 @@ const PROVIDERS: Record<ProviderId, Provider> = {
     tileLogoWidth: 28,
     tileLogoHeight: 38,
     listLogo: 19,
-    description: "Google 계정을 연결한 후,\n분석할 문서 파일을 선택할 수 있습니다",
+    description: "Google 계정을 연결한 후, 분석할 페이지와\n데이터베이스를 선택할 수 있습니다",
     account: "plog@naver.com",
     accountType: "Google 계정",
-    guide: GOOGLE_FILE_GUIDE,
+    guide: SHARED_ONLY_GUIDE,
     notes: {
-      1: "Google Docs는 연동 후 파일 선택이 필요해요\nGoogle Picker에서 분석할 문서를 고를 수 있어요",
+      1: "Google Docs는 연동 후 2차 설정이 필요해요\n워크 스페이스 선택한 후 파일을 고를 수 있어요",
       2: "문서의 내용, 작성자, 마지막 수정자, 댓글 등을 수집할 수 있어요",
-      3: "선택한 문서 파일의 데이터만 수집해요",
+      3: "선택한 파일의 데이터만 수집하고있어요",
     },
     items: ["문서 파일", "생성자", "최종 수정자", "댓글", "최종 변경 이력"],
     permissions: [
@@ -221,14 +222,14 @@ const PROVIDERS: Record<ProviderId, Provider> = {
     icon: slidesIcon,
     tileLogo: 39,
     listLogo: 19,
-    description: "Google 계정을 연결한 후,\n분석할 프레젠테이션 파일을 선택할 수 있습니다",
+    description: "Google 계정을 연결한 후, 분석할 페이지와\n데이터베이스를 선택할 수 있습니다",
     account: "plog@naver.com",
     accountType: "Google 계정",
-    guide: GOOGLE_FILE_GUIDE,
+    guide: SHARED_ONLY_GUIDE,
     notes: {
-      1: "Google Slides는 연동 후 파일 선택이 필요해요\nGoogle Picker에서 분석할 프레젠테이션을 고를 수 있어요",
+      1: "Google Slides는 연동 후 2차 설정이 필요해요\n워크 스페이스 선택한 후 파일을 고를 수 있어요",
       2: "슬라이드 내용, 작성자, 마지막 수정자, 댓글 등을 수집할 수 있어요",
-      3: "선택한 프레젠테이션 파일의 데이터만 수집해요",
+      3: "선택한 파일의 데이터만 수집하고 있어요",
     },
     items: ["프레젠테이션 파일", "슬라이드 내용", "작성자", "댓글", "슬라이드 별 수정정보", "최종 변경 이력"],
     permissions: [
@@ -796,7 +797,7 @@ export default function IntegrationConnectionPage() {
           ) : (
             <>
               <div className="flex items-center border-b border-gray-100 pb-[23px]">
-                <span className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-[10px] bg-white">
+                <span className="flex h-[63px] w-[63px] shrink-0 items-center justify-center overflow-hidden rounded-[10px] bg-white">
                   <img
                     src={config.tileIcon ?? config.icon}
                     alt=""
@@ -1009,7 +1010,11 @@ export default function IntegrationConnectionPage() {
           )}
         </section>
 
-        <IntegrationInfoBox text={infoText} heightClass={infoHeightClass} />
+        <IntegrationInfoBox
+          text={infoText}
+          heightClass={infoHeightClass}
+          textSizeClass={providerId === "slides" && currentStep === 2 ? "text-[11px]" : undefined}
+        />
       </main>
 
       <footer className="fixed bottom-0 left-1/2 z-20 grid h-[92px] w-full max-w-mobile -translate-x-1/2 grid-cols-[123px_1fr] gap-[21px] border-t border-gray-100 bg-white px-5 pt-3">
