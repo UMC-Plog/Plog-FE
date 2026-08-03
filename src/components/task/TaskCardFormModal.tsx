@@ -1,4 +1,4 @@
-import { UserRound } from 'lucide-react'
+import { ChevronDown, UserRound } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ApiError } from '../../api/client'
 import {
@@ -78,6 +78,9 @@ const GENERAL_CATEGORIES: Array<{
   { value: 'ETC', label: '기타' },
 ]
 
+const TASK_META_FIELD_CLASS =
+  'box-border h-12 min-h-12 w-full min-w-0 rounded-md px-3.5 text-body leading-[1.5]'
+
 const PRESET_ID: Record<ServerProfilePreset, string> = {
   OTTER: 'otter',
   PENGUIN: 'penguin',
@@ -152,16 +155,18 @@ export function TaskCardFormModal({
   const isEditMode = Boolean(task)
   const requestIdRef = useRef(0)
   const submittingRef = useRef(false)
+  const assigneeDropdownRef = useRef<HTMLDivElement>(null)
+  const assigneeTriggerRef = useRef<HTMLButtonElement>(null)
   const [members, setMembers] = useState<ProjectActiveMember[]>([])
   const [isMembersLoading, setIsMembersLoading] = useState(false)
   const [membersError, setMembersError] = useState<string>()
+  const [isAssigneeDropdownOpen, setIsAssigneeDropdownOpen] = useState(false)
   const [title, setTitle] = useState('')
   const [projectMemberId, setProjectMemberId] = useState<number | null>(null)
   const [status, setStatus] = useState<ServerTaskStatus>('TODO')
   const [category, setCategory] = useState<ServerTaskCategory | ''>('')
   const [endDate, setEndDate] = useState('')
   const [attachments, setAttachments] = useState<AttachmentDraft[]>([])
-  const [isDateFocused, setIsDateFocused] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState<string>()
   const [editBaseline, setEditBaseline] = useState<TaskEditBaseline | null>(null)
@@ -181,6 +186,7 @@ export function TaskCardFormModal({
     setMembers([])
     setIsMembersLoading(true)
     setMembersError(undefined)
+    setIsAssigneeDropdownOpen(false)
 
     try {
       const response = await fetchActiveProjectMembers(projectId)
@@ -206,6 +212,7 @@ export function TaskCardFormModal({
     setCategory(task?.category ?? '')
     setEndDate(task?.dueDate ?? '')
     setAttachments(task ? mapTaskAttachments(task) : [])
+    setIsAssigneeDropdownOpen(false)
     setEditBaseline(
       task
         ? {
@@ -220,7 +227,6 @@ export function TaskCardFormModal({
           }
         : null
     )
-    setIsDateFocused(false)
     setIsSubmitting(false)
     setSubmitError(undefined)
     submittingRef.current = false
@@ -232,6 +238,34 @@ export function TaskCardFormModal({
   }, [loadMembers, open, task])
 
   useEffect(() => {
+    if (!open) return
+
+    const previousOverflow = document.body.style.overflow
+    const previousOverscrollBehavior = document.body.style.overscrollBehavior
+
+    document.body.style.overflow = 'hidden'
+    document.body.style.overscrollBehavior = 'none'
+
+    return () => {
+      document.body.style.overflow = previousOverflow
+      document.body.style.overscrollBehavior = previousOverscrollBehavior
+    }
+  }, [open])
+
+  useEffect(() => {
+    if (!isAssigneeDropdownOpen) return
+
+    const handlePointerDown = (event: PointerEvent) => {
+      if (!assigneeDropdownRef.current?.contains(event.target as Node)) {
+        setIsAssigneeDropdownOpen(false)
+      }
+    }
+
+    document.addEventListener('pointerdown', handlePointerDown)
+    return () => document.removeEventListener('pointerdown', handlePointerDown)
+  }, [isAssigneeDropdownOpen])
+
+  useEffect(() => {
     if (category && !categories.some((option) => option.value === category)) {
       setCategory('')
     }
@@ -241,6 +275,11 @@ export function TaskCardFormModal({
   const selectedMember = members.find(
     (member) => member.projectMemberId === projectMemberId
   )
+  const selectedMemberAvatar = selectedMember?.profilePreset
+    ? AVATAR_PRESETS.find(
+        (avatar) => avatar.id === PRESET_ID[selectedMember.profilePreset!]
+      )
+    : undefined
   const hasGeneralChanges = Boolean(
     editBaseline &&
       (normalizedTitle !== editBaseline.title ||
@@ -438,7 +477,7 @@ export function TaskCardFormModal({
       open={open}
       onClose={isSubmitting ? undefined : onClose}
     >
-      <div className="max-h-[calc(100svh-7rem)] overflow-y-auto pr-1">
+      <div className="max-h-[calc(100svh-7rem)] overflow-x-hidden overflow-y-auto overscroll-contain pr-1">
         <h2 className="text-h3 text-gray-900">
           {isEditMode ? '업무카드 수정' : '업무카드 등록'}
         </h2>
@@ -468,10 +507,137 @@ export function TaskCardFormModal({
             />
           </div>
 
-          <fieldset>
-            <legend className="text-body-sm font-medium text-gray-700">
+          <fieldset className="min-w-0">
+            <legend
+              id="task-assignee-label"
+              className="text-body-sm font-medium text-gray-700"
+            >
               담당자 <span className="text-error">*</span>
             </legend>
+            <div
+              ref={assigneeDropdownRef}
+              className="relative mt-2 min-w-0"
+              onKeyDown={(event) => {
+                if (event.key === 'Escape' && isAssigneeDropdownOpen) {
+                  event.stopPropagation()
+                  setIsAssigneeDropdownOpen(false)
+                  assigneeTriggerRef.current?.focus()
+                }
+              }}
+            >
+              <button
+                ref={assigneeTriggerRef}
+                type="button"
+                aria-labelledby="task-assignee-label"
+                aria-haspopup="listbox"
+                aria-expanded={isAssigneeDropdownOpen}
+                aria-controls="task-assignee-options"
+                disabled={
+                  isMembersLoading ||
+                  Boolean(membersError) ||
+                  members.length === 0 ||
+                  isSubmitting
+                }
+                onClick={() =>
+                  setIsAssigneeDropdownOpen((isOpen) => !isOpen)
+                }
+                className={cn(
+                  'flex h-14 w-full min-w-0 items-center gap-3 rounded-lg border border-gray-200 bg-white px-[18px] text-left text-body transition-colors',
+                  'focus:border-primary focus:outline-none disabled:cursor-not-allowed disabled:bg-gray-50',
+                  selectedMember ? 'text-gray-700' : 'text-gray-400'
+                )}
+              >
+                <span className="flex min-w-0 flex-1 items-center gap-3">
+                  {selectedMember ? (
+                    <>
+                      <span className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full bg-gray-100">
+                        {selectedMemberAvatar ? (
+                          <img
+                            src={selectedMemberAvatar.src}
+                            alt=""
+                            className="h-full w-full object-cover"
+                          />
+                        ) : (
+                          <UserRound
+                            className="h-4 w-4 text-gray-400"
+                            aria-hidden
+                          />
+                        )}
+                      </span>
+                      <span className="min-w-0 truncate">
+                        {selectedMember.nickname}
+                      </span>
+                    </>
+                  ) : (
+                    <span className="truncate">팀원을 선택하세요</span>
+                  )}
+                </span>
+                <ChevronDown
+                  className={cn(
+                    'h-4 w-4 shrink-0 text-gray-400 transition-transform',
+                    isAssigneeDropdownOpen && 'rotate-180'
+                  )}
+                  aria-hidden
+                />
+              </button>
+
+              {isAssigneeDropdownOpen && (
+                <div
+                  id="task-assignee-options"
+                  role="listbox"
+                  aria-labelledby="task-assignee-label"
+                  className="absolute left-0 right-0 top-full z-20 mt-2 max-h-56 overflow-x-hidden overflow-y-auto overscroll-contain rounded-lg border border-gray-200 bg-white p-1.5 shadow-lg"
+                >
+                  {members.map((member) => {
+                    const presetId = member.profilePreset
+                      ? PRESET_ID[member.profilePreset]
+                      : null
+                    const avatar = AVATAR_PRESETS.find(
+                      (item) => item.id === presetId
+                    )
+                    const selected =
+                      member.projectMemberId === projectMemberId
+
+                    return (
+                      <button
+                        key={member.projectMemberId}
+                        type="button"
+                        role="option"
+                        aria-selected={selected}
+                        onClick={() => {
+                          setProjectMemberId(member.projectMemberId)
+                          setIsAssigneeDropdownOpen(false)
+                        }}
+                        className={cn(
+                          'flex w-full min-w-0 items-center gap-3 rounded-md px-3 py-2 text-left text-body-sm text-gray-700',
+                          'focus:outline-none focus-visible:bg-primary-50 hover:bg-gray-50',
+                          selected && 'bg-primary-50 text-primary'
+                        )}
+                      >
+                        <span className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full bg-gray-100">
+                          {avatar ? (
+                            <img
+                              src={avatar.src}
+                              alt=""
+                              className="h-full w-full object-cover"
+                            />
+                          ) : (
+                            <UserRound
+                              className="h-4 w-4 text-gray-400"
+                              aria-hidden
+                            />
+                          )}
+                        </span>
+                        <span className="min-w-0 truncate">
+                          {member.nickname}
+                        </span>
+                      </button>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+
             {isMembersLoading ? (
               <p className="mt-2 text-caption font-normal text-gray-400">
                 프로젝트 멤버를 불러오는 중이에요.
@@ -495,55 +661,7 @@ export function TaskCardFormModal({
               <p className="mt-2 text-caption font-normal text-gray-400">
                 선택할 수 있는 ACTIVE 멤버가 없어요.
               </p>
-            ) : (
-              <div className="mt-2 grid grid-cols-2 gap-2">
-                {members.map((member) => {
-                  const presetId = member.profilePreset
-                    ? PRESET_ID[member.profilePreset]
-                    : null
-                  const avatar = AVATAR_PRESETS.find(
-                    (item) => item.id === presetId
-                  )
-                  const selected =
-                    member.projectMemberId === projectMemberId
-
-                  return (
-                    <button
-                      key={member.projectMemberId}
-                      type="button"
-                      aria-pressed={selected}
-                      onClick={() =>
-                        setProjectMemberId(member.projectMemberId)
-                      }
-                      className={cn(
-                        'flex items-center gap-2 rounded-md border px-3 py-2 text-left',
-                        selected
-                          ? 'border-primary bg-primary-50'
-                          : 'border-gray-200 bg-white'
-                      )}
-                    >
-                      <span className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full bg-gray-100">
-                        {avatar ? (
-                          <img
-                            src={avatar.src}
-                            alt=""
-                            className="h-full w-full object-cover"
-                          />
-                        ) : (
-                          <UserRound
-                            className="h-4 w-4 text-gray-400"
-                            aria-hidden
-                          />
-                        )}
-                      </span>
-                      <span className="min-w-0 truncate text-body-sm text-gray-700">
-                        {member.nickname}
-                      </span>
-                    </button>
-                  )
-                })}
-              </div>
-            )}
+            ) : null}
           </fieldset>
 
           <fieldset>
@@ -573,26 +691,35 @@ export function TaskCardFormModal({
             </div>
           </fieldset>
 
-          <div className="grid grid-cols-2 gap-3">
-            <label className="block text-body-sm font-medium text-gray-700">
+          <div className="grid grid-cols-2 items-start gap-3">
+            <label className="block min-w-0 text-body-sm font-medium text-gray-700">
               담당 영역 <span className="text-error">*</span>
-              <select
-                value={category}
-                disabled={categories.length === 0}
-                onChange={(event) =>
-                  setCategory(event.target.value as ServerTaskCategory)
-                }
-                className="mt-1.5 h-12 w-full rounded-md border border-gray-200 bg-white px-3.5 text-body text-gray-900 focus:border-primary focus:outline-none disabled:bg-gray-50 disabled:text-gray-400"
-              >
-                <option value="" disabled>
-                  영역 선택
-                </option>
-                {categories.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
+              <span className="relative mt-1.5 block">
+                <select
+                  value={category}
+                  disabled={categories.length === 0}
+                  onChange={(event) =>
+                    setCategory(event.target.value as ServerTaskCategory)
+                  }
+                  className={cn(
+                    TASK_META_FIELD_CLASS,
+                    'appearance-none border border-gray-200 bg-white pr-10 text-gray-900 focus:border-primary focus:outline-none disabled:bg-gray-50 disabled:text-gray-400'
+                  )}
+                >
+                  <option value="" disabled>
+                    영역 선택
                   </option>
-                ))}
-              </select>
+                  {categories.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown
+                  className="pointer-events-none absolute right-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500"
+                  aria-hidden
+                />
+              </span>
               {categories.length === 0 && (
                 <span className="mt-1.5 block text-caption font-normal text-error">
                   프로젝트 유형을 확인할 수 없어요.
@@ -600,25 +727,32 @@ export function TaskCardFormModal({
               )}
             </label>
 
-            <div>
+            <div className="min-w-0">
               <label
                 htmlFor="task-due-date"
                 className="mb-1.5 block text-body-sm font-medium text-gray-700"
               >
                 마감일 <span className="text-error">*</span>
               </label>
-              <Input
-                id="task-due-date"
-                type={isDateFocused || endDate ? 'date' : 'text'}
-                value={endDate}
-                onFocus={() => setIsDateFocused(true)}
-                onBlur={() => {
-                  if (!endDate) setIsDateFocused(false)
-                }}
-                onChange={(event) => setEndDate(event.target.value)}
-                placeholder="날짜 선택"
-                className={endDate ? 'text-gray-900' : 'text-gray-400'}
-              />
+              <div className="relative">
+                <Input
+                  id="task-due-date"
+                  type="date"
+                  value={endDate}
+                  onChange={(event) => setEndDate(event.target.value)}
+                  aria-label="날짜 선택"
+                  className={cn(
+                    TASK_META_FIELD_CLASS,
+                    'text-base sm:text-body',
+                    endDate ? 'text-gray-900' : 'text-transparent'
+                  )}
+                />
+                {!endDate && (
+                  <span className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-base leading-[1.5] text-gray-400 sm:text-body">
+                    날짜 선택
+                  </span>
+                )}
+              </div>
             </div>
           </div>
 
