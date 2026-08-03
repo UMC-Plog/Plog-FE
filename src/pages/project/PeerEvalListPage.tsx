@@ -84,7 +84,10 @@ export default function PeerEvalListPage() {
   const [loading, setLoading] = useState(true);
   const [notice, setNotice] = useState<string | null>(null);
   const [linkedProviders, setLinkedProviders] = useState<AccountProvider[]>([]);
+  // 모든 연동 툴에서 실제 본인 계정 매핑이 저장된 경우에만 화면에 "완료"로 표시한다.
   const [accountDone, setAccountDone] = useState(false);
+  // 수집된 활동이 없어 선택할 계정이 없는 툴은 제출 조건에서는 건너뛸 수 있다.
+  const [accountRequirementSatisfied, setAccountRequirementSatisfied] = useState(false);
   // 연동 상태를 확인하지 못한 동안은 "연동된 툴 없음"으로 단정하지 않고 계정 선택을 필수로 간주한다
   const [integrationsUnavailable, setIntegrationsUnavailable] = useState(false);
   const [integrationsRetryToken, setIntegrationsRetryToken] = useState(0);
@@ -94,6 +97,8 @@ export default function PeerEvalListPage() {
     if (!Number.isFinite(projectId) || !id) return;
     let cancelled = false;
     setLoading(true);
+    setAccountDone(false);
+    setAccountRequirementSatisfied(false);
     Promise.all([
       fetchEvaluationTargets(projectId),
       fetchMySelfFeedback(projectId)
@@ -126,15 +131,23 @@ export default function PeerEvalListPage() {
             linked.map((provider) => getIntegrationActorMappings(id, provider).catch(() => null))
           );
           if (cancelled) return;
-          setAccountDone(
+          const mappingsAvailable = mappings.every((res) => res !== null);
+          if (!mappingsAvailable) {
+            setIntegrationsUnavailable(true);
+            return;
+          }
+
+          const hasMyMapping = mappings.map((res) =>
+            res.mappings.some((mapping) => mapping.projectMemberId === res.currentProjectMemberId)
+          );
+          setAccountDone(hasMyMapping.every(Boolean));
+          setAccountRequirementSatisfied(
             mappings.every(
-              (res) =>
-                res !== null &&
-                // 수집된 활동이 없어 선택지가 없던 provider는 매핑이 없어도 완료로 인정한다
-                (res.availableProviderActors.length === 0 ||
-                  res.mappings.some((m) => m.projectMemberId === res.currentProjectMemberId))
+              (res, index) => hasMyMapping[index] || res.availableProviderActors.length === 0
             )
           );
+        } else {
+          setAccountRequirementSatisfied(true);
         }
       })
       .catch((err) => {
@@ -155,7 +168,10 @@ export default function PeerEvalListPage() {
   // 연동된 외부 툴이 있으면 "내 계정 선택"도 필수 항목이라 완료해야 제출할 수 있다.
   // 연동 상태 조회 자체가 실패했을 때도 우회되지 않도록 안전하게 필수로 취급한다.
   const accountRequired = integrationsUnavailable || linkedProviders.length > 0;
-  const allDone = totalCount > 0 && doneCount === totalCount && (!accountRequired || accountDone);
+  const allDone =
+    totalCount > 0 &&
+    doneCount === totalCount &&
+    (!accountRequired || accountRequirementSatisfied);
 
   const handleSubmit = () => {
     if (!allDone || !id) return;
@@ -278,9 +294,13 @@ export default function PeerEvalListPage() {
                 <div className="flex items-center justify-between">
                   <span className="text-title text-gray-900">내 계정 선택</span>
                   {accountDone ? (
-                    <span className="bg-success/10 text-success rounded-full px-3.5 py-2 text-body-sm shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => navigate(`/project/${id}/peer-eval/accounts/${linkedProviders[0]}`)}
+                      className="bg-success/10 text-success rounded-full px-3.5 py-2 text-body-sm hover:bg-success/20 transition-colors shrink-0"
+                    >
                       완료
-                    </span>
+                    </button>
                   ) : (
                     <button
                       type="button"
