@@ -1,13 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Check,
-  CheckCircle2,
   ChevronLeft,
   ChevronRight,
-  Info,
   Plus,
   Search,
-  X,
 } from "lucide-react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import {
@@ -24,7 +21,6 @@ import { ApiError } from "../../api/client";
 import { openBlankAuthWindow, waitForIntegrationLinked } from "../../lib/integrationAuth";
 import { openGooglePicker } from "../../lib/googlePicker";
 import { Modal } from "../../components/Modal";
-import { PermissionIcon } from "../../components/project/PermissionIcon";
 import type { PermissionIconName } from "../../components/project/PermissionIcon";
 import githubIcon from "../../assets/integrations/github.svg";
 import figmaIcon from "../../assets/integrations/figma.svg";
@@ -32,7 +28,20 @@ import notionIcon from "../../assets/integrations/notion-figma.png";
 import docsIcon from "../../assets/integrations/google-docs.svg";
 import slidesIcon from "../../assets/integrations/google-slides.svg";
 import docFileIcon from "../../assets/doc-file-icon.png";
-import accountAvatarIcon from "../../assets/integrations/account-avatar.svg";
+import { IntegrationStepper } from "../../components/project/integration/IntegrationStepper";
+import { IntegrationInfoBox } from "../../components/project/integration/IntegrationInfoBox";
+import { IntegrationAccountRow } from "../../components/project/integration/IntegrationAccountRow";
+import { IntegrationStartStep } from "../../components/project/integration/steps/IntegrationStartStep";
+import { IntegrationAccountStep } from "../../components/project/integration/steps/IntegrationAccountStep";
+import {
+  IntegrationCompleteStep,
+  IntegrationFileList,
+} from "../../components/project/integration/steps/IntegrationCompleteStep";
+import type { IntegrationResourceItem as ResourceItem } from "../../components/project/integration/integrationViewTypes";
+import {
+  getIntegrationStepLayout,
+  type IntegrationProviderId as ProviderId,
+} from "../../components/project/integration/integrationLayoutConfig";
 import type {
   IntegrationLinkType,
   IntegrationProviderPath,
@@ -44,7 +53,6 @@ import {
   type IntegrationProvider,
 } from "../../store/integrationStore";
 
-type ProviderId = "github" | "figma" | "notion" | "docs" | "slides";
 type NotionFilter = "전체" | "페이지" | "DB";
 type IntegrationNavigationState = {
   isConnected?: boolean;
@@ -232,14 +240,6 @@ const PROVIDERS: Record<ProviderId, Provider> = {
   },
 };
 
-const STEPS = ["연동 시작", "계정 인증", "데이터 선택", "연동 완료"];
-
-interface ResourceItem {
-  key: string;
-  name: string;
-  subtitle: string;
-}
-
 function formatDateTime(value: string | null) {
   if (!value) return null;
 
@@ -269,40 +269,6 @@ function getErrorMessage(error: unknown, fallback: string) {
   if (error instanceof ApiError) return error.message || fallback;
   if (error instanceof Error) return error.message || fallback;
   return fallback;
-}
-
-/** Figma: 원 중심 61.5 / 154.5 / 247.5 / 340.5 (간격 93) -> px-[15px] + 4등분 */
-function Stepper({ step }: { step: number }) {
-  return (
-    <div className="flex px-[15px] pb-[17px] pt-[29px]">
-      {STEPS.map((label, index) => (
-        <div key={label} className="relative flex flex-1 flex-col items-center">
-          {index < 3 && <span className="absolute left-[66.6%] top-4 h-px w-[66.7%] border-t border-dashed border-gray-200" />}
-          <span className={`relative z-10 flex h-8 w-8 items-center justify-center rounded-full border text-[15px] ${
-            step === index + 1 ? "border-blue-500 bg-blue-500 text-white shadow-[0_0_0_3px_#D6E7FE]" : "border-gray-200 bg-gray-25 text-gray-400"
-          }`}>
-            {index + 1}
-          </span>
-          <span className={`mt-4 text-[12px] ${step === index + 1 ? "text-blue-500" : "text-gray-400"}`}>{label}</span>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-/** Figma: 체크마크는 세로 그라데이션 #2186FB -> #07BCC5 */
-function GradientCheck() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" className="h-12 w-12" aria-hidden>
-      <defs>
-        <linearGradient id="plog-complete-check" x1="0" y1="0" x2="0" y2="1">
-          <stop stopColor="#2186FB" />
-          <stop offset="1" stopColor="#07BCC5" />
-        </linearGradient>
-      </defs>
-      <path d="M20 6 9 17l-5-5" stroke="url(#plog-complete-check)" strokeWidth={4} strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
 }
 
 export default function IntegrationConnectionPage() {
@@ -427,33 +393,10 @@ export default function IntegrationConnectionPage() {
     [displayResources, files, isServer]
   );
   const accountLabel = isServer ? accountName ?? `${config.name} 계정` : config.account;
-  const stepOneCardHeightClass =
-    isGooglePicker
-      ? "min-h-[367px]"
-      : config.guide.length === 1
-      ? "min-h-[378px]"
-      : config.guide.length === 2
-        ? "min-h-[398px]"
-        : "min-h-[418px]";
-  const stepOneGuideHeightClass =
-    config.guide.length === 1
-      ? "h-[47px]"
-      : config.guide.length === 2
-        ? "h-[67px]"
-        : "h-[87px]";
-  const connectionCardHeightClass =
-    currentStep === 1
-      ? stepOneCardHeightClass
-      : currentStep === 2
-        ? "min-h-[508px]"
-        : currentStep === 3 && isNotion
-          ? "min-h-[641px]"
-          : currentStep === 4 && isNotion
-            ? "min-h-[434px]"
-        : "";
-  const infoHeightClass = infoText.includes("\n") ? "h-20" : "h-16";
-  const connectionCardPaddingClass =
-    currentStep === 4 && isNotion ? "pb-[22px] pt-[29px]" : "py-[24px]";
+  const stepLayout = getIntegrationStepLayout(providerId, currentStep);
+  const connectionCardHeightClass = stepLayout.cardClass;
+  const infoHeightClass = stepLayout.infoHeightClass;
+  const connectionCardPaddingClass = stepLayout.cardPaddingClass ?? "py-[24px]";
 
   useEffect(() => {
     window.scrollTo(0, 0);
@@ -837,37 +780,19 @@ export default function IntegrationConnectionPage() {
         </button>
         <h1 className="text-[18px] font-semibold text-gray-900">{config.name} 연결</h1>
       </header>
-      <Stepper step={currentStep} />
+      <IntegrationStepper step={currentStep} />
 
       <main className="px-5">
         <section className={`rounded-[16px] border border-gray-100 bg-white/[0.01] px-[21px] shadow-card ${connectionCardHeightClass} ${connectionCardPaddingClass}`}>
           {currentStep === 4 ? (
-            /* Figma: 카드 높이 고정(429) + 내용 세로 중앙 정렬. 목록이 있으면 카드가 늘어남 */
-            <div className="flex min-h-[381px] flex-col items-center justify-center text-center">
-              <span className="flex h-[88px] w-[88px] items-center justify-center rounded-full bg-blue-100">
-                <GradientCheck />
-              </span>
-              <h2 className="mt-8 text-[22px] font-bold text-navy-700">계정 연동이 완료되었습니다!</h2>
-              <p className="mt-4 text-[12px] leading-[18px] text-gray-400">선택한 외부 서비스의 데이터를 수집하여<br />분석을 시작할 수 있습니다</p>
-              {isNotion ? (
-                <div className="-mx-[2px] mt-7 w-[calc(100%+4px)] text-left">
-                  <h3 className="text-[14px] text-gray-700">선택된 항목 ({resources.length})</h3>
-                  <NotionSelectedList resources={resources} />
-                </div>
-              ) : (isServer || !isGithub) && (
-                <div className="mt-7 w-full text-left">
-                  <h3 className="text-[14px] text-gray-700">
-                    {isGithub ? "등록된 Repository" : "등록된 파일"} ({resourceItems.length})
-                  </h3>
-                  <FileList
-                    icon={config.icon}
-                    logoSize={config.listLogo}
-                    items={resourceItems}
-                    onRemove={isServer ? undefined : (key) => setFiles((items) => items.filter((item) => item !== key))}
-                  />
-                </div>
-              )}
-            </div>
+            <IntegrationCompleteStep
+              isGithub={isGithub}
+              isNotion={isNotion}
+              resources={resources}
+              resourceItems={resourceItems}
+              icon={config.icon}
+              logoSize={config.listLogo}
+            />
           ) : (
             <>
               <div className="flex items-center border-b border-gray-100 pb-[23px]">
@@ -889,48 +814,27 @@ export default function IntegrationConnectionPage() {
               </div>
 
               {currentStep === 1 && (
-                <>
-                  <h3 className="mt-6 text-[15px] text-gray-700">연동 시 가져오는 데이터</h3>
-                  {/* Figma: 2번째 열이 x=235에서 시작 (카드 안쪽 42 기준 193px) */}
-                  <div className="mt-3 grid grid-cols-[193px_1fr] gap-y-2">
-                    {config.items.map((item) => <span key={item} className="flex items-center gap-2 text-[13px] text-gray-700"><CheckCircle2 className="h-[18px] w-[18px] shrink-0 fill-blue-500 text-white" />{item}</span>)}
-                  </div>
-                  <h3 className={`${isGooglePicker ? "mt-[13px]" : "mt-6"} text-[15px] text-gray-700`}>연동 안내</h3>
-                  <div className={`mt-3 rounded-[12px] bg-blue-50 px-4 py-[13px] text-[11px] leading-5 text-gray-500 ${stepOneGuideHeightClass}`}>
-                    {config.guide.map((line) => (
-                      <p key={line} className="flex items-center gap-[7px] whitespace-nowrap pl-px">
-                        <span className="h-0.5 w-0.5 shrink-0 rounded-full bg-gray-500" aria-hidden="true" />
-                        <span>{line}</span>
-                      </p>
-                    ))}
-                  </div>
-                  {authError && (
-                    <p className="mt-3 text-[12px] leading-[18px] text-error" role="alert">
-                      {authError}
-                    </p>
-                  )}
-                </>
+                <IntegrationStartStep
+                  items={config.items}
+                  guide={config.guide}
+                  guideHeadingClass={stepLayout.guideHeadingClass ?? "mt-6"}
+                  guideClass={stepLayout.guideClass ?? ""}
+                  authError={authError}
+                />
               )}
 
               {currentStep === 2 && (
-                <>
-                  <AccountRow account={accountLabel} accountType={config.accountType} />
-                  <h3 className="text-[15px] text-gray-700">요청 권한</h3>
-                  <div className="mt-3 rounded-[12px] border border-gray-200 px-[18px] py-[9px]">
-                    {config.permissions.map(({ title, desc, icon }) => (
-                      <div key={title} className="flex min-h-[56px] items-center gap-3">
-                        {/* 아이콘 viewBox가 36px 원 좌표 그대로라 36px로 렌더하면 Figma와 동일 위치 */}
-                        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-blue-50"><PermissionIcon name={icon} className="h-9 w-9 text-blue-500" /></span>
-                        <div><p className="text-[12px] text-gray-700">{title}</p><p className="mt-1 text-[11px] text-gray-400">{desc}</p></div>
-                      </div>
-                    ))}
-                  </div>
-                </>
+                <IntegrationAccountStep
+                  account={accountLabel}
+                  accountType={config.accountType}
+                  accountRowClass={stepLayout.accountRowClass}
+                  permissions={config.permissions}
+                />
               )}
 
               {currentStep === 3 && isNotion && (
                 <>
-                  <AccountRow account={accountLabel} accountType={config.accountType} />
+                  <IntegrationAccountRow account={accountLabel} accountType={config.accountType} />
                   <div className="relative">
                     <input
                       aria-label="페이지 또는 DB 검색"
@@ -1033,7 +937,7 @@ export default function IntegrationConnectionPage() {
 
               {currentStep === 3 && isGooglePicker && (
                 <>
-                  <AccountRow account={accountLabel} accountType={config.accountType} />
+                  <IntegrationAccountRow account={accountLabel} accountType={config.accountType} />
                   <button
                     type="button"
                     onClick={() => void handleOpenGooglePicker()}
@@ -1049,7 +953,7 @@ export default function IntegrationConnectionPage() {
                     </p>
                   )}
                   <h3 className="mt-7 text-[14px] text-gray-700">선택된 문서 ({resourceItems.length})</h3>
-                  <FileList
+                  <IntegrationFileList
                     icon={config.icon}
                     logoSize={config.listLogo}
                     items={resourceItems}
@@ -1060,7 +964,7 @@ export default function IntegrationConnectionPage() {
 
               {currentStep === 3 && !isNotion && !isGooglePicker && (
                 <>
-                  <AccountRow account={accountLabel} accountType={config.accountType} />
+                  <IntegrationAccountRow account={accountLabel} accountType={config.accountType} />
                   <label className="block text-[14px] text-gray-700">
                     {config.name} {providerId === "figma" ? "Design File" : "파일"} URL
                     <input
@@ -1093,7 +997,7 @@ export default function IntegrationConnectionPage() {
                     </p>
                   )}
                   <h3 className="mt-7 text-[14px] text-gray-700">등록된 파일 ({resourceItems.length})</h3>
-                  <FileList
+                  <IntegrationFileList
                     icon={config.icon}
                     logoSize={config.listLogo}
                     items={resourceItems}
@@ -1105,17 +1009,7 @@ export default function IntegrationConnectionPage() {
           )}
         </section>
 
-        <div className={`mt-6 flex gap-[6px] rounded-[12px] bg-blue-50 px-[18px] py-3 text-[12px] leading-[18px] text-blue-500 ${infoHeightClass}`}>
-          <Info className="mt-0.5 h-4 w-4 shrink-0" />
-          <div>
-            <strong className="block text-[12px] font-semibold leading-[18px]">안내</strong>
-            <div className="text-[11px] leading-[18px]">
-              {infoText.split("\n").map((line) => (
-                <p key={line}>{line}</p>
-              ))}
-            </div>
-          </div>
-        </div>
+        <IntegrationInfoBox text={infoText} heightClass={infoHeightClass} />
       </main>
 
       <footer className="fixed bottom-0 left-1/2 z-20 grid h-[92px] w-full max-w-mobile -translate-x-1/2 grid-cols-[123px_1fr] gap-[21px] border-t border-gray-100 bg-white px-5 pt-3">
@@ -1133,62 +1027,3 @@ export default function IntegrationConnectionPage() {
   );
 }
 
-function AccountRow({ account, accountType }: { account: string; accountType: string }) {
-  return (
-    <div className="flex items-center py-[22px]">
-      <img src={accountAvatarIcon} alt="" className="h-[46px] w-[46px] shrink-0" />
-      <div className="ml-[13px] min-w-0">
-        <p className="truncate text-[18px] text-gray-900">{account}</p>
-        <p className="mt-1 text-[12px] text-gray-400">{accountType}</p>
-      </div>
-      <span className="ml-auto shrink-0 rounded-full bg-[#E9F8F0] px-[14px] py-[5px] text-[12px] text-success">계정 확인</span>
-    </div>
-  );
-}
-
-function NotionSelectedList({ resources }: { resources: IntegrationResourceResponse[] }) {
-  return (
-    <div className="mt-3 min-h-[123px] rounded-[16px] border border-gray-100 bg-white px-[18px] shadow-card">
-      {resources.map((resource) => {
-        const isDatabase = resource.resourceType === "NOTION_DATA_SOURCE";
-        return (
-          <div key={resource.resourceId} className="flex h-[57px] items-center">
-            <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-[7px] bg-gradient-to-b from-blue-500 to-aqua-500 text-white">
-              <Check className="h-4 w-4" />
-            </span>
-            <span className="ml-3 truncate text-[14px] text-gray-700">{resource.resourceName}</span>
-            <span className={`ml-auto shrink-0 rounded-full px-3 py-[5px] text-[12px] ${isDatabase ? "bg-aqua-50 text-aqua-500" : "bg-blue-50 text-blue-500"}`}>
-              {isDatabase ? "DB" : "페이지"}
-            </span>
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
-function FileList({
-  icon,
-  logoSize,
-  items,
-  onRemove,
-}: {
-  icon: string;
-  logoSize: number;
-  items: ResourceItem[];
-  onRemove?: (key: string) => void;
-}) {
-  return (
-    <div className="mt-3 rounded-[14px] border border-gray-100 bg-white px-[18px] shadow-card">
-      {items.map((item) => (
-        <div key={item.key} className="flex h-[61px] items-center">
-          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[10px] bg-white"><img src={icon} alt="" className="object-contain" style={{ width: logoSize, height: logoSize }} /></span>
-          <div className="ml-3 min-w-0"><p className="truncate text-[12px] text-gray-700">{item.name}</p><p className="mt-1 text-[11px] text-gray-400">{item.subtitle}</p></div>
-          {onRemove && (
-            <button type="button" aria-label={`${item.name} 삭제`} onClick={() => onRemove(item.key)} className="ml-auto flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gray-100"><X className="h-4 w-4 text-gray-400" /></button>
-          )}
-        </div>
-      ))}
-    </div>
-  );
-}
