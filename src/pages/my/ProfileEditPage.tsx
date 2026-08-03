@@ -363,6 +363,7 @@ export function ProfileEditPage() {
         onClose={closeAvatarSheet}
         ariaLabelledby="profile-image-sheet-title"
         draggable
+        closeOnHandleClick
         initialHeight={554}
         minHeight={236}
         maxHeight={554}

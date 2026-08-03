@@ -282,6 +282,7 @@ export function CreateProjectPage() {
         open={!createdProject}
         onClose={() => navigate("/home")}
         draggable
+        closeOnHandleClick
         initialHeight={588}
         minHeight={250}
         maxHeight={588}

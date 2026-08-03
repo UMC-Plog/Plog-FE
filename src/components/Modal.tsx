@@ -1,10 +1,7 @@
 import {
   type CSSProperties,
-  type PointerEvent as ReactPointerEvent,
   type ReactNode,
   useEffect,
-  useRef,
-  useState,
 } from "react";
 import { createPortal } from "react-dom";
 import { cn } from "../lib/utils";
@@ -23,6 +20,7 @@ interface BottomSheetProps extends ModalProps {
   initialHeight?: number;
   minHeight?: number;
   maxHeight?: number;
+  closeOnHandleClick?: boolean;
 }
 
 /** Plog 전역 공통 Modal — 중앙 정렬 팝업 (업무카드 상세, 삭제확인 등) */
@@ -81,14 +79,8 @@ export function BottomSheet({
   initialHeight = 588,
   minHeight = 250,
   maxHeight = 588,
+  closeOnHandleClick = false,
 }: BottomSheetProps) {
-  const [sheetHeight, setSheetHeight] = useState(initialHeight);
-  const dragStateRef = useRef<{ pointerId: number; startY: number; startHeight: number } | null>(null);
-
-  useEffect(() => {
-    if (open) setSheetHeight(initialHeight);
-  }, [initialHeight, open]);
-
   useEffect(() => {
     if (!open) return;
     const onKeyDown = (e: KeyboardEvent) => {
@@ -105,32 +97,8 @@ export function BottomSheet({
     return Math.min(Math.max(height, minHeight), Math.min(maxHeight, viewportMax));
   };
 
-  const handlePointerDown = (event: ReactPointerEvent<HTMLButtonElement>) => {
-    if (!draggable) return;
-    dragStateRef.current = {
-      pointerId: event.pointerId,
-      startY: event.clientY,
-      startHeight: sheetHeight,
-    };
-    event.currentTarget.setPointerCapture(event.pointerId);
-  };
-
-  const handlePointerMove = (event: ReactPointerEvent<HTMLButtonElement>) => {
-    const dragState = dragStateRef.current;
-    if (!dragState || dragState.pointerId !== event.pointerId) return;
-    setSheetHeight(clampHeight(dragState.startHeight - (event.clientY - dragState.startY)));
-  };
-
-  const handlePointerEnd = (event: ReactPointerEvent<HTMLButtonElement>) => {
-    if (dragStateRef.current?.pointerId !== event.pointerId) return;
-    dragStateRef.current = null;
-    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
-      event.currentTarget.releasePointerCapture(event.pointerId);
-    }
-  };
-
   const sheetStyle: CSSProperties | undefined = draggable
-    ? { height: clampHeight(sheetHeight) }
+    ? { height: clampHeight(initialHeight) }
     : undefined;
 
   return createPortal(
@@ -152,12 +120,9 @@ export function BottomSheet({
         {draggable ? (
           <button
             type="button"
-            aria-label="바텀시트 높이 조절"
-            className="relative -top-1 mx-auto mb-[15px] flex h-5 w-16 shrink-0 touch-none cursor-ns-resize items-start justify-center"
-            onPointerDown={handlePointerDown}
-            onPointerMove={handlePointerMove}
-            onPointerUp={handlePointerEnd}
-            onPointerCancel={handlePointerEnd}
+            aria-label="바텀시트 닫기"
+            className="relative -top-1 mx-auto mb-[15px] flex h-5 w-16 shrink-0 cursor-pointer items-start justify-center"
+            onClick={() => closeOnHandleClick && onClose?.()}
           >
             <span className="h-[5px] w-11 rounded-full bg-gray-200" />
           </button>
