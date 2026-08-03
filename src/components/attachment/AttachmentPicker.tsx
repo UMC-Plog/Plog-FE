@@ -1,6 +1,9 @@
 import {
+  Camera,
   FileText,
+  FolderOpen,
   Image,
+  Images,
   Link as LinkIcon,
   Paperclip,
   RotateCcw,
@@ -15,7 +18,7 @@ import {
 } from 'react'
 import type { ChangeEvent } from 'react'
 import { ApiError } from '../../api/client'
-import { uploadFile } from '../../api/file'
+import { uploadFile, validateUploadFileType } from '../../api/file'
 import {
   createFileFingerprint,
   formatFileSize,
@@ -29,7 +32,7 @@ import {
 import type { FileUploadUsage } from '../../types/file'
 import { Button } from '../Button'
 import { Input } from '../Input'
-import { Modal } from '../Modal'
+import { BottomSheet, Modal } from '../Modal'
 
 interface AttachmentPickerProps {
   value: AttachmentDraft[]
@@ -71,11 +74,17 @@ export function AttachmentPicker({
   variant = 'default',
 }: AttachmentPickerProps) {
   const inputId = useId()
+  const attachmentSheetTitleId = useId()
   const fileInputRef = useRef<HTMLInputElement>(null)
-  const imageInputRef = useRef<HTMLInputElement>(null)
+  const cameraInputRef = useRef<HTMLInputElement>(null)
+  const imageLibraryInputRef = useRef<HTMLInputElement>(null)
+  const attachmentMenuTriggerRef = useRef<HTMLButtonElement>(null)
+  const firstAttachmentOptionRef = useRef<HTMLButtonElement>(null)
   const draftsRef = useRef(value)
   const generationsRef = useRef(new Map<string, number>())
   const mountedRef = useRef(true)
+  const [isAttachmentSheetOpen, setIsAttachmentSheetOpen] = useState(false)
+  const [canUseCameraCapture, setCanUseCameraCapture] = useState(false)
   const [isLinkModalOpen, setIsLinkModalOpen] = useState(false)
   const [linkName, setLinkName] = useState('')
   const [linkUrl, setLinkUrl] = useState('')
@@ -94,6 +103,38 @@ export function AttachmentPicker({
       generations.clear()
     }
   }, [])
+
+  useEffect(() => {
+    if (variant !== 'post') return
+
+    const coarsePointer = window.matchMedia('(pointer: coarse)')
+    const updateCameraAvailability = () => {
+      setCanUseCameraCapture(
+        coarsePointer.matches && navigator.maxTouchPoints > 0
+      )
+    }
+
+    updateCameraAvailability()
+    coarsePointer.addEventListener('change', updateCameraAvailability)
+    return () =>
+      coarsePointer.removeEventListener('change', updateCameraAvailability)
+  }, [variant])
+
+  useEffect(() => {
+    if (!isAttachmentSheetOpen) return
+
+    const previousFocus = document.activeElement as HTMLElement | null
+    const trigger = attachmentMenuTriggerRef.current
+    const frame = window.requestAnimationFrame(() => {
+      firstAttachmentOptionRef.current?.focus()
+    })
+
+    return () => {
+      window.cancelAnimationFrame(frame)
+      const focusTarget = previousFocus ?? trigger
+      focusTarget?.focus()
+    }
+  }, [isAttachmentSheetOpen])
 
   const commit = useCallback((next: AttachmentDraft[]) => {
     draftsRef.current = next
@@ -178,8 +219,18 @@ export function AttachmentPicker({
     const selectedFingerprints = new Set<string>()
     const uniqueFiles: File[] = []
     let duplicateFound = false
+    let invalidFileError: string | undefined
 
     for (const file of files) {
+      if (variant === 'post') {
+        try {
+          validateUploadFileType(file)
+        } catch (error: unknown) {
+          invalidFileError ??= `${file.name}: ${getErrorMessage(error)}`
+          continue
+        }
+      }
+
       const fingerprint = createFileFingerprint(file)
       if (
         existingFingerprints.has(fingerprint) ||
@@ -197,9 +248,11 @@ export function AttachmentPicker({
       return
     }
 
-    if (duplicateFound) {
-      setAttachmentError('같은 파일은 중복으로 첨부할 수 없습니다.')
-    }
+    const selectionErrors = [
+      invalidFileError,
+      duplicateFound ? '같은 파일은 중복으로 첨부할 수 없습니다.' : undefined,
+    ].filter((message): message is string => Boolean(message))
+    setAttachmentError(selectionErrors.join(' ') || undefined)
 
     const newDrafts: NewFileAttachmentDraft[] = uniqueFiles.map((file) => ({
       localId: createLocalId(),
@@ -287,6 +340,21 @@ export function AttachmentPicker({
     event.target.value = ''
   }
 
+  const openNativeFilePicker = () => {
+    setIsAttachmentSheetOpen(false)
+    fileInputRef.current?.click()
+  }
+
+  const openCamera = () => {
+    setIsAttachmentSheetOpen(false)
+    cameraInputRef.current?.click()
+  }
+
+  const openImageLibrary = () => {
+    setIsAttachmentSheetOpen(false)
+    imageLibraryInputRef.current?.click()
+  }
+
   return (
     <div>
       {!isPostVariant && !isTaskVariant && (
@@ -301,13 +369,16 @@ export function AttachmentPicker({
       {isPostVariant && (
         <div className="flex items-center gap-5 border-b border-gray-200 pb-3">
           <button
+            ref={attachmentMenuTriggerRef}
             type="button"
             disabled={disabled || atLimit}
-            onClick={() => fileInputRef.current?.click()}
+            aria-haspopup="dialog"
+            aria-expanded={isAttachmentSheetOpen}
+            onClick={() => setIsAttachmentSheetOpen(true)}
             className="inline-flex items-center gap-1.5 text-body-sm text-gray-500 hover:text-gray-700 disabled:text-gray-300"
           >
             <Paperclip className="h-4 w-4" aria-hidden />
-            파일
+            파일 및 이미지
           </button>
           <button
             type="button"
@@ -317,15 +388,6 @@ export function AttachmentPicker({
           >
             <LinkIcon className="h-4 w-4" aria-hidden />
             링크
-          </button>
-          <button
-            type="button"
-            disabled={disabled || atLimit}
-            onClick={() => imageInputRef.current?.click()}
-            className="inline-flex items-center gap-1.5 text-body-sm text-gray-500 hover:text-gray-700 disabled:text-gray-300"
-          >
-            <Image className="h-4 w-4" aria-hidden />
-            이미지
           </button>
         </div>
       )}
@@ -500,31 +562,92 @@ export function AttachmentPicker({
         type="file"
         className="hidden"
         multiple
-        accept={
-          isPostVariant
-            ? FILE_ACCEPT
-            : `${FILE_ACCEPT},${IMAGE_ACCEPT}`
+        accept={`${FILE_ACCEPT},${IMAGE_ACCEPT}`}
+        aria-label={
+          isPostVariant ? '첨부할 파일 또는 이미지 선택' : '첨부 파일 선택'
         }
-        aria-label="첨부 파일 선택"
         onChange={handleFileInputChange}
       />
 
       {isPostVariant && (
-        <input
-          ref={imageInputRef}
-          type="file"
-          className="hidden"
-          multiple
-          accept={IMAGE_ACCEPT}
-          aria-label="첨부 이미지 선택"
-          onChange={handleFileInputChange}
-        />
+        <>
+          <input
+            ref={cameraInputRef}
+            type="file"
+            className="hidden"
+            accept={IMAGE_ACCEPT}
+            capture="environment"
+            aria-label="카메라로 첨부할 사진 촬영"
+            onChange={handleFileInputChange}
+          />
+          <input
+            ref={imageLibraryInputRef}
+            type="file"
+            className="hidden"
+            multiple
+            accept={IMAGE_ACCEPT}
+            aria-label="사진 라이브러리에서 첨부할 이미지 선택"
+            onChange={handleFileInputChange}
+          />
+        </>
       )}
 
       {attachmentError && (
         <p className="mt-2 text-caption font-normal text-error">
           {attachmentError}
         </p>
+      )}
+
+      {isPostVariant && (
+        <BottomSheet
+          open={isAttachmentSheetOpen}
+          onClose={() => setIsAttachmentSheetOpen(false)}
+          ariaLabelledby={attachmentSheetTitleId}
+        >
+          <h2
+            id={attachmentSheetTitleId}
+            className="text-title font-bold text-gray-900"
+          >
+            파일 및 이미지 첨부
+          </h2>
+          <div className="mt-4 flex flex-col">
+            <button
+              ref={firstAttachmentOptionRef}
+              type="button"
+              onClick={openNativeFilePicker}
+              className="flex min-h-12 items-center gap-3 rounded-md px-2 text-left text-body-sm text-gray-700 hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+            >
+              <FolderOpen className="h-5 w-5 text-primary" aria-hidden />
+              파일 선택
+            </button>
+            {canUseCameraCapture && (
+              <button
+                type="button"
+                onClick={openCamera}
+                className="flex min-h-12 items-center gap-3 rounded-md px-2 text-left text-body-sm text-gray-700 hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+              >
+                <Camera className="h-5 w-5 text-primary" aria-hidden />
+                사진 촬영
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={openImageLibrary}
+              className="flex min-h-12 items-center gap-3 rounded-md px-2 text-left text-body-sm text-gray-700 hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+            >
+              <Images className="h-5 w-5 text-primary" aria-hidden />
+              사진 라이브러리
+            </button>
+          </div>
+          <Button
+            type="button"
+            variant="ghost"
+            onClick={() => setIsAttachmentSheetOpen(false)}
+            className="mt-3 bg-gray-100 text-gray-500"
+          >
+            취소
+          </Button>
+        </BottomSheet>
       )}
 
       <Modal

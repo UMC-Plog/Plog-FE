@@ -48,7 +48,7 @@ function getExtension(fileName: string) {
   return fileName.slice(lastDotIndex + 1).toLowerCase()
 }
 
-export function validateUploadFile(file: File): ValidatedUploadFile {
+function validateFileExtension(file: File) {
   if (!file.name.trim()) {
     throw new ApiError('INVALID_FILE_NAME', '파일 이름을 확인해 주세요.')
   }
@@ -60,6 +60,36 @@ export function validateUploadFile(file: File): ValidatedUploadFile {
       '지원하지 않는 파일 형식입니다.'
     )
   }
+
+  return extension
+}
+
+function validateFileContentType(file: File, extension: string) {
+  const expectedContentType = CONTENT_TYPE_BY_EXTENSION[extension]
+  const isValidContentType =
+    extension === 'fig'
+      ? file.type === '' || file.type === expectedContentType
+      : file.type === expectedContentType
+  if (!isValidContentType) {
+    throw new ApiError(
+      'FILE_MIME_TYPE_MISMATCH',
+      '파일 확장자와 MIME 타입이 일치하지 않습니다.'
+    )
+  }
+
+  const contentType =
+    extension === 'fig' ? 'application/octet-stream' : file.type
+  return contentType
+}
+
+export function validateUploadFileType(file: File) {
+  const extension = validateFileExtension(file)
+  const contentType = validateFileContentType(file, extension)
+  return { extension, contentType }
+}
+
+export function validateUploadFile(file: File): ValidatedUploadFile {
+  const extension = validateFileExtension(file)
 
   if (!Number.isSafeInteger(file.size) || file.size < 0) {
     throw new ApiError(
@@ -79,17 +109,7 @@ export function validateUploadFile(file: File): ValidatedUploadFile {
     )
   }
 
-  const expectedContentType = CONTENT_TYPE_BY_EXTENSION[extension]
-  const contentType =
-    extension === 'fig' ? 'application/octet-stream' : file.type
-
-  if (contentType !== expectedContentType) {
-    throw new ApiError(
-      'FILE_MIME_TYPE_MISMATCH',
-      '파일 확장자와 MIME 타입이 일치하지 않습니다.'
-    )
-  }
-
+  const contentType = validateFileContentType(file, extension)
   return {
     file,
     fileName: file.name,
