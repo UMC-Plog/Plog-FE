@@ -1,5 +1,6 @@
 import {
   Camera,
+  Cloud,
   FileText,
   FolderOpen,
   Image,
@@ -24,6 +25,15 @@ import {
   formatFileSize,
   validateExternalHttpsUrl,
 } from '../../lib/attachment'
+import {
+  downloadPersonalGoogleDriveFile,
+  GoogleDriveFileError,
+} from '../../lib/googleDriveFile'
+import {
+  clearPersonalGoogleDriveAccessToken,
+  getPersonalGoogleDriveAccessToken,
+  openPersonalGoogleDrivePicker,
+} from '../../lib/googlePicker'
 import {
   MAX_ATTACHMENTS,
   type AttachmentDraft,
@@ -61,6 +71,35 @@ function getErrorMessage(error: unknown) {
     : '첨부 처리 중 오류가 발생했습니다.'
 }
 
+function getGoogleDriveErrorMessage(error: unknown) {
+  if (!(error instanceof GoogleDriveFileError)) {
+    return error instanceof Error
+      ? error.message
+      : 'Google Drive 파일을 첨부하지 못했습니다. 다시 시도해 주세요.'
+  }
+
+  switch (error.code) {
+    case 'GOOGLE_DRIVE_AUTH_REQUIRED':
+      return 'Google 인증이 만료되었습니다. Google Drive를 다시 선택해 주세요.'
+    case 'GOOGLE_DRIVE_ACCESS_DENIED':
+      return '파일에 접근할 권한이 없거나 다운로드가 제한된 파일입니다.'
+    case 'GOOGLE_DRIVE_FILE_NOT_FOUND':
+      return 'Google Drive에서 파일을 찾을 수 없습니다.'
+    case 'GOOGLE_DRIVE_RATE_LIMITED':
+      return 'Google Drive 요청이 제한되었습니다. 잠시 후 다시 시도해 주세요.'
+    case 'GOOGLE_DRIVE_UNSUPPORTED_WORKSPACE_FILE':
+      return '지원하지 않는 Google Drive 파일 형식입니다.'
+    case 'GOOGLE_DRIVE_NETWORK_ERROR':
+      return 'Google Drive 파일을 가져오는 중 네트워크 오류가 발생했습니다.'
+    case 'GOOGLE_DRIVE_EMPTY_FILE':
+      return 'Google Drive에서 비어 있는 파일이 반환되었습니다.'
+    case 'GOOGLE_DRIVE_DOWNLOAD_FAILED':
+      return 'Google Drive 파일을 다운로드하지 못했습니다.'
+    case 'GOOGLE_DRIVE_EXPORT_FAILED':
+      return 'Google 문서를 첨부 가능한 파일로 변환하지 못했습니다.'
+  }
+}
+
 function createLocalId() {
   return crypto.randomUUID()
 }
@@ -90,6 +129,7 @@ export function AttachmentPicker({
   const [linkUrl, setLinkUrl] = useState('')
   const [linkError, setLinkError] = useState<string>()
   const [attachmentError, setAttachmentError] = useState<string>()
+  const [isGoogleDriveProcessing, setIsGoogleDriveProcessing] = useState(false)
 
   useEffect(() => {
     draftsRef.current = value
@@ -355,6 +395,46 @@ export function AttachmentPicker({
     imageLibraryInputRef.current?.click()
   }
 
+  const selectGoogleDriveFile = async () => {
+    if (disabled || atLimit || isGoogleDriveProcessing) return
+
+    setIsAttachmentSheetOpen(false)
+    setAttachmentError(undefined)
+    setIsGoogleDriveProcessing(true)
+
+    try {
+      const selectedFile = await openPersonalGoogleDrivePicker()
+      if (!selectedFile || !mountedRef.current) return
+
+      const accessToken = getPersonalGoogleDriveAccessToken()
+      if (!accessToken) {
+        clearPersonalGoogleDriveAccessToken()
+        setAttachmentError(
+          'Google 인증이 만료되었습니다. Google Drive를 다시 선택해 주세요.'
+        )
+        return
+      }
+
+      const file = await downloadPersonalGoogleDriveFile(
+        selectedFile,
+        accessToken
+      )
+      if (!mountedRef.current) return
+      selectFiles([file])
+    } catch (error: unknown) {
+      if (!mountedRef.current) return
+      if (
+        error instanceof GoogleDriveFileError &&
+        error.code === 'GOOGLE_DRIVE_AUTH_REQUIRED'
+      ) {
+        clearPersonalGoogleDriveAccessToken()
+      }
+      setAttachmentError(getGoogleDriveErrorMessage(error))
+    } finally {
+      if (mountedRef.current) setIsGoogleDriveProcessing(false)
+    }
+  }
+
   return (
     <div>
       {!isPostVariant && !isTaskVariant && (
@@ -371,7 +451,7 @@ export function AttachmentPicker({
           <button
             ref={attachmentMenuTriggerRef}
             type="button"
-            disabled={disabled || atLimit}
+            disabled={disabled || atLimit || isGoogleDriveProcessing}
             aria-haspopup="dialog"
             aria-expanded={isAttachmentSheetOpen}
             onClick={() => setIsAttachmentSheetOpen(true)}
@@ -512,6 +592,17 @@ export function AttachmentPicker({
             type="button"
             variant="outline"
             size="sm"
+            disabled={disabled || atLimit || isGoogleDriveProcessing}
+            loading={isGoogleDriveProcessing}
+            icon={<Cloud className="h-4 w-4" aria-hidden />}
+            onClick={() => void selectGoogleDriveFile()}
+          >
+            Google Drive
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
             disabled={disabled || atLimit}
             icon={<LinkIcon className="h-4 w-4" aria-hidden />}
             onClick={openLinkModal}
@@ -529,7 +620,7 @@ export function AttachmentPicker({
           <p className="mt-1 text-caption font-normal text-gray-400">
             최대 50MB, PDF, PPTX, DOCX, ZIP, IMG
           </p>
-          <div className="mt-3 flex justify-center gap-2">
+          <div className="mt-3 flex flex-wrap justify-center gap-2">
             <Button
               type="button"
               variant="outline"
@@ -540,6 +631,18 @@ export function AttachmentPicker({
               onClick={() => fileInputRef.current?.click()}
             >
               파일 선택
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              fullWidth={false}
+              disabled={disabled || atLimit || isGoogleDriveProcessing}
+              loading={isGoogleDriveProcessing}
+              icon={<Cloud className="h-4 w-4" aria-hidden />}
+              onClick={() => void selectGoogleDriveFile()}
+            >
+              Google Drive
             </Button>
             <Button
               type="button"
@@ -598,6 +701,19 @@ export function AttachmentPicker({
         </p>
       )}
 
+      {isGoogleDriveProcessing && (
+        <p
+          role="status"
+          className="mt-2 inline-flex items-center gap-2 text-caption font-normal text-gray-500"
+        >
+          <span
+            className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-primary border-t-transparent"
+            aria-hidden
+          />
+          Google Drive 파일을 가져오는 중...
+        </p>
+      )}
+
       {isPostVariant && (
         <BottomSheet
           open={isAttachmentSheetOpen}
@@ -619,6 +735,15 @@ export function AttachmentPicker({
             >
               <FolderOpen className="h-5 w-5 text-primary" aria-hidden />
               파일 선택
+            </button>
+            <button
+              type="button"
+              disabled={disabled || atLimit || isGoogleDriveProcessing}
+              onClick={() => void selectGoogleDriveFile()}
+              className="flex min-h-12 items-center gap-3 rounded-md px-2 text-left text-body-sm text-gray-700 hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:text-gray-300"
+            >
+              <Cloud className="h-5 w-5 text-primary" aria-hidden />
+              Google Drive
             </button>
             {canUseCameraCapture && (
               <button
