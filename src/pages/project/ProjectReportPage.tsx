@@ -186,6 +186,9 @@ export default function ProjectReportPage() {
               <button
                 type="button"
                 disabled={item.locked}
+                onClick={() =>
+                  navigate(`/project/${projectId}/report/${item.tier === 'basic' ? 'team' : 'personal'}`)
+                }
                 className={cn(
                   'absolute right-6 top-1/2 h-10 -translate-y-1/2 rounded-11 px-4 text-body',
                   item.locked ? 'bg-gray-100 text-gray-400' : 'bg-primary-500 text-gray-25'
