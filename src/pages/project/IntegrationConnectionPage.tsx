@@ -42,13 +42,15 @@ import {
   useIntegrationStore,
   type IntegrationProvider,
 } from "../../store/integrationStore";
+import { rememberIntegrationReturnPath } from "../../lib/integrationCallback";
 
 type ProviderId = "github" | "figma" | "notion" | "docs" | "slides";
 type NotionFilter = "전체" | "페이지" | "DB";
 type IntegrationNavigationState = {
   isConnected?: boolean;
   isMockConnected?: boolean;
-  entryMode?: "disconnect" | "resources";
+  entryMode?: "disconnect" | "resources" | "authorization-complete" | "authorization-error";
+  authorizationError?: string;
 };
 
 type Permission = {
@@ -325,17 +327,19 @@ export default function IntegrationConnectionPage() {
     navigationConnected ?? null
   );
   const [isDisconnectOpen, setIsDisconnectOpen] = useState(
-    navigationConnected === true && navigationEntryMode !== "resources"
+    navigationConnected === true && navigationEntryMode === "disconnect"
   );
   const [connectionLoadError, setConnectionLoadError] = useState<string | null>(null);
   const [isDisconnecting, setIsDisconnecting] = useState(false);
   const [disconnectError, setDisconnectError] = useState<string | null>(null);
   const [step, setStep] = useState(() =>
-    navigationConnected === true && navigationEntryMode === "resources"
-      ? providerId === "github"
-        ? 4
-        : 3
-      : 1
+    navigationEntryMode === "authorization-complete"
+      ? 2
+      : navigationConnected === true && navigationEntryMode === "resources"
+        ? providerId === "github"
+          ? 4
+          : 3
+        : 1
   );
   const [url, setUrl] = useState("");
   const [files, setFiles] = useState(() => {
@@ -348,7 +352,9 @@ export default function IntegrationConnectionPage() {
   /* 백엔드 연동 상태 */
   const [accountName, setAccountName] = useState<string | null>(null);
   const [isAuthorizing, setIsAuthorizing] = useState(false);
-  const [authError, setAuthError] = useState<string | null>(null);
+  const [authError, setAuthError] = useState<string | null>(
+    navigationState?.authorizationError ?? null
+  );
   const [resources, setResources] = useState<IntegrationResourceResponse[]>([]);
   const [resourceError, setResourceError] = useState<string | null>(null);
   const [candidates, setCandidates] = useState<IntegrationResourceCandidateResponse[]>([]);
@@ -446,16 +452,23 @@ export default function IntegrationConnectionPage() {
         const connected = Boolean(integration?.linked) || (!isServer && mockConnected);
         setAccountName(integration?.connectedAccountName ?? null);
         setIsConnected(connected);
-        setIsDisconnectOpen(connected && navigationEntryMode !== "resources");
+        setIsDisconnectOpen(connected && navigationEntryMode === "disconnect");
         if (connected && navigationEntryMode === "resources") {
           setStep(isGithub ? 4 : 3);
+        } else if (navigationEntryMode === "authorization-complete") {
+          if (connected) {
+            setStep(2);
+          } else {
+            setStep(1);
+            setAuthError("외부 계정 연동 상태를 확인하지 못했어요. 다시 시도해 주세요.");
+          }
         }
       })
       .catch((error) => {
         if (!active) return;
         if (mockConnected) {
           setIsConnected(true);
-          setIsDisconnectOpen(true);
+          setIsDisconnectOpen(navigationEntryMode === "disconnect");
           return;
         }
         setConnectionLoadError(getErrorMessage(error, "연동 상태를 확인하지 못했어요."));
@@ -536,6 +549,7 @@ export default function IntegrationConnectionPage() {
 
       if (!authWindow) {
         // 팝업이 차단되면 현재 창을 승인 화면으로 보낸다 (콜백 처리는 서버 몫)
+        rememberIntegrationReturnPath(id, providerId);
         window.location.href = authorization;
         return;
       }
