@@ -8,6 +8,8 @@ interface ModalProps {
   children: ReactNode;
   ariaLabelledby?: string;
   contentClassName?: string;
+  closeOnHandleClick?: boolean;
+  handleCloseLabel?: string;
 }
 
 /** Plog 전역 공통 Modal — 중앙 정렬 팝업 (업무카드 상세, 삭제확인 등) */
@@ -52,6 +54,8 @@ export function BottomSheet({
   children,
   ariaLabelledby,
   contentClassName,
+  closeOnHandleClick = false,
+  handleCloseLabel = "바텀시트 닫기",
 }: ModalProps) {
   useEffect(() => {
     if (!open) return;
@@ -79,7 +83,19 @@ export function BottomSheet({
         )}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="relative -top-1 mx-auto mb-[15px] h-[5px] w-11 rounded-full bg-gray-200" />
+        {closeOnHandleClick ? (
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={!onClose}
+            aria-label={handleCloseLabel}
+            className="relative -top-6 mx-auto mb-[-24px] flex h-11 w-11 items-center justify-center rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:cursor-not-allowed"
+          >
+            <span className="h-[5px] w-11 rounded-full bg-gray-200" aria-hidden />
+          </button>
+        ) : (
+          <div className="relative -top-1 mx-auto mb-[15px] h-[5px] w-11 rounded-full bg-gray-200" />
+        )}
         {children}
       </div>
     </div>,
