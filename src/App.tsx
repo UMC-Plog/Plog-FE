@@ -10,6 +10,8 @@ import ProjectFeedPage from './pages/project/ProjectFeedPage'
 import ProjectChatPage from './pages/project/ProjectChatPage'
 import ProjectTaskPage from './pages/project/ProjectTaskPage'
 import ProjectReportPage from './pages/project/ProjectReportPage'
+import TeamReportPage from './pages/project/report/TeamReportPage'
+import PersonalReportPage from './pages/project/report/PersonalReportPage'
 import NoticeFormPage from './pages/project/notice/NoticeFormPage'
 import NoticeHistoryPage from './pages/project/notice/NoticeHistoryPage'
 import PostFormPage from './pages/project/post/PostFormPage'
@@ -38,6 +40,7 @@ import { ProjectDataLoader } from './components/ProjectDataLoader'
 import { ProjectInvitationPage } from './pages/project/ProjectInvitationPage'
 import NotificationPage from './pages/NotificationPage'
 import { PushNotificationManager } from './components/PushNotificationManager'
+import { IntegrationCallbackPage } from './pages/project/IntegrationCallbackPage'
 
 function App() {
   return (
@@ -58,6 +61,8 @@ function App() {
         <Route path="/invite/:inviteCode" element={<ProjectInvitationPage />} />
 
         <Route element={<ProjectDataLoader />}>
+          <Route path="/integrations/callback" element={<IntegrationCallbackPage />} />
+
           {/* 하단 탭바가 있는 화면들 */}
           <Route element={<BottomTabBar />}>
             <Route path="/home" element={<HomePage />} />
@@ -81,6 +86,10 @@ function App() {
           <Route path="/project/:id/peer-eval/accounts/:provider" element={<PeerEvalAccountSelectPage />} />
           <Route path="/project/:id/peer-eval/:memberId/star" element={<PeerEvalStarPage />} />
           <Route path="/project/:id/peer-eval/:memberId/keyword" element={<PeerEvalKeywordPage />} />
+
+          {/* 발행된 리포트 상세 — 자체 헤더/하단탭을 가진 독립 화면 */}
+          <Route path="/project/:id/report/team" element={<TeamReportPage />} />
+          <Route path="/project/:id/report/personal" element={<PersonalReportPage />} />
 
           {/* 프로젝트 상세: 피드/채팅/업무/리포트 상단 탭 */}
           <Route path="/project/:id" element={<ProjectTabBar />}>

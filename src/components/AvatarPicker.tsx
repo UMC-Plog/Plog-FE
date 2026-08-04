@@ -1,6 +1,5 @@
 import { User } from "lucide-react";
 import { cn } from "../lib/utils";
-import cameraBadge from "../assets/profile-camera-badge.svg";
 import otterImg from "../assets/otter.png";
 import penguinImg from "../assets/penguin.png";
 import frogImg from "../assets/frog.png";
@@ -79,22 +78,16 @@ export function AvatarPicker({
               <User className="h-1/2 w-1/2 text-gray-25" strokeWidth={1.5} fill="currentColor" aria-hidden />
             )}
           </div>
-          {size === "profile-edit" && (
-            <img
-              src={cameraBadge}
-              alt=""
-              className="absolute bottom-0 right-0 h-8 w-8"
-              aria-hidden="true"
-            />
-          )}
         </div>
       </div>
 
       {/* 프리셋 그리드 */}
       <div
         className={cn(
-          "grid grid-cols-4 justify-items-center",
-          size === "profile-edit" ? "gap-x-[22px] gap-y-4" : "gap-3"
+          "grid justify-items-center",
+          size === "profile-edit"
+            ? "w-full grid-cols-[repeat(4,74px)] gap-x-[22px] gap-y-4"
+            : "grid-cols-4 gap-3"
         )}
       >
         {AVATAR_PRESETS.map((avatar) => (
@@ -106,13 +99,15 @@ export function AvatarPicker({
             className={cn(
               "flex items-center justify-center overflow-hidden rounded-full transition-all",
               size === "profile-edit"
-                ? "h-[72px] w-[72px]"
+                ? "h-[72px] w-[74px]"
                 : size === "lg"
                   ? "h-16 w-16"
                   : "h-14 w-14",
               value === avatar.id
                 ? "ring-2 ring-blue-500 ring-offset-2"
-                : "hover:ring-2 hover:ring-gray-200 hover:ring-offset-2"
+                : size === "profile-edit"
+                  ? "hover:ring-2 hover:ring-gray-200 hover:ring-offset-2"
+                  : "hover:ring-2 hover:ring-gray-200 hover:ring-offset-2"
             )}
           >
             <img src={avatar.src} alt={avatar.label} className="h-full w-full object-cover" />

@@ -1,4 +1,8 @@
-import { type ReactNode, useEffect } from "react";
+import {
+  type CSSProperties,
+  type ReactNode,
+  useEffect,
+} from "react";
 import { createPortal } from "react-dom";
 import { cn } from "../lib/utils";
 
@@ -8,12 +12,27 @@ interface ModalProps {
   children: ReactNode;
   ariaLabelledby?: string;
   contentClassName?: string;
+  overlayClassName?: string;
+}
+
+interface BottomSheetProps extends ModalProps {
+  draggable?: boolean;
+  initialHeight?: number;
+  minHeight?: number;
+  maxHeight?: number;
   closeOnHandleClick?: boolean;
   handleCloseLabel?: string;
 }
 
 /** Plog 전역 공통 Modal — 중앙 정렬 팝업 (업무카드 상세, 삭제확인 등) */
-export function Modal({ open, onClose, children, ariaLabelledby, contentClassName }: ModalProps) {
+export function Modal({
+  open,
+  onClose,
+  children,
+  ariaLabelledby,
+  contentClassName,
+  overlayClassName,
+}: ModalProps) {
   useEffect(() => {
     if (!open) return;
     const onKeyDown = (e: KeyboardEvent) => {
@@ -27,7 +46,10 @@ export function Modal({ open, onClose, children, ariaLabelledby, contentClassNam
 
   return createPortal(
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/40 px-[21px]"
+      className={cn(
+        "fixed inset-0 z-50 flex items-center justify-center bg-gray-900/40 px-[21px]",
+        overlayClassName
+      )}
       onClick={onClose}
     >
       <div
@@ -54,9 +76,13 @@ export function BottomSheet({
   children,
   ariaLabelledby,
   contentClassName,
+  draggable = false,
+  initialHeight = 588,
+  minHeight = 250,
+  maxHeight = 588,
   closeOnHandleClick = false,
   handleCloseLabel = "바텀시트 닫기",
-}: ModalProps) {
+}: BottomSheetProps) {
   useEffect(() => {
     if (!open) return;
     const onKeyDown = (e: KeyboardEvent) => {
@@ -68,6 +94,15 @@ export function BottomSheet({
 
   if (!open) return null;
 
+  const clampHeight = (height: number) => {
+    const viewportMax = Math.max(minHeight, window.innerHeight - 12);
+    return Math.min(Math.max(height, minHeight), Math.min(maxHeight, viewportMax));
+  };
+
+  const sheetStyle: CSSProperties | undefined = draggable
+    ? { height: clampHeight(initialHeight) }
+    : undefined;
+
   return createPortal(
     <div
       className="fixed inset-0 z-50 flex items-end justify-center bg-gray-900/40"
@@ -78,9 +113,10 @@ export function BottomSheet({
         aria-modal="true"
         aria-labelledby={ariaLabelledby}
         className={cn(
-          "w-full max-w-mobile rounded-t-xl bg-white p-6 pb-8 shadow-xl animate-in slide-in-from-bottom",
+          "flex w-full max-w-mobile flex-col rounded-t-xl bg-white p-6 pb-8 shadow-xl animate-in slide-in-from-bottom",
           contentClassName
         )}
+        style={sheetStyle}
         onClick={(e) => e.stopPropagation()}
       >
         {closeOnHandleClick ? (
@@ -89,14 +125,25 @@ export function BottomSheet({
             onClick={onClose}
             disabled={!onClose}
             aria-label={handleCloseLabel}
-            className="relative -top-6 mx-auto mb-[-24px] flex h-11 w-11 items-center justify-center rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:cursor-not-allowed"
+            className="relative -top-1 mx-auto mb-[15px] flex h-5 w-16 shrink-0 cursor-pointer items-start justify-center rounded-full before:absolute before:-inset-y-3 before:inset-x-0 before:content-[''] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:cursor-not-allowed"
+          >
+            <span className="h-[5px] w-11 rounded-full bg-gray-200" aria-hidden />
+          </button>
+        ) : draggable ? (
+          <button
+            type="button"
+            aria-label="바텀시트 크기 조절 핸들"
+            className="relative -top-1 mx-auto mb-[15px] flex h-5 w-16 shrink-0 cursor-pointer items-start justify-center"
           >
             <span className="h-[5px] w-11 rounded-full bg-gray-200" aria-hidden />
           </button>
         ) : (
-          <div className="relative -top-1 mx-auto mb-[15px] h-[5px] w-11 rounded-full bg-gray-200" />
+          <div
+            className="relative -top-1 mx-auto mb-[15px] h-[5px] w-11 shrink-0 rounded-full bg-gray-200"
+            aria-hidden
+          />
         )}
-        {children}
+        <div className="min-h-0 flex-1">{children}</div>
       </div>
     </div>,
     document.body
