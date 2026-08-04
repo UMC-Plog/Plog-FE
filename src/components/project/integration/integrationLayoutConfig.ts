@@ -23,7 +23,7 @@ export const INTEGRATION_STEP_LAYOUTS: Record<IntegrationProviderId, Partial<Rec
   figma: {
     1: { cardClass: "min-h-[398px]", infoHeightClass: "h-20", guideClass: "h-[67px]", guideHeadingClass: "mt-6" },
     2: { cardClass: "min-h-[508px]", infoHeightClass: "h-20" },
-    3: { cardClass: "min-h-[571px]", infoHeightClass: "h-20" },
+    3: { cardClass: "", infoHeightClass: "h-20" },
     4: { cardClass: "", cardPaddingClass: "pb-[22px] pt-[29px]", infoHeightClass: "h-20" },
   },
   notion: {

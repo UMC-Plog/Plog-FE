@@ -1,5 +1,6 @@
 import type {
   FigmaResourceRegisterRequest,
+  GooglePickerAccessTokenResponse,
   GoogleResourceRegisterRequest,
   IntegrationAuthorizationResponse,
   IntegrationCollectionResponse,
@@ -8,6 +9,7 @@ import type {
   IntegrationProviderPath,
   IntegrationResourceCandidateResponse,
   IntegrationResourceListResponse,
+  IntegrationResourceRemovalResponse,
   IntegrationResourceResponse,
   IntegrationStatusResponse,
   NotionResourceRegisterRequest,
@@ -88,6 +90,26 @@ export function registerGoogleResource(projectId: string, fileId: string) {
   return apiRequest<IntegrationResourceResponse>(
     `/api/projects/${projectId}/integrations/google/resources`,
     { method: "POST", body: request }
+  );
+}
+
+/** 3-4. 이미 연결된 프로젝트 Google 계정의 Picker용 단기 access token 발급 */
+export function issueGooglePickerAccessToken(projectId: string) {
+  return apiRequest<GooglePickerAccessTokenResponse>(
+    `/api/projects/${projectId}/integrations/google/picker-access-token`,
+    { method: "POST" }
+  );
+}
+
+/** 3-7. 등록된 Figma·Notion·Google 수집 대상 리소스 하나 제거 */
+export function removeIntegrationResource(
+  projectId: string,
+  provider: Exclude<IntegrationProviderPath, "github">,
+  resourceId: number
+) {
+  return apiRequest<IntegrationResourceRemovalResponse>(
+    `/api/projects/${projectId}/integrations/${provider}/resources/${resourceId}`,
+    { method: "DELETE" }
   );
 }
 

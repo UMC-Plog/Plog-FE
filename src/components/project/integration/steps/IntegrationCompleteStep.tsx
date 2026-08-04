@@ -42,11 +42,13 @@ export function IntegrationFileList({
   logoSize,
   items,
   onRemove,
+  removingKey,
 }: {
   icon: string;
   logoSize: number;
   items: IntegrationResourceItem[];
   onRemove?: (key: string) => void;
+  removingKey?: string | null;
 }) {
   return (
     <div className="mt-3 rounded-[14px] border border-gray-100 bg-white px-[18px] shadow-card">
@@ -60,7 +62,13 @@ export function IntegrationFileList({
             <p className="mt-1 text-[11px] text-gray-400">{item.subtitle}</p>
           </div>
           {onRemove && (
-            <button type="button" aria-label={`${item.name} 삭제`} onClick={() => onRemove(item.key)} className="ml-auto flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gray-100">
+            <button
+              type="button"
+              aria-label={`${item.name} 삭제`}
+              onClick={() => onRemove(item.key)}
+              disabled={removingKey === item.key}
+              className="ml-auto flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gray-100 disabled:cursor-wait disabled:opacity-50"
+            >
               <X className="h-4 w-4 text-gray-400" />
             </button>
           )}

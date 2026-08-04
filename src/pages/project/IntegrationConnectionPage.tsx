@@ -13,9 +13,11 @@ import {
   getIntegrationResources,
   getIntegrationStatus,
   getNotionResourceCandidates,
+  issueGooglePickerAccessToken,
   registerFigmaResource,
   registerGoogleResource,
   registerNotionResource,
+  removeIntegrationResource,
 } from "../../api/integrationApi";
 import { ApiError } from "../../api/client";
 import { openBlankAuthWindow, waitForIntegrationLinked } from "../../lib/integrationAuth";
@@ -330,6 +332,7 @@ export default function IntegrationConnectionPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [isRegistering, setIsRegistering] = useState(false);
+  const [removingResourceId, setRemovingResourceId] = useState<number | null>(null);
   const [isPickerOpening, setIsPickerOpening] = useState(false);
   const authAbortRef = useRef<AbortController | null>(null);
 
@@ -371,6 +374,10 @@ export default function IntegrationConnectionPage() {
   );
   const registeredResourceIds = useMemo(
     () => new Set(resources.map((resource) => resource.providerResourceId)),
+    [resources]
+  );
+  const registeredResourcesByProviderId = useMemo(
+    () => new Map(resources.map((resource) => [resource.providerResourceId, resource])),
     [resources]
   );
   const displayResources = useMemo(() => {
@@ -571,6 +578,61 @@ export default function IntegrationConnectionPage() {
     }
   };
 
+  const handleRemoveFigmaResource = async (key: string) => {
+    const resourceId = Number(key);
+    if (!Number.isSafeInteger(resourceId) || removingResourceId !== null) return;
+
+    setRemovingResourceId(resourceId);
+    setSaveError(null);
+
+    try {
+      await removeIntegrationResource(id, "figma", resourceId);
+      setResources((items) => items.filter((item) => item.resourceId !== resourceId));
+      setResourceError(null);
+    } catch (error) {
+      setSaveError(getErrorMessage(error, "Figma 파일 연동을 해제하지 못했어요. 다시 시도해 주세요."));
+    } finally {
+      setRemovingResourceId(null);
+    }
+  };
+
+  const handleRemoveNotionResource = async (providerResourceId: string) => {
+    const resource = registeredResourcesByProviderId.get(providerResourceId);
+    if (!resource || removingResourceId !== null) return;
+
+    setRemovingResourceId(resource.resourceId);
+    setSaveError(null);
+
+    try {
+      await removeIntegrationResource(id, "notion", resource.resourceId);
+      setResources((items) => items.filter((item) => item.resourceId !== resource.resourceId));
+      setSelectedCandidates((items) => items.filter((item) => item !== providerResourceId));
+      setResourceError(null);
+    } catch (error) {
+      setSaveError(getErrorMessage(error, "Notion 항목 연동을 해제하지 못했어요. 다시 시도해 주세요."));
+    } finally {
+      setRemovingResourceId(null);
+    }
+  };
+
+  const handleRemoveGoogleResource = async (key: string) => {
+    const resourceId = Number(key);
+    if (!Number.isSafeInteger(resourceId) || removingResourceId !== null) return;
+
+    setRemovingResourceId(resourceId);
+    setSaveError(null);
+
+    try {
+      await removeIntegrationResource(id, "google", resourceId);
+      setResources((items) => items.filter((item) => item.resourceId !== resourceId));
+      setResourceError(null);
+    } catch (error) {
+      setSaveError(getErrorMessage(error, "Google 파일 연동을 해제하지 못했어요. 다시 시도해 주세요."));
+    } finally {
+      setRemovingResourceId(null);
+    }
+  };
+
   const handleOpenGooglePicker = async () => {
     if (!isGooglePicker || isPickerOpening) return;
 
@@ -578,7 +640,10 @@ export default function IntegrationConnectionPage() {
     setSaveError(null);
 
     try {
-      const selectedFile = await openGooglePicker(providerId);
+      const pickerToken = await issueGooglePickerAccessToken(id);
+      setAccountName(pickerToken.connectedAccountName);
+
+      const selectedFile = await openGooglePicker(providerId, pickerToken.accessToken);
       if (!selectedFile) return;
 
       const resource = await registerGoogleResource(id, selectedFile.id);
@@ -894,22 +959,28 @@ export default function IntegrationConnectionPage() {
                           }
 
                           return visible.map((candidate) => {
-                            const registered = registeredResourceIds.has(candidate.providerResourceId);
+                            const registeredResource = registeredResourcesByProviderId.get(candidate.providerResourceId);
+                            const registered = registeredResource !== undefined;
                             const selected = registered || selectedCandidates.includes(candidate.providerResourceId);
                             const isDatabase = candidate.resourceType === "DATA_SOURCE";
+                            const isRemoving = removingResourceId === registeredResource?.resourceId;
                             return (
                               <button
                                 key={candidate.providerResourceId}
                                 type="button"
-                                disabled={registered}
-                                onClick={() =>
+                                disabled={isRemoving}
+                                onClick={() => {
+                                  if (registered) {
+                                    void handleRemoveNotionResource(candidate.providerResourceId);
+                                    return;
+                                  }
                                   setSelectedCandidates((items) =>
                                     items.includes(candidate.providerResourceId)
                                       ? items.filter((item) => item !== candidate.providerResourceId)
                                       : [...items, candidate.providerResourceId]
-                                  )
-                                }
-                                className="flex h-[57px] w-full items-center disabled:opacity-60"
+                                  );
+                                }}
+                                className="flex h-[57px] w-full items-center disabled:cursor-wait disabled:opacity-60"
                               >
                                 <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-[8px] border ${selected ? "border-blue-500 bg-gradient-to-b from-blue-500 to-aqua-500 text-white" : "border-gray-400"}`}>
                                   {selected && <Check className="h-4 w-4" />}
@@ -958,7 +1029,8 @@ export default function IntegrationConnectionPage() {
                     icon={config.icon}
                     logoSize={config.listLogo}
                     items={resourceItems}
-                    onRemove={(key) => setFiles((items) => items.filter((item) => item !== key))}
+                    onRemove={isServer ? (key) => void handleRemoveGoogleResource(key) : (key) => setFiles((items) => items.filter((item) => item !== key))}
+                    removingKey={removingResourceId === null ? null : String(removingResourceId)}
                   />
                 </>
               )}
@@ -1002,7 +1074,8 @@ export default function IntegrationConnectionPage() {
                     icon={config.icon}
                     logoSize={config.listLogo}
                     items={resourceItems}
-                    onRemove={isServer ? undefined : (key) => setFiles((items) => items.filter((item) => item !== key))}
+                    onRemove={isServer ? (key) => void handleRemoveFigmaResource(key) : (key) => setFiles((items) => items.filter((item) => item !== key))}
+                    removingKey={removingResourceId === null ? null : String(removingResourceId)}
                   />
                 </>
               )}
