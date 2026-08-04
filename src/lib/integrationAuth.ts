@@ -7,11 +7,24 @@ const MAX_WAIT_MS = 5 * 60 * 1000;
 const POLLS_AFTER_WINDOW_CLOSED = 3;
 
 /**
+ * 터치가 주 입력 수단인 기기(모바일)인지 확인한다.
+ * 모바일 브라우저는 window.open()이 팝업 차단 없이 "성공"해도 실제로는
+ * 별도의 새 탭으로 열린다. 그 탭은 히스토리가 비어있어 뒤로가기 제스처로
+ * Plog 화면에 돌아올 방법이 없어지므로, 이런 환경에서는 애초에 새 창을
+ * 시도하지 않고 같은 탭에서 이동시켜 브라우저 히스토리를 유지해야 한다.
+ */
+function isTouchPrimaryDevice() {
+  return typeof window !== "undefined" && Boolean(window.matchMedia?.("(pointer: coarse)").matches);
+}
+
+/**
  * provider 승인 창을 미리 연다.
  * 팝업 차단을 피하려면 반드시 클릭 핸들러 안에서 동기적으로 호출해야 한다
  * (연동 URL 발급 API를 await한 뒤에 열면 사용자 제스처가 끊겨 차단된다).
+ * 모바일에서는 null을 반환해 호출부가 같은 탭 이동 경로를 타도록 한다.
  */
 export function openBlankAuthWindow() {
+  if (isTouchPrimaryDevice()) return null;
   return window.open("", "plog-integration-auth", "width=520,height=720");
 }
 
