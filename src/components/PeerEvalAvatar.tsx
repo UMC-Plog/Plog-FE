@@ -4,13 +4,19 @@ import { toAvatarId } from '../lib/profilePreset'
 
 interface PeerEvalAvatarProps {
   profilePreset: string | null
-  size?: 'sm' | 'md'
+  size?: 'xs' | 'sm' | 'md'
 }
+
+const SIZE_CLASSES = {
+  xs: 'size-6',
+  sm: 'size-8',
+  md: 'size-10',
+} as const
 
 export function PeerEvalAvatar({ profilePreset, size = 'md' }: PeerEvalAvatarProps) {
   const avatarId = toAvatarId(profilePreset)
   const avatar = AVATAR_PRESETS.find((item) => item.id === avatarId)
-  const sizeClass = size === 'sm' ? 'size-8' : 'size-10'
+  const sizeClass = SIZE_CLASSES[size]
 
   if (avatar) {
     return (
