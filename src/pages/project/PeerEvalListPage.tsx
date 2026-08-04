@@ -260,7 +260,9 @@ export default function PeerEvalListPage() {
                   )}
                 </div>
                 <p className="text-caption text-gray-400 mt-2">
-                  활동 로그로 파악하기 어려운 기여 맥락 작성
+                  활동 로그로 파악하기 어려운
+                  <br />
+                  기여 맥락을 작성해 주세요
                 </p>
               </div>
             </div>
@@ -288,7 +290,7 @@ export default function PeerEvalListPage() {
 
           {/* 내 계정 선택 카드 - 연동된 외부 툴이 있을 때만 노출 */}
           {!loading && !integrationsUnavailable && linkedProviders.length > 0 && (
-            <div className="bg-primary-50 border border-primary rounded-2xl shadow-md px-5 py-4 flex items-start gap-3">
+            <div className="bg-white border border-gray-100 rounded-2xl shadow-md px-5 py-4 flex items-start gap-3">
               <PersonIcon />
               <div className="flex-1">
                 <div className="flex items-center justify-between">
@@ -312,7 +314,9 @@ export default function PeerEvalListPage() {
                   )}
                 </div>
                 <p className="text-caption text-gray-400 mt-2">
-                  신뢰도 높은 리포트 출력을 위해 본인 계정 선택이 필요해요
+                  신뢰도 높은 리포트 출력을 위해
+                  <br />
+                  본인 계정 선택이 필요해요
                 </p>
               </div>
             </div>
@@ -344,7 +348,7 @@ export default function PeerEvalListPage() {
               : 'bg-gray-100 text-gray-400 cursor-not-allowed',
           )}
         >
-          {allDone ? '최종 제출하기' : '모든 평가 완료 후 제출 가능합니다'}
+          {allDone ? '최종 제출하기' : '모든 평가 완료 후 제출 가능해요'}
         </button>
       </div>
 
