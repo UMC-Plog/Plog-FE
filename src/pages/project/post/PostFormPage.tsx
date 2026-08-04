@@ -253,7 +253,9 @@ export default function PostFormPage() {
           <Button type="button" variant="ghost" size="sm" fullWidth={false} onClick={handleCancel} className="justify-self-start px-0 text-gray-500">
             취소
           </Button>
-          <h1 className="text-center text-body font-semibold text-gray-900">게시글 작성</h1>
+          <h1 className="text-center text-body font-semibold text-gray-900">
+            {isEditMode ? '게시글 수정' : '게시글 작성'}
+          </h1>
         </header>
         <main className="flex flex-1 flex-col items-center justify-center px-8 text-center">
           <p className="text-title font-bold text-gray-700">
@@ -276,9 +278,17 @@ export default function PostFormPage() {
         <Button type="button" variant="ghost" size="sm" fullWidth={false} onClick={handleCancel} className="justify-self-start px-0 text-gray-500">
           취소
         </Button>
-        <h1 className="text-center text-body font-semibold text-gray-900">게시글 작성</h1>
+        <h1 className="text-center text-body font-semibold text-gray-900">
+          {isEditMode ? '게시글 수정' : '게시글 작성'}
+        </h1>
         <Button type="button" size="sm" fullWidth={false} disabled={!canSubmit} onClick={() => void handleSubmit()} className="justify-self-end text-white">
-          {isSubmitting ? '게시 중' : '게시'}
+          {isSubmitting
+            ? isEditMode
+              ? '수정 중'
+              : '게시 중'
+            : isEditMode
+              ? '수정'
+              : '게시'}
         </Button>
       </header>
 

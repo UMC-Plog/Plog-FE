@@ -76,14 +76,17 @@ export function NoticeHistoryItem({
 
   return (
     <article className="relative">
-      <div className="flex items-center gap-3">
-        <PostAuthorAvatar profilePreset={notice.profilePreset} />
+      <div className="flex items-center gap-4">
+        <PostAuthorAvatar
+          profilePreset={notice.profilePreset}
+          className="h-[46px] w-[46px]"
+        />
 
         <div className="min-w-0 flex-1">
-          <p className="truncate text-body-sm font-semibold text-gray-900">
+          <p className="truncate text-[18px] font-normal leading-7 text-gray-900">
             {notice.authorNickname ?? '알 수 없는 사용자'}
           </p>
-          <p className="text-caption font-normal text-gray-400">
+          <p className="text-[12px] font-normal leading-4 text-gray-400">
             {formatNoticeTime(notice.createdAt)}
           </p>
         </div>
@@ -101,7 +104,7 @@ export function NoticeHistoryItem({
               }}
               className="flex h-10 w-10 items-center justify-center rounded-full text-gray-500 hover:bg-gray-50"
             >
-              <Ellipsis className="h-5 w-5" aria-hidden />
+              <Ellipsis className="h-[22px] w-[22px]" aria-hidden />
             </button>
 
             {isMenuOpen && (
@@ -133,10 +136,13 @@ export function NoticeHistoryItem({
         )}
       </div>
 
-      <div className="mt-3 rounded-[20px] bg-white px-5 py-6 shadow-md">
-        <h2 className="break-words text-title font-bold text-gray-900">{notice.title}</h2>
-        <div className="my-6 h-px bg-gray-100" />
-        <p className="line-clamp-3 whitespace-pre-wrap break-words text-body-sm text-gray-700">
+      <div className="mt-5 rounded-16 border border-gray-100 bg-gray-25 px-[23px] py-[25px] shadow-card">
+        <div className="flex h-10 items-start border-b border-gray-200">
+          <h2 className="break-words text-[16px] font-semibold leading-6 text-gray-900">
+            {notice.title}
+          </h2>
+        </div>
+        <p className="mt-5 whitespace-pre-wrap break-words text-[14px] font-normal leading-5 text-gray-900">
           {notice.content}
         </p>
       </div>

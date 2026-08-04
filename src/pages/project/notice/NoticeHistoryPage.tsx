@@ -180,7 +180,7 @@ export default function NoticeHistoryPage() {
             }
           />
         ) : notices.length > 0 ? (
-          <div className="space-y-4 px-4 py-5">
+          <div className="space-y-4 px-5 py-6">
             {notices.map((notice) => (
               <NoticeHistoryItem
                 key={notice.postId}

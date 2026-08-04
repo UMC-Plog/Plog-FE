@@ -166,24 +166,22 @@ export default function ProjectFeedPage() {
           description={'첫 게시물이나 공지를 작성해\n팀원들과 진행 상황을 공유해보세요'}
         />
       ) : (
-        <div className="w-full px-4 py-4">
+        <div className="w-full px-5 py-4">
           {notice && (
             <button
               type="button"
               onClick={() =>
                 navigate(`/project/${notice.projectId}/notices`)
               }
-              className="flex w-full items-center gap-2 rounded-md bg-blue-50 px-3 py-2.5 text-left text-body-sm text-blue-600 hover:bg-blue-100"
+              className="flex h-[38px] w-full items-center gap-2 rounded-12 bg-blue-50 px-[13px] text-left text-[12px] font-normal leading-4 text-blue-500 hover:bg-blue-100"
             >
               <Volume2 className="h-4 w-4 shrink-0" aria-hidden />
-              <p className="min-w-0 truncate">
-                <span className="font-semibold">[공지]</span> {notice.title}
-              </p>
+              <p className="min-w-0 truncate">[공지] {notice.title}</p>
             </button>
           )}
 
           {posts.length > 0 && (
-            <div className="mt-4 space-y-4">
+            <div className={notice ? 'mt-[19px] space-y-4' : 'space-y-4'}>
               {posts.map((post, index) => (
                 <PostFeedItem
                   key={`${post.postId}-${index}`}
@@ -257,12 +255,16 @@ export default function ProjectFeedPage() {
         fullWidth={false}
         aria-label={isWriteMenuOpen ? '작성 메뉴 닫기' : '작성 메뉴 열기'}
         onClick={() => setIsWriteMenuOpen((isOpen) => !isOpen)}
-        className="absolute bottom-4 right-4 z-20 h-12 w-12 rounded-full p-0 text-white shadow-md"
+        className={
+          isWriteMenuOpen
+            ? 'absolute bottom-4 right-4 z-20 h-12 w-12 rounded-full p-0 text-white shadow-md'
+            : 'absolute bottom-8 right-[31px] z-20 h-[60px] w-[60px] rounded-full p-0 text-white shadow-md'
+        }
       >
         {isWriteMenuOpen ? (
           <X className="h-6 w-6 text-white" aria-hidden />
         ) : (
-          <Plus className="h-6 w-6 text-white" aria-hidden />
+          <Plus className="h-7 w-7 text-white" aria-hidden />
         )}
       </Button>
     </div>

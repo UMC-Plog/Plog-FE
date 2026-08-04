@@ -2,6 +2,7 @@ import { FileText, Heart, Link, MessageSquare } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { ApiError } from '../../api/client'
 import { likePost, unlikePost } from '../../api/postApi'
+import { formatFileSize } from '../../lib/attachment'
 import { AlertModal } from '../Modal'
 import { useAuthStore } from '../../store/authStore'
 import type { PostListItemViewModel } from '../../types/post'
@@ -27,6 +28,12 @@ export function PostFeedItem({ post, onClick }: PostFeedItemProps) {
   const user = useAuthStore((state) => state.user)
   const attachment = post.attachments[0]
   const AttachmentIcon = attachment?.type === 'LINK' ? Link : FileText
+  const attachmentMeta =
+    attachment?.type === 'LINK'
+      ? '링크'
+      : attachment?.fileSize === undefined
+        ? '파일'
+        : formatFileSize(attachment.fileSize)
   const initialIsLiked = post.likedByMe
   const [isLiked, setIsLiked] = useState(initialIsLiked)
   const [likeCount, setLikeCount] = useState(post.likeCount)
@@ -93,38 +100,55 @@ export function PostFeedItem({ post, onClick }: PostFeedItemProps) {
           onClick()
         }
       }}
-      className="w-full cursor-pointer rounded-lg bg-white p-4 text-left shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-300"
+      className="w-full cursor-pointer rounded-16 border border-gray-100 bg-gray-25 p-4 text-left shadow-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-300"
     >
       <div className="flex items-center gap-3">
-        <PostAuthorAvatar profilePreset={post.profilePreset} />
-        <div className="min-w-0">
-          <p className="truncate text-body-sm font-semibold text-gray-900">
+        <PostAuthorAvatar profilePreset={post.profilePreset} className="h-11 w-11" />
+        <div className="flex min-w-0 flex-col gap-1">
+          <p className="truncate text-[15px] font-normal leading-6 text-gray-900">
             {post.authorNickname ?? '알 수 없는 사용자'}
           </p>
-          <p className="text-caption font-normal text-gray-400">{formatPostTime(post.createdAt)}</p>
+          <p className="text-[12px] font-normal leading-4 text-gray-400">{formatPostTime(post.createdAt)}</p>
         </div>
       </div>
 
-      <h2 className="mt-4 text-body font-semibold text-gray-900">
+      <h2 className="mt-2 text-[15px] font-normal leading-6 text-gray-900">
         {post.title}
       </h2>
-      <p className="mt-1 whitespace-pre-wrap text-body-sm text-gray-700">
-        {post.content}
-      </p>
 
       {attachment && (
-        <div className="mt-4 flex items-center gap-3 rounded-md bg-gray-50 px-3 py-3">
-          <AttachmentIcon className="h-5 w-5 shrink-0 text-primary" aria-hidden />
-          <p className="min-w-0 flex-1 truncate text-body-sm text-blue-600">{attachment.fileName}</p>
+        <div className="mt-3 flex h-14 items-center gap-2.5 rounded-12 bg-gray-100 px-3 py-2.5">
+          <span
+            className={`flex h-9 w-9 shrink-0 items-center justify-center ${
+              attachment.type === 'LINK'
+                ? 'rounded-12 bg-gray-900'
+                : 'rounded-md bg-white'
+            }`}
+          >
+            <AttachmentIcon
+              className={
+                attachment.type === 'LINK'
+                  ? 'h-5 w-5 text-white'
+                  : 'h-[22px] w-[18px] text-primary'
+              }
+              aria-hidden
+            />
+          </span>
+          <p className="min-w-0 flex-1 truncate text-[12px] font-normal leading-4 text-navy-700">
+            {attachment.fileName}
+          </p>
+          <span className="shrink-0 text-[12px] font-normal leading-4 text-gray-400">
+            {attachmentMeta}
+          </span>
           {post.attachments.length > 1 && (
-            <span className="shrink-0 text-caption font-normal text-gray-400">
+            <span className="shrink-0 text-[12px] font-normal leading-4 text-gray-400">
               +{post.attachments.length - 1}
             </span>
           )}
         </div>
       )}
 
-      <div className="mt-4 flex items-center gap-4 text-caption font-normal text-gray-400">
+      <div className="mt-3 flex items-center gap-[18px] text-[12px] font-normal leading-4 text-gray-400">
         <button
           type="button"
           disabled={!user || isLikeSubmitting}
@@ -139,7 +163,7 @@ export function PostFeedItem({ post, onClick }: PostFeedItemProps) {
             isLiked ? 'text-error hover:text-error/80' : 'text-gray-400 hover:text-error'
           }`}
         >
-          <Heart className={`h-4 w-4 ${isLiked ? 'fill-current' : ''}`} aria-hidden />
+          <Heart className={`h-3 w-3 ${isLiked ? 'fill-current' : ''}`} aria-hidden />
           {likeCount}
         </button>
         <span className="flex items-center gap-1">
