@@ -459,22 +459,22 @@ export default function ProjectTaskPage() {
   const totalCount = allTasks.length
 
   return (
-    <div className="min-w-0 px-4 py-4">
-      <section className="rounded-lg bg-white p-4 shadow-md" aria-label="전체 업무 완료율">
-        <div className="mb-3 flex items-center justify-between gap-3">
-          <h1 className="text-body-sm font-semibold text-gray-900">전체 완료율</h1>
-          <span className="text-body-sm font-semibold text-primary">
+    <div className="min-w-0 px-5 py-4">
+      <section className="flex h-[76px] w-full flex-col gap-2 rounded-16 border border-gray-100 bg-gray-25 px-[21px] py-[17px] shadow-card" aria-label="전체 업무 완료율">
+        <div className="flex items-center justify-between gap-3">
+          <h1 className="text-body font-semibold text-gray-900">전체 완료율</h1>
+          <span className="text-body font-semibold text-primary">
             {completedCount} / {totalCount} 완료
           </span>
         </div>
         {totalCount > 0 ? (
           <ProgressBar total={totalCount} current={completedCount} />
         ) : (
-          <div className="h-1.5 w-full rounded-full bg-gray-100" role="progressbar" aria-valuenow={0} aria-valuemin={0} aria-valuemax={100} />
+          <div className="h-2 w-full rounded-full bg-gray-100" role="progressbar" aria-valuenow={0} aria-valuemin={0} aria-valuemax={100} />
         )}
       </section>
 
-      <div className="mt-4 flex items-center justify-between gap-2">
+      <div className="mt-4 flex h-8 items-center justify-between gap-2">
         <div className="flex min-w-0 items-center gap-2" role="group" aria-label="업무 필터">
           {FILTERS.map((item) => (
             <button
@@ -483,10 +483,10 @@ export default function ProjectTaskPage() {
               onClick={() => selectFilter(item.value)}
               aria-pressed={filter === item.value}
               className={cn(
-                'h-8 shrink-0 rounded-full border px-3 text-caption transition-colors',
+                'h-8 shrink-0 rounded-full border text-[14px] font-normal leading-5 transition-colors',
                 filter === item.value
-                  ? 'border-primary-100 bg-primary-100 text-primary'
-                  : 'border-gray-200 bg-white font-normal text-gray-400'
+                  ? 'border-primary-100 bg-primary-100 px-[14px] text-primary'
+                  : 'border-gray-200 bg-white px-[15px] text-gray-400'
               )}
             >
               {item.label}
@@ -499,7 +499,7 @@ export default function ProjectTaskPage() {
           size="sm"
           fullWidth={false}
           icon={<Plus className="h-4 w-4" aria-hidden />}
-          className="shrink-0 text-white"
+          className="h-8 w-[92px] shrink-0 gap-1 rounded-full px-0 text-[12px] font-semibold leading-4 text-white"
           onClick={() => setIsCreateOpen(true)}
         >
           업무 등록
@@ -540,8 +540,8 @@ export default function ProjectTaskPage() {
           }
         />
       ) : (
-        <div className="-mx-4 mt-4 overflow-x-auto px-4 pb-4">
-          <div className="flex min-w-max items-start gap-3">
+        <div className="-mx-5 mt-4 overflow-x-auto px-5 pb-4">
+          <div className="flex w-[744px] min-w-[744px] items-start gap-3">
             {TASK_STATUSES.map((status) => (
               <KanbanColumn
                 key={status}

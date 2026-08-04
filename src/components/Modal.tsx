@@ -17,6 +17,7 @@ interface ModalProps {
 }
 
 interface BottomSheetProps extends Omit<ModalProps, "variant"> {
+  variant?: "default" | "task";
   draggable?: boolean;
   initialHeight?: number;
   minHeight?: number;
@@ -81,12 +82,15 @@ export function BottomSheet({
   children,
   ariaLabelledby,
   contentClassName,
+  variant = "default",
   draggable = false,
   initialHeight = 588,
   minHeight = 250,
   maxHeight = 588,
   closeOnHandleClick = false,
 }: BottomSheetProps) {
+  const isTask = variant === "task";
+
   useEffect(() => {
     if (!open) return;
     const onKeyDown = (e: KeyboardEvent) => {
@@ -118,6 +122,8 @@ export function BottomSheet({
         aria-labelledby={ariaLabelledby}
         className={cn(
           "flex w-full max-w-mobile flex-col rounded-t-xl bg-white p-6 pb-8 shadow-xl animate-in slide-in-from-bottom",
+          isTask &&
+            "max-h-[min(740px,100dvh)] rounded-t-[26px] px-5 pb-7 pt-[14px] shadow-task-sheet",
           contentClassName
         )}
         style={sheetStyle}
@@ -127,15 +133,30 @@ export function BottomSheet({
           <button
             type="button"
             aria-label="바텀시트 닫기"
-            className="relative -top-1 mx-auto mb-[15px] flex h-5 w-16 shrink-0 cursor-pointer items-start justify-center"
+            className={cn(
+              "relative -top-1 mx-auto mb-[15px] flex h-5 w-16 shrink-0 cursor-pointer items-start justify-center",
+              isTask && "top-0"
+            )}
             onClick={() => closeOnHandleClick && onClose?.()}
           >
-            <span className="h-[5px] w-11 rounded-full bg-gray-200" />
+            <span
+              className={cn(
+                "h-[5px] w-11 rounded-full bg-gray-200",
+                isTask && "rounded-[3px]"
+              )}
+            />
           </button>
         ) : (
-          <div className="relative -top-1 mx-auto mb-[15px] h-[5px] w-11 shrink-0 rounded-full bg-gray-200" />
+          <div
+            className={cn(
+              "relative -top-1 mx-auto mb-[15px] h-[5px] w-11 shrink-0 rounded-full bg-gray-200",
+              isTask && "top-0 rounded-[3px]"
+            )}
+          />
         )}
-        <div className="min-h-0 flex-1">{children}</div>
+        <div className={cn("min-h-0 flex-1", isTask && "overflow-hidden")}>
+          {children}
+        </div>
       </div>
     </div>,
     document.body

@@ -100,16 +100,17 @@ export function TaskCardDetailModal({
     <BottomSheet
       open={open}
       onClose={isStatusUpdating || isDeleting ? undefined : onClose}
+      variant="task"
     >
-      <div className="max-h-[calc(100svh-7rem)] overflow-y-auto pr-1">
+      <div className="h-full max-h-[calc(100dvh-4.75rem)] overflow-y-auto overscroll-contain">
         <div className="flex items-center justify-between gap-3">
-          <h2 className="text-h3 text-gray-900">업무카드 상세</h2>
+          <h2 className="text-[22px] font-semibold leading-8 text-gray-900">업무카드 상세</h2>
           {task && (
             <div className="flex gap-1">
-              <Button type="button" variant="ghost" size="sm" fullWidth={false} disabled={isStatusUpdating || isDeleting} onClick={onEdit} className="h-7 px-2.5 text-caption leading-none bg-gray-100 text-gray-400">
+              <Button type="button" variant="ghost" size="sm" fullWidth={false} disabled={isStatusUpdating || isDeleting} onClick={onEdit} className="h-8 rounded-md bg-gray-100 px-4 text-caption leading-none text-gray-400">
                 수정
               </Button>
-              <Button type="button" variant="ghost" size="sm" fullWidth={false} disabled={isStatusUpdating || isDeleting} onClick={onDelete} className="h-7 px-2.5 text-caption leading-none bg-error/10 text-error hover:bg-error/20">
+              <Button type="button" variant="ghost" size="sm" fullWidth={false} disabled={isStatusUpdating || isDeleting} onClick={onDelete} className="h-8 rounded-md bg-error/10 px-4 text-caption leading-none text-error hover:bg-error/20">
                 삭제
               </Button>
             </div>
@@ -147,9 +148,9 @@ export function TaskCardDetailModal({
           </div>
         )}
 
-        <div className="mt-5 border-b border-gray-200 pb-4">
+        <div className="mt-4 border-b border-gray-200 pb-4">
           <p className="text-body-sm text-gray-600">업무명</p>
-          <h3 className="mt-2 text-title font-bold text-gray-900">{task.title}</h3>
+          <h3 className="mt-2 text-[22px] font-semibold leading-8 text-gray-900">{task.title}</h3>
         </div>
 
         <dl className="mt-4 grid grid-cols-2 gap-x-4 gap-y-5">
@@ -195,7 +196,7 @@ export function TaskCardDetailModal({
           <h3 className="text-body-sm text-gray-600">첨부 자료</h3>
           <AttachmentList
             attachments={normalizedAttachments}
-            variant="subtle"
+            variant="taskDetail"
             className="mt-2"
             emptyContent={
               <p className="mt-2 text-body-sm text-gray-400">
@@ -205,7 +206,7 @@ export function TaskCardDetailModal({
           />
         </div>
 
-        <p className="mt-4 flex items-start gap-2 rounded-md bg-primary-50 p-3 text-caption font-normal text-primary-700">
+        <p className="mt-4 flex items-start gap-2 rounded-12 bg-primary-50 p-3 text-caption font-normal text-primary-700">
           <Info className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
           <span>
             첨부 산출물과 업무 완료 여부가 기여도 분석 시 교차 검증됩니다. 파일 첨부만으로 기여도가 높아지지 않습니다.
@@ -213,12 +214,13 @@ export function TaskCardDetailModal({
         </p>
 
         <div className="mt-5 flex gap-3">
-          <Button type="button" variant="ghost" fullWidth={false} disabled={isStatusUpdating} onClick={onUnavailableAction} className="flex-1 bg-gray-100 text-gray-400">
+          <Button type="button" variant="ghost" size="lg" fullWidth={false} disabled={isStatusUpdating} onClick={onUnavailableAction} className="flex-1 bg-gray-100 text-gray-400">
             파일 추가
           </Button>
           {task.status !== 'DONE' ? (
             <Button
               type="button"
+              size="lg"
               fullWidth={false}
               loading={isStatusUpdating}
               disabled={isStatusUpdating}
@@ -238,6 +240,7 @@ export function TaskCardDetailModal({
           ) : (
             <Button
               type="button"
+              size="lg"
               fullWidth={false}
               disabled
               className="flex-[2] text-white"

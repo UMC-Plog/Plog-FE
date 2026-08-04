@@ -38,20 +38,19 @@ export function TaskCard({ task, onClick }: TaskCardProps) {
       type="button"
       onClick={() => onClick?.(task)}
       className={cn(
-        'w-full rounded-lg border bg-white p-4 text-left shadow-sm transition-colors',
+        'flex min-h-[110px] w-full flex-col gap-2 rounded-12 border border-transparent bg-gray-25 p-4 text-left shadow-task-card transition-colors',
         'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-300',
-        task.isOverdue ? 'border-error' : 'border-gray-100',
-        onClick && 'hover:border-primary-200'
+        task.isOverdue && 'border-error'
       )}
     >
       <div className="flex items-start justify-between gap-2">
-        <h3 className="min-w-0 flex-1 break-words text-body-sm font-semibold text-gray-900">
+        <h3 className="min-w-0 flex-1 break-words text-[14px] font-normal leading-5 text-gray-900">
           {task.title}
         </h3>
         <span
           className={cn(
             TASK_BADGE_BASE_CLASS,
-            'shrink-0 whitespace-nowrap px-2 py-0.5 text-caption',
+            'shrink-0 whitespace-nowrap',
             category.className
           )}
         >
@@ -59,9 +58,9 @@ export function TaskCard({ task, onClick }: TaskCardProps) {
         </span>
       </div>
 
-      <div className="mt-3 flex items-center gap-3 text-caption font-normal text-gray-400">
+      <div className="flex items-center gap-3 text-[12px] font-normal leading-4 text-gray-400">
         <span className="flex items-center gap-1">
-          <Paperclip className="h-4 w-4" aria-hidden />
+          <Paperclip className="h-[13px] w-[13px]" aria-hidden />
           {task.attachmentCount}
         </span>
         <span
@@ -70,20 +69,20 @@ export function TaskCard({ task, onClick }: TaskCardProps) {
             task.isOverdue && 'font-semibold text-error'
           )}
         >
-          <CalendarDays className="h-4 w-4" aria-hidden />
+          <CalendarDays className="h-[13px] w-[13px]" aria-hidden />
           {task.isOverdue ? '마감초과' : formatDueDate(task.dueDate)}
         </span>
       </div>
 
-      <div className="mt-3 flex items-center gap-2">
-        <div className="flex h-7 w-7 shrink-0 items-center justify-center overflow-hidden rounded-full bg-gray-100">
+      <div className="flex items-center gap-[7px]">
+        <div className="flex h-6 w-6 shrink-0 items-center justify-center overflow-hidden rounded-full bg-gray-100">
           {avatarSrc ? (
             <img src={avatarSrc} alt="" className="h-full w-full object-cover" />
           ) : (
             <UserRound className="h-4 w-4 text-gray-400" aria-hidden />
           )}
         </div>
-        <span className="min-w-0 truncate text-caption font-normal text-gray-500">
+        <span className="min-w-0 truncate text-[12px] font-normal leading-4 text-gray-500">
           {task.assignee.nickname ?? '알 수 없는 사용자'}
         </span>
       </div>

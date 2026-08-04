@@ -18,11 +18,11 @@ export function KanbanColumn({ status, tasks, onTaskClick }: KanbanColumnProps) 
   const config = statusConfig[status]
 
   return (
-    <section className="w-52 shrink-0 rounded-xl bg-gray-50 p-3" aria-label={`${config.label} 업무`}>
-      <div className="mb-3 flex items-center gap-2 px-1">
+    <section className="w-[240px] shrink-0 rounded-16 bg-gray-100 p-4" aria-label={`${config.label} 업무`}>
+      <div className="mb-3 flex items-center gap-[7px]">
         <span className={cn('h-2 w-2 rounded-full', config.dotClassName)} aria-hidden />
-        <h2 className="text-caption text-gray-600">{config.label}</h2>
-        <span className="text-caption font-normal text-gray-400">{tasks.length}</span>
+        <h2 className="text-[12px] font-normal leading-4 text-gray-600">{config.label}</h2>
+        <span className="text-[12px] font-normal leading-4 text-gray-400">{tasks.length}</span>
       </div>
 
       <div className="flex flex-col gap-3">

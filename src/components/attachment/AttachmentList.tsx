@@ -22,7 +22,7 @@ import type { NormalizedAttachment } from '../../types/attachment'
 
 interface AttachmentListProps {
   attachments: NormalizedAttachment[]
-  variant?: 'default' | 'subtle'
+  variant?: 'default' | 'subtle' | 'taskDetail'
   canDelete?: boolean
   onDelete?: (attachment: NormalizedAttachment) => void
   deletingAttachmentId?: number | null
@@ -45,6 +45,7 @@ export function AttachmentList({
   emptyContent = null,
   className,
 }: AttachmentListProps) {
+  const isTaskDetail = variant === 'taskDetail'
   const mountedRef = useRef(true)
   const openingIdsRef = useRef(new Set<number>())
   const [openingAttachmentIds, setOpeningAttachmentIds] = useState<
@@ -140,22 +141,48 @@ export function AttachmentList({
           <li
             key={attachment.attachmentId}
             className={cn(
-              'rounded-md p-3 transition-colors',
-              variant === 'subtle'
-                ? 'bg-gray-100 hover:bg-gray-200/60'
-                : 'border border-gray-200 bg-white'
+              'transition-colors',
+              isTaskDetail
+                ? cn(
+                    'rounded-12 bg-gray-100 px-3 py-2.5',
+                    error ? 'min-h-14' : 'h-14'
+                  )
+                : 'rounded-md p-3',
+              variant === 'subtle' && 'bg-gray-100 hover:bg-gray-200/60',
+              variant === 'default' && 'border border-gray-200 bg-white'
             )}
           >
-            <div className="flex items-center gap-2">
-              <TypeIcon
-                className="h-4 w-4 shrink-0 text-primary"
-                aria-hidden
-              />
+            <div className={cn('flex items-center', isTaskDetail ? 'gap-2.5' : 'gap-2')}>
+              {isTaskDetail ? (
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-white">
+                  <TypeIcon
+                    className="h-4 w-4 text-primary"
+                    aria-hidden
+                  />
+                </span>
+              ) : (
+                <TypeIcon
+                  className="h-4 w-4 shrink-0 text-primary"
+                  aria-hidden
+                />
+              )}
               <div className="min-w-0 flex-1">
-                <p className="truncate text-body-sm text-gray-700">
+                <p
+                  className={cn(
+                    'truncate text-gray-700',
+                    isTaskDetail
+                      ? 'text-[12px] font-normal leading-4'
+                      : 'text-body-sm'
+                  )}
+                >
                   {attachment.fileName}
                 </p>
-                <p className="mt-0.5 text-caption font-normal text-gray-400">
+                <p
+                  className={cn(
+                    'text-caption font-normal text-gray-400',
+                    isTaskDetail ? 'leading-4' : 'mt-0.5'
+                  )}
+                >
                   {isFile
                     ? attachment.fileSize === null
                       ? 'FILE'
