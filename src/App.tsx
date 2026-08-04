@@ -40,6 +40,7 @@ import { ProjectDataLoader } from './components/ProjectDataLoader'
 import { ProjectInvitationPage } from './pages/project/ProjectInvitationPage'
 import NotificationPage from './pages/NotificationPage'
 import { PushNotificationManager } from './components/PushNotificationManager'
+import { IntegrationCallbackPage } from './pages/project/IntegrationCallbackPage'
 
 function App() {
   return (
@@ -60,6 +61,8 @@ function App() {
         <Route path="/invite/:inviteCode" element={<ProjectInvitationPage />} />
 
         <Route element={<ProjectDataLoader />}>
+          <Route path="/integrations/callback" element={<IntegrationCallbackPage />} />
+
           {/* 하단 탭바가 있는 화면들 */}
           <Route element={<BottomTabBar />}>
             <Route path="/home" element={<HomePage />} />
