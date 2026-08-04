@@ -9,6 +9,7 @@ import {
   type ProjectStatusFilterValue,
 } from "../components/project/ProjectStatusFilter";
 import { ProjectViewToggle } from "../components/project/ProjectViewToggle";
+import { PlogIcon } from "../components/PlogIcon";
 import { cn } from "../lib/utils";
 import { useProjectStore } from "../store/projectStore";
 import type { ProjectViewMode } from "../types/project";
@@ -17,7 +18,9 @@ const VIEW_MODE_STORAGE_KEY = "plog-project-view-mode";
 
 function PlogMark() {
   return (
-    <svg width="24" height="24" viewBox="90 8 59 66" fill="none" aria-hidden="true">
+    <span className="contents" aria-hidden="true">
+    <PlogIcon />
+    <svg className="hidden" width="24" height="24" viewBox="90 8 59 66" fill="none">
       <path
         d="M118.221 9.10547C123.148 8.78656 125.009 10.7605 128.988 13.2605L135.151 17.0525L139.148 19.5511C140.878 20.6102 143.039 21.5472 143.557 23.7109C144.472 27.532 139.302 29.3804 136.837 30.8569L131.36 34.1163C130.126 34.8386 128.09 36.1478 126.734 36.4806C123.671 37.2327 121.101 36.898 118.391 35.3057C117.522 34.8809 116.652 34.1638 115.797 33.6888C112.73 31.9942 109.743 30.0236 106.727 28.2527C103.952 26.6229 102.827 28.4619 100.461 29.2982C98.5068 29.9887 96.8877 28.2348 95.2594 27.4412C93.7342 26.6979 92.6612 25.2361 93.6786 23.4948C94.6897 21.928 97.1879 20.966 98.7405 19.9804C99.7346 19.3493 100.688 18.7736 101.672 18.1628C102.478 17.6631 103.326 17.2273 104.136 16.7441L109.794 13.3743C112.543 11.7031 115.079 9.91358 118.221 9.10547ZM123.418 29.1026C126.04 29.212 126.784 28.2092 128.963 26.9312C129.833 26.4205 133.082 24.8843 131.099 23.2721C128.79 21.3945 125.721 19.9598 123.279 18.2399C121.998 17.3958 121.034 17.1061 119.529 17.1003C119.421 17.0998 119.313 17.1013 119.205 17.1047C118.758 17.1327 118.396 17.1973 117.977 17.3742C117.081 17.7524 111.858 20.7382 111.373 21.3101C111.24 21.4676 111.111 21.6785 111.134 21.8953C111.173 22.2551 111.438 22.5487 111.713 22.7521C112.638 23.4356 113.755 23.8777 114.734 24.4781L119.304 27.298C120.326 27.9162 122.172 29.1625 123.418 29.1026Z"
         fill="#126FFB"
@@ -35,6 +38,7 @@ function PlogMark() {
         fill="#126FFB"
       />
     </svg>
+    </span>
   );
 }
 
@@ -74,10 +78,10 @@ export default function HomePage() {
 
   return (
     <div className="min-h-full bg-gray-25 pb-6">
-      <header className="flex h-16 items-center justify-between border-b border-gray-100 bg-gray-25 px-6 shadow-sm">
-        <div className="flex items-center gap-3">
+      <header className="flex h-14 items-center justify-between border-b border-gray-100 bg-gray-25 px-6">
+        <div className="flex items-center gap-2">
           <PlogMark />
-          <h1 className="text-title font-bold text-gray-900">프로젝트</h1>
+          <h1 className="text-title text-gray-900">프로젝트</h1>
         </div>
         <div className="flex items-center gap-1">
           <button
@@ -99,7 +103,7 @@ export default function HomePage() {
         </div>
       </header>
 
-      <div className="mt-[14px] flex items-center justify-between gap-3 px-[22px]">
+      <div className="mt-[14px] flex items-center justify-between gap-3 px-5">
         <ProjectStatusFilter value={statusFilter} onChange={setStatusFilter} />
         <ProjectViewToggle value={viewMode} onChange={setViewMode} />
       </div>
@@ -126,8 +130,10 @@ export default function HomePage() {
       ) : filteredProjects.length > 0 ? (
         <div
           className={cn(
-            "mt-[18px] px-[22px]",
-            viewMode === "grid" ? "grid grid-cols-[176px_176px] gap-x-[5px] gap-y-4" : "space-y-[18px]"
+            "px-5",
+            viewMode === "grid"
+              ? "mt-4 grid grid-cols-2 gap-x-4 gap-y-4"
+              : "mt-[18px] space-y-[18px]"
           )}
         >
           {filteredProjects.map((project) => (

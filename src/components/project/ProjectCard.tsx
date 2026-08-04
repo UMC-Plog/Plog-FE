@@ -61,7 +61,7 @@ export function ProjectCard({ project, viewMode }: ProjectCardProps) {
   return (
     <article
       className={cn(
-        "relative rounded-lg border border-gray-100 bg-white shadow-md",
+        "relative rounded-[16px] border border-gray-100 bg-white shadow-md",
         "h-[172px]",
         "transition-transform active:scale-[0.99]"
       )}
@@ -70,7 +70,7 @@ export function ProjectCard({ project, viewMode }: ProjectCardProps) {
         to={`/project/${project.id}/feed`}
         aria-label={`${project.name} 프로젝트 열기`}
         className={cn(
-          "flex h-full min-w-0 flex-col rounded-lg pb-5 pt-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-300",
+          "flex h-full min-w-0 flex-col rounded-[16px] pb-5 pt-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-300",
           "px-[22px]"
         )}
       >
