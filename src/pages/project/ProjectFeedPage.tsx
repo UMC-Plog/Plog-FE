@@ -6,6 +6,7 @@ import { fetchPostFeed } from '../../api/postApi'
 import { Button } from '../../components/Button'
 import { EmptyState } from '../../components/EmptyState'
 import { PostFeedItem } from '../../components/post/PostFeedItem'
+import { cn } from '../../lib/utils'
 import type { PostListItemViewModel } from '../../types/post'
 
 const FEED_PAGE_SIZE = 20
@@ -166,7 +167,7 @@ export default function ProjectFeedPage() {
           description={'첫 게시물이나 공지를 작성해\n팀원들과 진행 상황을 공유해보세요'}
         />
       ) : (
-        <div className="w-full px-5 py-4">
+        <div className="w-full px-5 pb-20 pt-4">
           {notice && (
             <button
               type="button"
@@ -195,7 +196,7 @@ export default function ProjectFeedPage() {
           )}
 
           {(hasNext || isLoadingMore || nextPageError) && (
-            <div className="mt-5 flex flex-col items-center gap-2 pb-20">
+            <div className="mt-5 flex flex-col items-center gap-2">
               {nextPageError && (
                 <p className="text-center text-caption font-normal text-error">
                   {nextPageError}
@@ -226,47 +227,55 @@ export default function ProjectFeedPage() {
         />
       )}
 
-      {isWriteMenuOpen && (
-        <div className="absolute bottom-20 right-4 z-20 overflow-hidden rounded-lg bg-white shadow-lg">
-          <button
-            type="button"
-            onClick={handleCreatePost}
-            className="flex w-full items-center gap-2 px-4 py-3 text-left text-body-sm text-gray-700 hover:bg-gray-50"
-          >
-            <SquarePen
-              className="h-5 w-5 text-primary stroke-primary [&>path:nth-of-type(2)]:fill-current"
-              aria-hidden
-            />
-            게시글 작성
-          </button>
-          <button
-            type="button"
-            onClick={handleCreateNotice}
-            className="flex w-full items-center gap-2 border-t border-gray-100 px-4 py-3 text-left text-body-sm text-gray-700 hover:bg-gray-50"
-          >
-            <Volume2 className="h-5 w-5 text-primary" aria-hidden />
-            공지 작성
-          </button>
-        </div>
-      )}
-
-      <Button
-        type="button"
-        fullWidth={false}
-        aria-label={isWriteMenuOpen ? '작성 메뉴 닫기' : '작성 메뉴 열기'}
-        onClick={() => setIsWriteMenuOpen((isOpen) => !isOpen)}
-        className={
+      <div
+        className={cn(
+          "pointer-events-none fixed inset-x-0 z-20 mx-auto flex w-full max-w-mobile justify-end",
           isWriteMenuOpen
-            ? 'absolute bottom-4 right-4 z-20 h-12 w-12 rounded-full p-0 text-white shadow-md'
-            : 'absolute bottom-8 right-[31px] z-20 h-[60px] w-[60px] rounded-full p-0 text-white shadow-md'
-        }
-      >
-        {isWriteMenuOpen ? (
-          <X className="h-6 w-6 text-white" aria-hidden />
-        ) : (
-          <Plus className="h-7 w-7 text-white" aria-hidden />
+            ? "bottom-[max(1rem,env(safe-area-inset-bottom))] px-4"
+            : "bottom-[max(2rem,env(safe-area-inset-bottom))] px-[31px]"
         )}
-      </Button>
+      >
+        {isWriteMenuOpen && (
+          <div className="pointer-events-auto absolute bottom-16 right-4 overflow-hidden rounded-lg bg-white shadow-lg">
+            <button
+              type="button"
+              onClick={handleCreatePost}
+              className="flex w-full items-center gap-2 px-4 py-3 text-left text-body-sm text-gray-700 hover:bg-gray-50"
+            >
+              <SquarePen
+                className="h-5 w-5 text-primary stroke-primary [&>path:nth-of-type(2)]:fill-current"
+                aria-hidden
+              />
+              게시글 작성
+            </button>
+            <button
+              type="button"
+              onClick={handleCreateNotice}
+              className="flex w-full items-center gap-2 border-t border-gray-100 px-4 py-3 text-left text-body-sm text-gray-700 hover:bg-gray-50"
+            >
+              <Volume2 className="h-5 w-5 text-primary" aria-hidden />
+              공지 작성
+            </button>
+          </div>
+        )}
+
+        <Button
+          type="button"
+          fullWidth={false}
+          aria-label={isWriteMenuOpen ? '작성 메뉴 닫기' : '작성 메뉴 열기'}
+          onClick={() => setIsWriteMenuOpen((isOpen) => !isOpen)}
+          className={cn(
+            "pointer-events-auto ml-auto rounded-full p-0 text-white shadow-md",
+            isWriteMenuOpen ? "h-12 w-12" : "h-[60px] w-[60px]"
+          )}
+        >
+          {isWriteMenuOpen ? (
+            <X className="h-6 w-6 text-white" aria-hidden />
+          ) : (
+            <Plus className="h-7 w-7 text-white" aria-hidden />
+          )}
+        </Button>
+      </div>
     </div>
   )
 }

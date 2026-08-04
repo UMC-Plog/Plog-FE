@@ -101,6 +101,8 @@ export function TaskCardDetailModal({
       open={open}
       onClose={isStatusUpdating || isDeleting ? undefined : onClose}
       variant="task"
+      closeOnHandleClick
+      handleCloseLabel="업무카드 상세 바텀시트 닫기"
     >
       <div className="h-full max-h-[calc(100dvh-4.75rem)] overflow-y-auto overscroll-contain">
         <div className="flex items-center justify-between gap-3">

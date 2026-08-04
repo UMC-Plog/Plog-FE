@@ -23,6 +23,7 @@ interface BottomSheetProps extends Omit<ModalProps, "variant"> {
   minHeight?: number;
   maxHeight?: number;
   closeOnHandleClick?: boolean;
+  handleCloseLabel?: string;
 }
 
 /** Plog 전역 공통 Modal — 중앙 정렬 팝업 (업무카드 상세, 삭제확인 등) */
@@ -88,6 +89,7 @@ export function BottomSheet({
   minHeight = 250,
   maxHeight = 588,
   closeOnHandleClick = false,
+  handleCloseLabel = "바텀시트 닫기",
 }: BottomSheetProps) {
   const isTask = variant === "task";
 
@@ -129,21 +131,40 @@ export function BottomSheet({
         style={sheetStyle}
         onClick={(e) => e.stopPropagation()}
       >
-        {draggable ? (
+        {closeOnHandleClick ? (
           <button
             type="button"
-            aria-label="바텀시트 닫기"
+            onClick={onClose}
+            disabled={!onClose}
+            aria-label={handleCloseLabel}
             className={cn(
-              "relative -top-1 mx-auto mb-[15px] flex h-5 w-16 shrink-0 cursor-pointer items-start justify-center",
+              "relative -top-1 mx-auto mb-[15px] flex h-5 w-16 shrink-0 cursor-pointer items-start justify-center rounded-full before:absolute before:-inset-y-3 before:inset-x-0 before:content-[''] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:cursor-not-allowed",
               isTask && "top-0"
             )}
-            onClick={() => closeOnHandleClick && onClose?.()}
           >
             <span
               className={cn(
                 "h-[5px] w-11 rounded-full bg-gray-200",
                 isTask && "rounded-[3px]"
               )}
+              aria-hidden
+            />
+          </button>
+        ) : draggable ? (
+          <button
+            type="button"
+            aria-label="바텀시트 크기 조절 핸들"
+            className={cn(
+              "relative -top-1 mx-auto mb-[15px] flex h-5 w-16 shrink-0 cursor-pointer items-start justify-center",
+              isTask && "top-0"
+            )}
+          >
+            <span
+              className={cn(
+                "h-[5px] w-11 rounded-full bg-gray-200",
+                isTask && "rounded-[3px]"
+              )}
+              aria-hidden
             />
           </button>
         ) : (
@@ -152,6 +173,7 @@ export function BottomSheet({
               "relative -top-1 mx-auto mb-[15px] h-[5px] w-11 shrink-0 rounded-full bg-gray-200",
               isTask && "top-0 rounded-[3px]"
             )}
+            aria-hidden
           />
         )}
         <div className={cn("min-h-0 flex-1", isTask && "overflow-hidden")}>
