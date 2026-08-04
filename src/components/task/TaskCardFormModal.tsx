@@ -476,10 +476,11 @@ export function TaskCardFormModal({
     <BottomSheet
       open={open}
       onClose={isSubmitting ? undefined : onClose}
+      variant="task"
       closeOnHandleClick
       handleCloseLabel="업무카드 바텀시트 닫기"
     >
-      <div className="max-h-[calc(100svh-7rem)] overflow-x-hidden overflow-y-auto overscroll-contain pr-1">
+      <div className="h-full max-h-[calc(100dvh-4.75rem)] overflow-x-hidden overflow-y-auto overscroll-contain pr-1">
         <h2 className="text-h3 text-gray-900">
           {isEditMode ? '업무카드 수정' : '업무카드 등록'}
         </h2>

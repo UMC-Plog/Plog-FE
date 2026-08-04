@@ -6,6 +6,7 @@ import { fetchPostFeed } from '../../api/postApi'
 import { Button } from '../../components/Button'
 import { EmptyState } from '../../components/EmptyState'
 import { PostFeedItem } from '../../components/post/PostFeedItem'
+import { cn } from '../../lib/utils'
 import type { PostListItemViewModel } from '../../types/post'
 
 const FEED_PAGE_SIZE = 20
@@ -166,24 +167,22 @@ export default function ProjectFeedPage() {
           description={'첫 게시물이나 공지를 작성해\n팀원들과 진행 상황을 공유해보세요'}
         />
       ) : (
-        <div className="w-full px-4 pb-20 pt-4">
+        <div className="w-full px-5 pb-20 pt-4">
           {notice && (
             <button
               type="button"
               onClick={() =>
                 navigate(`/project/${notice.projectId}/notices`)
               }
-              className="flex w-full items-center gap-2 rounded-md bg-blue-50 px-3 py-2.5 text-left text-body-sm text-blue-600 hover:bg-blue-100"
+              className="flex h-[38px] w-full items-center gap-2 rounded-12 bg-blue-50 px-[13px] text-left text-[12px] font-normal leading-4 text-blue-500 hover:bg-blue-100"
             >
               <Volume2 className="h-4 w-4 shrink-0" aria-hidden />
-              <p className="min-w-0 truncate">
-                <span className="font-semibold">[공지]</span> {notice.title}
-              </p>
+              <p className="min-w-0 truncate">[공지] {notice.title}</p>
             </button>
           )}
 
           {posts.length > 0 && (
-            <div className="mt-4 space-y-4">
+            <div className={notice ? 'mt-[19px] space-y-4' : 'space-y-4'}>
               {posts.map((post, index) => (
                 <PostFeedItem
                   key={`${post.postId}-${index}`}
@@ -228,7 +227,14 @@ export default function ProjectFeedPage() {
         />
       )}
 
-      <div className="pointer-events-none fixed inset-x-0 bottom-[max(1rem,env(safe-area-inset-bottom))] z-20 mx-auto flex w-full max-w-mobile justify-end px-4">
+      <div
+        className={cn(
+          "pointer-events-none fixed inset-x-0 z-20 mx-auto flex w-full max-w-mobile justify-end",
+          isWriteMenuOpen
+            ? "bottom-[max(1rem,env(safe-area-inset-bottom))] px-4"
+            : "bottom-[max(2rem,env(safe-area-inset-bottom))] px-[31px]"
+        )}
+      >
         {isWriteMenuOpen && (
           <div className="pointer-events-auto absolute bottom-16 right-4 overflow-hidden rounded-lg bg-white shadow-lg">
             <button
@@ -258,12 +264,15 @@ export default function ProjectFeedPage() {
           fullWidth={false}
           aria-label={isWriteMenuOpen ? '작성 메뉴 닫기' : '작성 메뉴 열기'}
           onClick={() => setIsWriteMenuOpen((isOpen) => !isOpen)}
-          className="pointer-events-auto ml-auto h-12 w-12 rounded-full p-0 text-white shadow-md"
+          className={cn(
+            "pointer-events-auto ml-auto rounded-full p-0 text-white shadow-md",
+            isWriteMenuOpen ? "h-12 w-12" : "h-[60px] w-[60px]"
+          )}
         >
           {isWriteMenuOpen ? (
             <X className="h-6 w-6 text-white" aria-hidden />
           ) : (
-            <Plus className="h-6 w-6 text-white" aria-hidden />
+            <Plus className="h-7 w-7 text-white" aria-hidden />
           )}
         </Button>
       </div>

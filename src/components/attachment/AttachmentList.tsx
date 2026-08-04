@@ -22,7 +22,7 @@ import type { NormalizedAttachment } from '../../types/attachment'
 
 interface AttachmentListProps {
   attachments: NormalizedAttachment[]
-  variant?: 'default' | 'subtle'
+  variant?: 'default' | 'subtle' | 'taskDetail' | 'postDetail'
   canDelete?: boolean
   onDelete?: (attachment: NormalizedAttachment) => void
   deletingAttachmentId?: number | null
@@ -45,6 +45,9 @@ export function AttachmentList({
   emptyContent = null,
   className,
 }: AttachmentListProps) {
+  const isTaskDetail = variant === 'taskDetail'
+  const isPostDetail = variant === 'postDetail'
+  const isDetailVariant = isTaskDetail || isPostDetail
   const mountedRef = useRef(true)
   const openingIdsRef = useRef(new Set<number>())
   const [openingAttachmentIds, setOpeningAttachmentIds] = useState<
@@ -134,42 +137,102 @@ export function AttachmentList({
         const TypeIcon = isFile ? FileText : LinkIcon
         const ActionIcon = isFile ? Download : ExternalLink
         const actionLabel = isFile ? '다운로드' : '링크 열기'
+        const visibleActionLabel = isPostDetail ? '열기' : actionLabel
+        const postDetailMeta = isFile
+          ? attachment.fileSize === null
+            ? '파일'
+            : formatFileSize(attachment.fileSize)
+          : '링크'
         const error = errors[attachment.attachmentId]
 
         return (
           <li
             key={attachment.attachmentId}
             className={cn(
-              'rounded-md p-3 transition-colors',
-              variant === 'subtle'
-                ? 'bg-gray-100 hover:bg-gray-200/60'
-                : 'border border-gray-200 bg-white'
+              'transition-colors',
+              isDetailVariant
+                ? cn(
+                    'rounded-12 bg-gray-100 px-3 py-2.5',
+                    error ? 'min-h-14' : 'h-14'
+                  )
+                : 'rounded-md p-3',
+              variant === 'subtle' && 'bg-gray-100 hover:bg-gray-200/60',
+              variant === 'default' && 'border border-gray-200 bg-white'
             )}
           >
-            <div className="flex items-center gap-2">
-              <TypeIcon
-                className="h-4 w-4 shrink-0 text-primary"
-                aria-hidden
-              />
+            <div className={cn('flex items-center', isDetailVariant ? 'gap-2.5' : 'gap-2')}>
+              {isDetailVariant ? (
+                <span
+                  className={cn(
+                    'flex h-9 w-9 shrink-0 items-center justify-center',
+                    isPostDetail && !isFile
+                      ? 'rounded-12 bg-gray-900'
+                      : 'rounded-md bg-white'
+                  )}
+                >
+                  <TypeIcon
+                    className={cn(
+                      isPostDetail && isFile
+                        ? 'h-[22px] w-[18px]'
+                        : isPostDetail
+                          ? 'h-5 w-5'
+                          : 'h-4 w-4',
+                      isPostDetail && !isFile ? 'text-white' : 'text-primary'
+                    )}
+                    aria-hidden
+                  />
+                </span>
+              ) : (
+                <TypeIcon
+                  className="h-4 w-4 shrink-0 text-primary"
+                  aria-hidden
+                />
+              )}
               <div className="min-w-0 flex-1">
-                <p className="truncate text-body-sm text-gray-700">
+                <p
+                  className={cn(
+                    'truncate',
+                    isPostDetail
+                      ? 'text-[12px] font-normal leading-4 text-navy-700'
+                      : isTaskDetail
+                      ? 'text-[12px] font-normal leading-4'
+                      : 'text-body-sm',
+                    !isPostDetail && 'text-gray-700'
+                  )}
+                >
                   {attachment.fileName}
                 </p>
-                <p className="mt-0.5 text-caption font-normal text-gray-400">
-                  {isFile
-                    ? attachment.fileSize === null
-                      ? 'FILE'
-                      : `FILE · ${formatFileSize(attachment.fileSize)}`
-                    : 'LINK'}
-                </p>
+                {!isPostDetail && (
+                  <p
+                    className={cn(
+                      'text-caption font-normal text-gray-400',
+                      isTaskDetail ? 'leading-4' : 'mt-0.5'
+                    )}
+                  >
+                    {isFile
+                      ? attachment.fileSize === null
+                        ? 'FILE'
+                        : `FILE · ${formatFileSize(attachment.fileSize)}`
+                      : 'LINK'}
+                  </p>
+                )}
               </div>
+
+              {isPostDetail && (
+                <span className="shrink-0 text-[12px] font-normal leading-4 text-gray-400">
+                  {postDetailMeta}
+                </span>
+              )}
 
               <button
                 type="button"
                 disabled={isOpening || isDeleting}
-                aria-label={`${attachment.fileName} ${actionLabel}`}
+                aria-label={`${attachment.fileName} ${visibleActionLabel}`}
                 onClick={() => void openItem(attachment)}
-                className="inline-flex shrink-0 items-center gap-1 rounded-md px-2 py-1.5 text-caption text-primary hover:bg-primary-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-300 disabled:text-gray-300"
+                className={cn(
+                  'inline-flex shrink-0 items-center gap-1 rounded-md text-caption text-primary hover:bg-primary-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-300 disabled:text-gray-300',
+                  isPostDetail ? 'px-0 py-1.5 font-normal leading-4' : 'px-2 py-1.5'
+                )}
               >
                 {isOpening ? (
                   <span
@@ -179,7 +242,7 @@ export function AttachmentList({
                 ) : (
                   <ActionIcon className="h-3.5 w-3.5" aria-hidden />
                 )}
-                {isOpening ? '여는 중' : actionLabel}
+                {isOpening ? '여는 중' : visibleActionLabel}
               </button>
 
               {canDelete && onDelete && (

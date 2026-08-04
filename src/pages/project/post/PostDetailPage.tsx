@@ -329,7 +329,7 @@ export default function PostDetailPage() {
   if (isLoading) {
     return (
       <Layout>
-        <TopNavBar title="게시글" onBack={goToFeed} />
+        <TopNavBar title="게시글" onBack={goToFeed} variant="projectContent" />
         <main
           className="flex flex-1 items-center justify-center"
           role="status"
@@ -344,7 +344,7 @@ export default function PostDetailPage() {
   if (detailError || !post) {
     return (
       <Layout>
-        <TopNavBar title="게시글" onBack={goToFeed} />
+        <TopNavBar title="게시글" onBack={goToFeed} variant="projectContent" />
         <EmptyState
           title="게시글을 불러오지 못했어요"
           description={detailError ?? '게시글 상세 응답을 확인할 수 없습니다.'}
@@ -364,16 +364,19 @@ export default function PostDetailPage() {
 
   return (
     <Layout>
-      <TopNavBar title="게시글" onBack={goToFeed} />
+      <TopNavBar title="게시글" onBack={goToFeed} variant="projectContent" />
 
-      <main className="flex-1 px-5 pb-24 pt-5">
+      <main className="flex-1 px-5 pb-24 pt-6">
         <div className="flex items-center gap-3">
-          <PostAuthorAvatar profilePreset={post.profilePreset} />
+          <PostAuthorAvatar
+            profilePreset={post.profilePreset}
+            className="h-[46px] w-[46px]"
+          />
           <div className="min-w-0 flex-1">
-            <p className="truncate text-body-sm font-semibold text-gray-900">
+            <p className="truncate text-[18px] font-normal leading-7 text-gray-900">
               {post.authorNickname ?? '알 수 없는 사용자'}
             </p>
-            <p className="text-caption font-normal text-gray-400">
+            <p className="text-[12px] font-normal leading-4 text-gray-400">
               {formatPostTime(post.createdAt)}
             </p>
           </div>
@@ -387,7 +390,7 @@ export default function PostDetailPage() {
                 onClick={() => setIsMenuOpen((isOpen) => !isOpen)}
                 className="flex h-10 w-10 items-center justify-center rounded-full text-gray-500 hover:bg-gray-50"
               >
-                <Ellipsis className="h-5 w-5" aria-hidden />
+                <Ellipsis className="h-[22px] w-[22px]" aria-hidden />
               </button>
               {isMenuOpen && (
                 <div className="absolute right-0 top-10 z-20 w-24 overflow-hidden rounded-lg border border-gray-100 bg-white shadow-lg">
@@ -415,24 +418,26 @@ export default function PostDetailPage() {
           )}
         </div>
 
-        <article className="mt-5 rounded-lg bg-white p-5 shadow-md">
+        <article className="mt-5 rounded-16 border border-gray-100 bg-gray-25 px-[23px] py-[25px] shadow-card">
           {post.isNotice && (
             <p className="mb-3 text-caption font-semibold text-blue-600">공지</p>
           )}
-          <h1 className="mb-3 text-title font-bold text-gray-900">
-            {post.title}
-          </h1>
-          <p className="whitespace-pre-wrap text-body-sm text-gray-700">
+          <div className="flex h-10 items-start border-b border-gray-200">
+            <h1 className="text-[16px] font-semibold leading-6 text-gray-900">
+              {post.title}
+            </h1>
+          </div>
+          <p className="mt-4 whitespace-pre-wrap text-[14px] font-normal leading-5 text-gray-900">
             {post.content}
           </p>
 
           <AttachmentList
             attachments={normalizedAttachments}
-            variant="subtle"
-            className="mt-5"
+            variant="postDetail"
+            className="mt-4"
           />
 
-          <div className="mt-5 flex items-center gap-4 text-caption font-normal text-gray-400">
+          <div className="mt-4 flex items-center gap-[18px] text-[12px] font-normal leading-4 text-gray-400">
             <button
               type="button"
               disabled={isLikeSubmitting}
@@ -444,7 +449,7 @@ export default function PostDetailPage() {
               }`}
             >
               <Heart
-                className={`h-4 w-4 ${isLiked ? 'fill-current' : ''}`}
+                className={`h-3 w-3 ${isLiked ? 'fill-current' : ''}`}
                 aria-hidden
               />
               {likeCount}
@@ -456,26 +461,24 @@ export default function PostDetailPage() {
           </div>
         </article>
 
-        <section className="py-6" aria-label="댓글">
+        <section className="pt-1" aria-label="댓글">
           {comments.length === 0 ? (
-            <p className="text-center text-body-sm text-gray-400">
+            <p className="py-6 text-center text-body-sm text-gray-400">
               아직 댓글이 없어요.
             </p>
           ) : (
-            <ul className="space-y-4">
+            <ul className="divide-y divide-gray-200">
               {comments.map((comment) => (
-                <li key={comment.commentId} className="flex gap-3">
+                <li key={comment.commentId} className="flex gap-2.5 py-[14px]">
                   <PostAuthorAvatar
                     profilePreset={comment.profilePreset}
-                    className="h-8 w-8"
+                    className="h-10 w-10"
                   />
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center">
-                      <p className="text-body-sm font-semibold text-gray-900">
-                        {comment.authorNickname ?? '알 수 없는 사용자'}
-                      </p>
-                    </div>
-                    <p className="mt-1 whitespace-pre-wrap break-words text-body-sm text-gray-700">
+                  <div className="flex min-w-0 flex-1 flex-col gap-1">
+                    <p className="text-[15px] font-normal leading-6 text-gray-900">
+                      {comment.authorNickname ?? '알 수 없는 사용자'}
+                    </p>
+                    <p className="whitespace-pre-wrap break-words text-[14px] font-normal leading-5 text-gray-500">
                       {comment.content}
                     </p>
                   </div>
@@ -494,7 +497,7 @@ export default function PostDetailPage() {
         </section>
       </main>
 
-      <div className="fixed bottom-0 left-1/2 z-30 w-full max-w-mobile -translate-x-1/2 border-t border-gray-200 bg-white px-4 py-3">
+      <div className="fixed bottom-0 left-1/2 z-30 h-[88px] w-full max-w-mobile -translate-x-1/2 border-t border-gray-100 bg-white px-5 pb-[30px] pt-[13px]">
         <div className="flex items-center gap-2">
           <Input
             aria-label="댓글 입력"
@@ -512,7 +515,7 @@ export default function PostDetailPage() {
                 void handleCreateComment()
               }
             }}
-            className="rounded-full border-0 bg-gray-100"
+            className="h-[42px] rounded-[21px] border-0 bg-gray-100 px-[18px] text-[15px] font-normal leading-6"
           />
           <button
             type="button"
@@ -523,7 +526,7 @@ export default function PostDetailPage() {
               commentValue.trim().length > 1000
             }
             onClick={() => void handleCreateComment()}
-            className="flex h-12 w-12 shrink-0 items-center justify-center rounded-md bg-blue-500 text-white disabled:bg-gray-200 disabled:text-gray-400"
+            className="flex h-[42px] w-[42px] shrink-0 items-center justify-center rounded-12 bg-blue-500 text-white disabled:bg-gray-200 disabled:text-gray-400"
           >
             <ArrowRight className="h-5 w-5" aria-hidden />
           </button>

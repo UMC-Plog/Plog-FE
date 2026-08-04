@@ -13,9 +13,11 @@ interface ModalProps {
   ariaLabelledby?: string;
   contentClassName?: string;
   overlayClassName?: string;
+  variant?: "default" | "projectContent";
 }
 
-interface BottomSheetProps extends ModalProps {
+interface BottomSheetProps extends Omit<ModalProps, "variant"> {
+  variant?: "default" | "task";
   draggable?: boolean;
   initialHeight?: number;
   minHeight?: number;
@@ -32,7 +34,10 @@ export function Modal({
   ariaLabelledby,
   contentClassName,
   overlayClassName,
+  variant = "default",
 }: ModalProps) {
+  const isProjectContent = variant === "projectContent";
+
   useEffect(() => {
     if (!open) return;
     const onKeyDown = (e: KeyboardEvent) => {
@@ -48,6 +53,7 @@ export function Modal({
     <div
       className={cn(
         "fixed inset-0 z-50 flex items-center justify-center bg-gray-900/40 px-[21px]",
+        isProjectContent && "px-5",
         overlayClassName
       )}
       onClick={onClose}
@@ -58,6 +64,7 @@ export function Modal({
         aria-labelledby={ariaLabelledby}
         className={cn(
           "w-full max-w-sm rounded-[22px] bg-white p-6 shadow-xl animate-in",
+          isProjectContent && "max-w-[362px] shadow-modal",
           contentClassName
         )}
         onClick={(e) => e.stopPropagation()}
@@ -76,6 +83,7 @@ export function BottomSheet({
   children,
   ariaLabelledby,
   contentClassName,
+  variant = "default",
   draggable = false,
   initialHeight = 588,
   minHeight = 250,
@@ -83,6 +91,8 @@ export function BottomSheet({
   closeOnHandleClick = false,
   handleCloseLabel = "바텀시트 닫기",
 }: BottomSheetProps) {
+  const isTask = variant === "task";
+
   useEffect(() => {
     if (!open) return;
     const onKeyDown = (e: KeyboardEvent) => {
@@ -114,6 +124,8 @@ export function BottomSheet({
         aria-labelledby={ariaLabelledby}
         className={cn(
           "flex w-full max-w-mobile flex-col rounded-t-xl bg-white p-6 pb-8 shadow-xl animate-in slide-in-from-bottom",
+          isTask &&
+            "max-h-[min(740px,100dvh)] rounded-t-[26px] px-5 pb-7 pt-[14px] shadow-task-sheet",
           contentClassName
         )}
         style={sheetStyle}
@@ -125,25 +137,48 @@ export function BottomSheet({
             onClick={onClose}
             disabled={!onClose}
             aria-label={handleCloseLabel}
-            className="relative -top-1 mx-auto mb-[15px] flex h-5 w-16 shrink-0 cursor-pointer items-start justify-center rounded-full before:absolute before:-inset-y-3 before:inset-x-0 before:content-[''] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:cursor-not-allowed"
+            className={cn(
+              "relative -top-1 mx-auto mb-[15px] flex h-5 w-16 shrink-0 cursor-pointer items-start justify-center rounded-full before:absolute before:-inset-y-3 before:inset-x-0 before:content-[''] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:cursor-not-allowed",
+              isTask && "top-0"
+            )}
           >
-            <span className="h-[5px] w-11 rounded-full bg-gray-200" aria-hidden />
+            <span
+              className={cn(
+                "h-[5px] w-11 rounded-full bg-gray-200",
+                isTask && "rounded-[3px]"
+              )}
+              aria-hidden
+            />
           </button>
         ) : draggable ? (
           <button
             type="button"
             aria-label="바텀시트 크기 조절 핸들"
-            className="relative -top-1 mx-auto mb-[15px] flex h-5 w-16 shrink-0 cursor-pointer items-start justify-center"
+            className={cn(
+              "relative -top-1 mx-auto mb-[15px] flex h-5 w-16 shrink-0 cursor-pointer items-start justify-center",
+              isTask && "top-0"
+            )}
           >
-            <span className="h-[5px] w-11 rounded-full bg-gray-200" aria-hidden />
+            <span
+              className={cn(
+                "h-[5px] w-11 rounded-full bg-gray-200",
+                isTask && "rounded-[3px]"
+              )}
+              aria-hidden
+            />
           </button>
         ) : (
           <div
-            className="relative -top-1 mx-auto mb-[15px] h-[5px] w-11 shrink-0 rounded-full bg-gray-200"
+            className={cn(
+              "relative -top-1 mx-auto mb-[15px] h-[5px] w-11 shrink-0 rounded-full bg-gray-200",
+              isTask && "top-0 rounded-[3px]"
+            )}
             aria-hidden
           />
         )}
-        <div className="min-h-0 flex-1">{children}</div>
+        <div className={cn("min-h-0 flex-1", isTask && "overflow-hidden")}>
+          {children}
+        </div>
       </div>
     </div>,
     document.body

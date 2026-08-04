@@ -1,7 +1,7 @@
 import type { ServerTaskCategory } from '../../types/task'
 
 export const TASK_BADGE_BASE_CLASS =
-  'inline-flex items-center rounded-full px-2 py-1 text-caption leading-none'
+  'inline-flex items-center rounded-12 px-2 py-[3px] text-[12px] font-normal leading-4'
 
 export const SERVER_TASK_CATEGORY_CONFIG: Record<
   ServerTaskCategory,
