@@ -13,7 +13,8 @@ import { PeerEvalAvatar } from '../../components/PeerEvalAvatar';
 import type { ProfilePreset } from '../../lib/profilePreset';
 
 const ALL_KEYWORDS = ['리더십', '성실함', '소통 능력', '책임감', '문제 해결', '창의성', '꼼꼼함', '추진력'];
-const DEFAULT_SELECTED = new Set(['리더십', '성실함', '문제 해결', '창의성']);
+const DEFAULT_SELECTED = new Set(['리더십']);
+const REQUIRED_KEYWORD_COUNT = 3;
 
 interface NavState {
   scores?: Record<string, number>;
@@ -86,14 +87,15 @@ export default function PeerEvalKeywordPage() {
   );
   const [feedback, setFeedback] = useState(navState?.feedback ?? '');
 
-  // 점수만으로는 평가 완료 불가 — 핵심 키워드 1개 이상 + 상세 피드백 작성이 둘 다 필수
-  const canComplete = selected.size > 0 && feedback.trim().length > 0 && !submitting;
+  // 점수만으로는 평가 완료 불가 — 핵심 키워드 3개 + 상세 피드백 작성이 모두 필수
+  const canComplete =
+    selected.size === REQUIRED_KEYWORD_COUNT && feedback.trim().length > 0 && !submitting;
 
   const toggle = (kw: string) =>
     setSelected((prev) => {
       const next = new Set(prev);
       if (next.has(kw)) next.delete(kw);
-      else next.add(kw);
+      else if (next.size < REQUIRED_KEYWORD_COUNT) next.add(kw);
       return next;
     });
 
@@ -154,7 +156,7 @@ export default function PeerEvalKeywordPage() {
         <div className="flex flex-col gap-3">
           <p className="text-body text-gray-900">핵심 키워드</p>
           <p className="text-caption text-gray-400">
-            <span className="text-primary">필수</span>{'   해당하는 키워드를 선택하세요'}
+            <span className="text-primary">필수</span>{'   해당하는 키워드를 3개 선택하세요'}
           </p>
           <div className="flex flex-wrap gap-2">
             {ALL_KEYWORDS.map((kw) => (
