@@ -83,8 +83,8 @@ function ActorRow({
       onClick={onSelect}
       disabled={disabled}
       className={cn(
-        'flex w-full items-center gap-3 rounded-2xl border px-[21px] py-[17px] shadow-card transition-colors',
-        selected ? 'border-primary bg-primary-50' : 'border-gray-100 bg-white',
+        'flex w-full items-center gap-3 rounded-2xl border px-[21px] py-[17px] transition-colors',
+        selected ? 'border-primary bg-primary-50 shadow-card-selected' : 'border-gray-100 bg-transparent shadow-card',
         disabled && !selected && 'opacity-50',
       )}
     >
@@ -92,8 +92,8 @@ function ActorRow({
       <span className="flex-1 text-left text-title text-gray-900 truncate">{actor.displayName}</span>
       <span
         className={cn(
-          'flex size-6 shrink-0 items-center justify-center rounded-lg border',
-          selected ? 'border-primary bg-primary text-gray-25' : 'border-gray-400',
+          'flex size-6 shrink-0 items-center justify-center rounded-[8px]',
+          selected ? 'bg-select-gradient text-gray-25' : 'border border-gray-400',
         )}
       >
         {selected && (
@@ -235,7 +235,7 @@ export default function PeerEvalAccountSelectPage() {
             아직 수집된 {config.label} 활동이 없어요. 데이터 수집 후 다시 시도해 주세요.
           </p>
         ) : (
-          <div className="flex flex-col gap-[10px] rounded-2xl border border-gray-100 bg-white/10 px-[11px] py-[13px] shadow-card">
+          <div className="flex flex-col items-center gap-[23px] rounded-2xl border border-gray-100 bg-transparent px-[22px] py-[25px] shadow-card">
             {actors.map((actor) => (
               <ActorRow
                 key={actor.actorKey}
@@ -248,7 +248,7 @@ export default function PeerEvalAccountSelectPage() {
           </div>
         )}
 
-        <div className="bg-primary-50 rounded-xl px-4 py-3 flex items-start gap-3">
+        <div className="bg-primary-50 rounded-12 px-4 py-3 flex items-start gap-3">
           <InfoIcon />
           <div className="text-caption text-primary leading-4">
             <p className="font-bold">안내</p>

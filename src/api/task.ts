@@ -21,6 +21,7 @@ import type {
   TaskDetailViewModel,
   TaskListItemViewModel,
 } from '../types/task'
+import { resolveTaskOverdue } from '../utils/taskDate'
 
 const PROFILE_PRESETS: ReadonlySet<string> = new Set([
   'OTTER',
@@ -155,7 +156,7 @@ function mapTaskSummary(value: unknown): TaskListItemViewModel {
     category: task.category,
     status: task.cardStatus,
     dueDate: task.endDate,
-    isOverdue: task.isOverdue,
+    isOverdue: resolveTaskOverdue(task.endDate, task.isOverdue),
     assignee: {
       projectMemberId: assignee.projectMemberId,
       nickname: assignee.nickname,
@@ -229,7 +230,7 @@ function mapTaskDetail(
     dueDate: task.endDate,
     completedAt: task.completedAt,
     dDay: task.dDay!,
-    isOverdue: task.isOverdue,
+    isOverdue: resolveTaskOverdue(task.endDate, task.isOverdue),
     isImminent: task.isImminent,
     attachments: task.attachments.map((attachment) => ({
       id: attachment.taskAttachmentId!,

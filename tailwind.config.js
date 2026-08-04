@@ -126,11 +126,23 @@ export default {
         // 2026.07 리포트 화면 Figma 스펙 추가분
         card: "0px 4px 12px rgba(16, 24, 40, 0.05)", // 리포트 카드 테두리 그림자
         cta: "0px 10px 14px rgba(25, 28, 32, 0.28)", // 그라데이션 CTA 카드 그림자
+        // Peer 평가 계정 선택 화면 Figma 실측값 (선택된 카드는 card보다 blur 작음)
+        "card-selected": "0px 4px 6px rgba(16, 24, 40, 0.05)",
+        // 리포트 화면 Figma 실측값 — 요약 스코어 카드(2단 그림자), 강점 칩 카드
+        stat: "0px 2px 6px rgba(22, 26, 32, 0.06), 0px 12px 24px -14px rgba(22, 26, 32, 0.2)",
+        chip: "0px 1px 2px rgba(22, 26, 32, 0.04)",
       },
       backgroundImage: {
         "plog-gradient": "linear-gradient(95deg, #2186FB 0%, #06BCC4 52%, #173E8A 100%)",
         // 프로필설정 화면 Figma 실측값 (Blue → Aqua, plog-gradient와 다른 2단계 그라데이션)
         "progress-gradient": "linear-gradient(90deg, #2186FB 0%, #07BCC5 99.82%)",
+        // Peer 평가 계정 선택 화면 체크박스 선택 상태 Figma 실측값 (세로 방향 2단계 그라데이션)
+        "select-gradient": "linear-gradient(180deg, #2186FB 0%, #07BCC5 100%)",
+        // 리포트 상단 히어로 — 하단으로 갈수록 투명해져 배경(gray-25)에 자연스럽게 이어짐
+        "report-hero":
+          "linear-gradient(180deg, #2186FB 0%, #07BCC5 66.827%, rgba(7, 188, 197, 0) 100%)",
+        // 리포트 팀원 카드 하단 "종합 Peer 평균" 바 Figma 실측값
+        "peer-average": "linear-gradient(94.73deg, #173E8A 0%, #23407F 100%)",
       },
       maxWidth: {
         mobile: "402px",

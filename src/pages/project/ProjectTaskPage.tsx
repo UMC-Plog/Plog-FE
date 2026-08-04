@@ -3,7 +3,6 @@ import { ClipboardList, Plus } from 'lucide-react'
 import { useParams } from 'react-router-dom'
 import {
   deleteTask,
-  fetchOverdueTasks,
   fetchProjectTasks,
   fetchTaskDetail,
   fetchTasksByMember,
@@ -173,7 +172,9 @@ export default function ProjectTaskPage() {
     }
 
     try {
-      const nextTasks = await fetchOverdueTasks(projectId)
+      const nextTasks = (await fetchProjectTasks(projectId)).filter(
+        (task) => task.isOverdue
+      )
       if (requestId === overdueRequestIdRef.current) {
         setOverdueTasks(nextTasks)
       }
@@ -534,7 +535,7 @@ export default function ProjectTaskPage() {
             filter === 'mine'
               ? '담당자로 지정된 업무가 생기면 여기에서 확인할 수 있어요'
               : filter === 'overdue'
-                ? '마감일이 지난 미완료 업무가 없어요'
+                ? '마감일이 지난 업무가 없어요'
                 : '업무가 등록되면 상태별로 확인할 수 있어요'
           }
         />

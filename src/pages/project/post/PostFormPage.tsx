@@ -277,12 +277,12 @@ export default function PostFormPage() {
           취소
         </Button>
         <h1 className="text-center text-body font-semibold text-gray-900">게시글 작성</h1>
-        <Button type="button" size="sm" fullWidth={false} disabled={!canSubmit} onClick={() => void handleSubmit()} className="justify-self-end text-white">
+        <Button type="button" size="sm" fullWidth={false} disabled={!canSubmit} onClick={() => void handleSubmit()} className="hidden justify-self-end text-white sm:inline-flex">
           {isSubmitting ? '게시 중' : '게시'}
         </Button>
       </header>
 
-      <main className="flex flex-1 flex-col px-5 py-5">
+      <main className="flex flex-1 flex-col px-5 pb-[calc(5rem+env(safe-area-inset-bottom))] pt-5 sm:pb-5">
         <div className="mb-5 flex items-center gap-3">
           <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-gray-100">
             {existingPost ? (
@@ -350,6 +350,19 @@ export default function PostFormPage() {
           />
         </div>
       </main>
+
+      <div className="pointer-events-none fixed inset-x-0 bottom-0 z-30 mx-auto w-full max-w-mobile px-5 pb-[max(16px,env(safe-area-inset-bottom))] sm:hidden">
+        <Button
+          type="button"
+          size="sm"
+          fullWidth={false}
+          disabled={!canSubmit}
+          onClick={() => void handleSubmit()}
+          className="pointer-events-auto ml-auto text-white shadow-lg"
+        >
+          {isSubmitting ? '게시 중' : '게시'}
+        </Button>
+      </div>
     </Layout>
   )
 }

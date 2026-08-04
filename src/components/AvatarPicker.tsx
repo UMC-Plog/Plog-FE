@@ -84,8 +84,10 @@ export function AvatarPicker({
       {/* 프리셋 그리드 */}
       <div
         className={cn(
-          "grid grid-cols-4 justify-items-center",
-          size === "profile-edit" ? "gap-x-[22px] gap-y-4" : "gap-3"
+          "grid justify-items-center",
+          size === "profile-edit"
+            ? "w-full grid-cols-[repeat(4,74px)] gap-x-[22px] gap-y-4"
+            : "grid-cols-4 gap-3"
         )}
       >
         {AVATAR_PRESETS.map((avatar) => (
@@ -97,13 +99,15 @@ export function AvatarPicker({
             className={cn(
               "flex items-center justify-center overflow-hidden rounded-full transition-all",
               size === "profile-edit"
-                ? "h-[72px] w-[72px]"
+                ? "h-[72px] w-[74px]"
                 : size === "lg"
                   ? "h-16 w-16"
                   : "h-14 w-14",
               value === avatar.id
                 ? "ring-2 ring-blue-500 ring-offset-2"
-                : "hover:ring-2 hover:ring-gray-200 hover:ring-offset-2"
+                : size === "profile-edit"
+                  ? "hover:ring-2 hover:ring-gray-200 hover:ring-offset-2"
+                  : "hover:ring-2 hover:ring-gray-200 hover:ring-offset-2"
             )}
           >
             <img src={avatar.src} alt={avatar.label} className="h-full w-full object-cover" />

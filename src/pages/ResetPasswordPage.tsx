@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import { AlertCircle, Eye, EyeOff, Headphones } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { AuthHeader } from "../components/AuthHeader";
-import { PasswordStrengthBar } from "../components/PasswordStrengthBar";
 import { ProgressBar } from "../components/ProgressBar";
 import { Button } from "../components/Button";
 import { Input } from "../components/Input";
@@ -66,8 +65,16 @@ export function ResetPasswordPage() {
 
         <div className="mt-6 space-y-4">
           <div>
+            <div className="mb-1.5 flex items-center gap-2">
+              <label htmlFor="reset-password" className="text-body font-normal text-gray-900">
+                새 비밀번호 입력
+              </label>
+              <span className="text-caption font-normal text-gray-400">
+                *영문+숫자 조합 8~16자 이내로 입력해주세요
+              </span>
+            </div>
             <Input
-              label="새 비밀번호 입력"
+              id="reset-password"
               type={showPassword ? "text" : "password"}
               placeholder="8자 이상, 영문 + 숫자 포함"
               value={password}
@@ -83,7 +90,6 @@ export function ResetPasswordPage() {
                 </button>
               }
             />
-            <PasswordStrengthBar password={password} />
           </div>
 
           <Input

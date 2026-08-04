@@ -1,4 +1,5 @@
 import {
+  Cloud,
   FileText,
   Image,
   Link as LinkIcon,
@@ -13,14 +14,23 @@ import {
   useRef,
   useState,
 } from 'react'
-import type { ChangeEvent } from 'react'
+import type { ChangeEvent, DragEvent } from 'react'
 import { ApiError } from '../../api/client'
-import { uploadFile } from '../../api/file'
+import { uploadFile, validateUploadFileType } from '../../api/file'
 import {
   createFileFingerprint,
   formatFileSize,
   validateExternalHttpsUrl,
 } from '../../lib/attachment'
+import {
+  downloadPersonalGoogleDriveFile,
+  GoogleDriveFileError,
+} from '../../lib/googleDriveFile'
+import {
+  clearPersonalGoogleDriveAccessToken,
+  getPersonalGoogleDriveAccessToken,
+  openPersonalGoogleDrivePicker,
+} from '../../lib/googlePicker'
 import {
   MAX_ATTACHMENTS,
   type AttachmentDraft,
@@ -40,9 +50,86 @@ interface AttachmentPickerProps {
   variant?: 'default' | 'post' | 'task'
 }
 
+type AttachmentMenuView = 'source' | 'task-root'
+
 const FILE_ACCEPT = '.pdf,.pptx,.docx,.zip,.fig'
 const IMAGE_ACCEPT =
   '.jpg,.jpeg,.png,.webp,.gif,image/jpeg,image/png,image/webp,image/gif'
+
+const MENU_ICON_CLASS = 'h-4 w-4 shrink-0 text-gray-900'
+
+function DriveMenuIcon() {
+  return (
+    <svg
+      viewBox="0 0 20 20"
+      className={MENU_ICON_CLASS}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <path d="M7.2 3h5.6l4.45 7.7-2.8 4.8h-8.9l-2.8-4.8L7.2 3Z" />
+      <path d="m10 7.75-2.85 4.9h5.7L10 7.75Z" />
+    </svg>
+  )
+}
+
+function FileMenuIcon() {
+  return (
+    <svg
+      viewBox="0 0 20 20"
+      className={MENU_ICON_CLASS}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <path d="M2.5 5.25h5l1.5 1.8h8.5v8.2h-15v-10Z" />
+    </svg>
+  )
+}
+
+function CameraMenuIcon() {
+  return (
+    <svg
+      viewBox="0 0 20 20"
+      className={MENU_ICON_CLASS}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <path d="m6.15 5.75 1.1-1.75h5.5l1.1 1.75h2.4c.7 0 1.25.55 1.25 1.25v8c0 .7-.55 1.25-1.25 1.25H3.75C3.05 16.25 2.5 15.7 2.5 15V7c0-.7.55-1.25 1.25-1.25h2.4Z" />
+      <circle cx="10" cy="10.75" r="3" />
+    </svg>
+  )
+}
+
+function ImageLibraryMenuIcon() {
+  return (
+    <svg
+      viewBox="0 0 20 20"
+      className={MENU_ICON_CLASS}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <path d="M5 3.5h10.5a1 1 0 0 1 1 1V13" />
+      <rect x="2.5" y="6" width="13" height="10.5" rx="1" />
+      <circle cx="11.75" cy="9.25" r=".75" />
+      <path d="m4.5 14 3.25-3 2.25 2 1.5-1.25 2 2.25" />
+    </svg>
+  )
+}
 
 function isImageAttachment(draft: AttachmentDraft) {
   if (draft.attachmentType !== 'FILE') return false
@@ -56,6 +143,35 @@ function getErrorMessage(error: unknown) {
   return error instanceof ApiError
     ? error.message
     : '첨부 처리 중 오류가 발생했습니다.'
+}
+
+function getGoogleDriveErrorMessage(error: unknown) {
+  if (!(error instanceof GoogleDriveFileError)) {
+    return error instanceof Error
+      ? error.message
+      : 'Google Drive 파일을 첨부하지 못했습니다. 다시 시도해 주세요.'
+  }
+
+  switch (error.code) {
+    case 'GOOGLE_DRIVE_AUTH_REQUIRED':
+      return 'Google 인증이 만료되었습니다. Google Drive를 다시 선택해 주세요.'
+    case 'GOOGLE_DRIVE_ACCESS_DENIED':
+      return '파일에 접근할 권한이 없거나 다운로드가 제한된 파일입니다.'
+    case 'GOOGLE_DRIVE_FILE_NOT_FOUND':
+      return 'Google Drive에서 파일을 찾을 수 없습니다.'
+    case 'GOOGLE_DRIVE_RATE_LIMITED':
+      return 'Google Drive 요청이 제한되었습니다. 잠시 후 다시 시도해 주세요.'
+    case 'GOOGLE_DRIVE_UNSUPPORTED_WORKSPACE_FILE':
+      return '지원하지 않는 Google Drive 파일 형식입니다.'
+    case 'GOOGLE_DRIVE_NETWORK_ERROR':
+      return 'Google Drive 파일을 가져오는 중 네트워크 오류가 발생했습니다.'
+    case 'GOOGLE_DRIVE_EMPTY_FILE':
+      return 'Google Drive에서 비어 있는 파일이 반환되었습니다.'
+    case 'GOOGLE_DRIVE_DOWNLOAD_FAILED':
+      return 'Google Drive 파일을 다운로드하지 못했습니다.'
+    case 'GOOGLE_DRIVE_EXPORT_FAILED':
+      return 'Google 문서를 첨부 가능한 파일로 변환하지 못했습니다.'
+  }
 }
 
 function createLocalId() {
@@ -72,15 +188,28 @@ export function AttachmentPicker({
 }: AttachmentPickerProps) {
   const inputId = useId()
   const fileInputRef = useRef<HTMLInputElement>(null)
-  const imageInputRef = useRef<HTMLInputElement>(null)
+  const cameraInputRef = useRef<HTMLInputElement>(null)
+  const imageLibraryInputRef = useRef<HTMLInputElement>(null)
+  const attachmentMenuRef = useRef<HTMLDivElement>(null)
+  const attachmentMenuTriggerRef = useRef<HTMLButtonElement>(null)
+  const firstAttachmentOptionRef = useRef<HTMLButtonElement>(null)
+  const taskDragDepthRef = useRef(0)
   const draftsRef = useRef(value)
   const generationsRef = useRef(new Map<string, number>())
   const mountedRef = useRef(true)
+  const [isAttachmentMenuOpen, setIsAttachmentMenuOpen] = useState(false)
+  const [attachmentMenuView, setAttachmentMenuView] =
+    useState<AttachmentMenuView>('source')
+  const [attachmentMenuPlacement, setAttachmentMenuPlacement] = useState<
+    'top' | 'bottom'
+  >('top')
+  const [isTaskDragActive, setIsTaskDragActive] = useState(false)
   const [isLinkModalOpen, setIsLinkModalOpen] = useState(false)
   const [linkName, setLinkName] = useState('')
   const [linkUrl, setLinkUrl] = useState('')
   const [linkError, setLinkError] = useState<string>()
   const [attachmentError, setAttachmentError] = useState<string>()
+  const [isGoogleDriveProcessing, setIsGoogleDriveProcessing] = useState(false)
 
   useEffect(() => {
     draftsRef.current = value
@@ -94,6 +223,37 @@ export function AttachmentPicker({
       generations.clear()
     }
   }, [])
+
+  useEffect(() => {
+    if (!isAttachmentMenuOpen) return
+
+    const handlePointerDown = (event: PointerEvent) => {
+      const target = event.target as Node
+      if (
+        attachmentMenuRef.current?.contains(target) ||
+        attachmentMenuTriggerRef.current?.contains(target)
+      ) {
+        return
+      }
+      setIsAttachmentMenuOpen(false)
+    }
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return
+      setIsAttachmentMenuOpen(false)
+      attachmentMenuTriggerRef.current?.focus()
+    }
+    const frame = window.requestAnimationFrame(() => {
+      firstAttachmentOptionRef.current?.focus()
+    })
+
+    document.addEventListener('pointerdown', handlePointerDown)
+    document.addEventListener('keydown', handleKeyDown)
+    return () => {
+      window.cancelAnimationFrame(frame)
+      document.removeEventListener('pointerdown', handlePointerDown)
+      document.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [attachmentMenuView, isAttachmentMenuOpen])
 
   const commit = useCallback((next: AttachmentDraft[]) => {
     draftsRef.current = next
@@ -178,8 +338,18 @@ export function AttachmentPicker({
     const selectedFingerprints = new Set<string>()
     const uniqueFiles: File[] = []
     let duplicateFound = false
+    let invalidFileError: string | undefined
 
     for (const file of files) {
+      if (variant === 'post') {
+        try {
+          validateUploadFileType(file)
+        } catch (error: unknown) {
+          invalidFileError ??= `${file.name}: ${getErrorMessage(error)}`
+          continue
+        }
+      }
+
       const fingerprint = createFileFingerprint(file)
       if (
         existingFingerprints.has(fingerprint) ||
@@ -197,9 +367,11 @@ export function AttachmentPicker({
       return
     }
 
-    if (duplicateFound) {
-      setAttachmentError('같은 파일은 중복으로 첨부할 수 없습니다.')
-    }
+    const selectionErrors = [
+      invalidFileError,
+      duplicateFound ? '같은 파일은 중복으로 첨부할 수 없습니다.' : undefined,
+    ].filter((message): message is string => Boolean(message))
+    setAttachmentError(selectionErrors.join(' ') || undefined)
 
     const newDrafts: NewFileAttachmentDraft[] = uniqueFiles.map((file) => ({
       localId: createLocalId(),
@@ -287,6 +459,185 @@ export function AttachmentPicker({
     event.target.value = ''
   }
 
+  const openAttachmentMenu = (view: AttachmentMenuView = 'source') => {
+    if (isAttachmentMenuOpen && attachmentMenuView === view) {
+      setIsAttachmentMenuOpen(false)
+      return
+    }
+    const triggerRect = attachmentMenuTriggerRef.current?.getBoundingClientRect()
+    if (triggerRect) {
+      const viewportHeight =
+        window.visualViewport?.height ?? window.innerHeight
+      const spaceAbove = triggerRect.top
+      const spaceBelow = viewportHeight - triggerRect.bottom
+      setAttachmentMenuPlacement(
+        spaceBelow >= 224 || spaceBelow >= spaceAbove ? 'bottom' : 'top'
+      )
+    }
+    setAttachmentMenuView(view)
+    setIsAttachmentMenuOpen(true)
+  }
+
+  const openAttachmentSourceMenu = () => {
+    setAttachmentMenuView('source')
+  }
+
+  const openTaskLinkModal = () => {
+    setIsAttachmentMenuOpen(false)
+    openLinkModal()
+  }
+
+  const openFilePicker = () => {
+    setIsAttachmentMenuOpen(false)
+    fileInputRef.current?.click()
+  }
+
+  const openCamera = () => {
+    setIsAttachmentMenuOpen(false)
+    cameraInputRef.current?.click()
+  }
+
+  const openImageLibrary = () => {
+    setIsAttachmentMenuOpen(false)
+    imageLibraryInputRef.current?.click()
+  }
+
+  const openGoogleDrive = () => {
+    setIsAttachmentMenuOpen(false)
+    void selectGoogleDriveFile()
+  }
+
+  const isDesktopFileDrag = (event: DragEvent<HTMLElement>) =>
+    window.matchMedia('(pointer: fine)').matches &&
+    Array.from(event.dataTransfer.types).includes('Files')
+
+  const handleTaskDragEnter = (event: DragEvent<HTMLButtonElement>) => {
+    if (!isDesktopFileDrag(event)) return
+    event.preventDefault()
+    taskDragDepthRef.current += 1
+    if (!disabled && !atLimit) setIsTaskDragActive(true)
+  }
+
+  const handleTaskDragOver = (event: DragEvent<HTMLButtonElement>) => {
+    if (!isDesktopFileDrag(event)) return
+    event.preventDefault()
+    event.dataTransfer.dropEffect =
+      disabled || atLimit ? 'none' : 'copy'
+  }
+
+  const handleTaskDragLeave = (event: DragEvent<HTMLButtonElement>) => {
+    if (!isDesktopFileDrag(event)) return
+    event.preventDefault()
+    taskDragDepthRef.current = Math.max(0, taskDragDepthRef.current - 1)
+    if (taskDragDepthRef.current === 0) setIsTaskDragActive(false)
+  }
+
+  const handleTaskDrop = (event: DragEvent<HTMLButtonElement>) => {
+    if (!isDesktopFileDrag(event)) return
+    event.preventDefault()
+    taskDragDepthRef.current = 0
+    setIsTaskDragActive(false)
+    setIsAttachmentMenuOpen(false)
+    if (disabled || atLimit) return
+    selectFiles(Array.from(event.dataTransfer.files))
+  }
+
+  const selectGoogleDriveFile = async () => {
+    if (disabled || atLimit || isGoogleDriveProcessing) return
+
+    setAttachmentError(undefined)
+    setIsGoogleDriveProcessing(true)
+
+    try {
+      const selectedFile = await openPersonalGoogleDrivePicker()
+      if (!selectedFile || !mountedRef.current) return
+
+      const accessToken = getPersonalGoogleDriveAccessToken()
+      if (!accessToken) {
+        clearPersonalGoogleDriveAccessToken()
+        setAttachmentError(
+          'Google 인증이 만료되었습니다. Google Drive를 다시 선택해 주세요.'
+        )
+        return
+      }
+
+      const file = await downloadPersonalGoogleDriveFile(
+        selectedFile,
+        accessToken
+      )
+      if (!mountedRef.current) return
+      selectFiles([file])
+    } catch (error: unknown) {
+      if (!mountedRef.current) return
+      if (
+        error instanceof GoogleDriveFileError &&
+        error.code === 'GOOGLE_DRIVE_AUTH_REQUIRED'
+      ) {
+        clearPersonalGoogleDriveAccessToken()
+      }
+      setAttachmentError(getGoogleDriveErrorMessage(error))
+    } finally {
+      if (mountedRef.current) setIsGoogleDriveProcessing(false)
+    }
+  }
+
+  const attachmentPopoverClassName = `absolute left-0 z-30 w-52 max-w-[calc(100vw-2.5rem)] overflow-y-auto rounded-lg border border-gray-200 bg-white p-1 shadow-lg ${
+    attachmentMenuPlacement === 'top'
+      ? 'bottom-full mb-2 max-h-[calc(100dvh-2rem)]'
+      : 'top-full mt-2 max-h-[calc(100dvh-2rem)]'
+  }`
+
+  const renderAttachmentSourceMenu = () => (
+    <div
+      ref={attachmentMenuRef}
+      role="menu"
+      aria-label="파일 및 이미지 첨부 방식"
+      className={attachmentPopoverClassName}
+    >
+      <button
+        ref={firstAttachmentOptionRef}
+        type="button"
+        role="menuitem"
+        disabled={disabled || atLimit || isGoogleDriveProcessing}
+        onClick={openGoogleDrive}
+        className="flex min-h-10 w-full items-center gap-2 rounded-md px-2 text-left text-caption font-normal text-gray-900 hover:bg-gray-50 active:bg-gray-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-300 disabled:text-gray-300"
+      >
+        <DriveMenuIcon />
+        Google Drive
+      </button>
+      <button
+        type="button"
+        role="menuitem"
+        disabled={disabled || atLimit}
+        onClick={openFilePicker}
+        className="flex min-h-10 w-full items-center gap-2 rounded-md px-2 text-left text-caption font-normal text-gray-900 hover:bg-gray-50 active:bg-gray-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-300 disabled:text-gray-300"
+      >
+        <FileMenuIcon />
+        파일 선택
+      </button>
+      <button
+        type="button"
+        role="menuitem"
+        disabled={disabled || atLimit}
+        onClick={openCamera}
+        className="flex min-h-10 w-full items-center gap-2 rounded-md px-2 text-left text-caption font-normal text-gray-900 hover:bg-gray-50 active:bg-gray-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-300 disabled:text-gray-300"
+      >
+        <CameraMenuIcon />
+        사진 촬영
+      </button>
+      <button
+        type="button"
+        role="menuitem"
+        disabled={disabled || atLimit}
+        onClick={openImageLibrary}
+        className="flex min-h-10 w-full items-center gap-2 rounded-md px-2 text-left text-caption font-normal text-gray-900 hover:bg-gray-50 active:bg-gray-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-300 disabled:text-gray-300"
+      >
+        <ImageLibraryMenuIcon />
+        사진 라이브러리
+      </button>
+    </div>
+  )
+
   return (
     <div>
       {!isPostVariant && !isTaskVariant && (
@@ -300,15 +651,24 @@ export function AttachmentPicker({
 
       {isPostVariant && (
         <div className="flex items-center gap-5 border-b border-gray-200 pb-3">
-          <button
-            type="button"
-            disabled={disabled || atLimit}
-            onClick={() => fileInputRef.current?.click()}
-            className="inline-flex items-center gap-1.5 text-body-sm text-gray-500 hover:text-gray-700 disabled:text-gray-300"
-          >
-            <Paperclip className="h-4 w-4" aria-hidden />
-            파일
-          </button>
+          <div className="relative">
+            <button
+              ref={attachmentMenuTriggerRef}
+              type="button"
+              disabled={disabled || atLimit || isGoogleDriveProcessing}
+              aria-haspopup="menu"
+              aria-expanded={isAttachmentMenuOpen}
+              onClick={() => openAttachmentMenu('source')}
+              className="inline-flex items-center gap-1.5 text-body-sm text-gray-500 hover:text-gray-700 disabled:text-gray-300"
+            >
+              <Paperclip className="h-4 w-4" aria-hidden />
+              파일 및 이미지
+            </button>
+
+            {isAttachmentMenuOpen &&
+              attachmentMenuView === 'source' &&
+              renderAttachmentSourceMenu()}
+          </div>
           <button
             type="button"
             disabled={disabled || atLimit}
@@ -317,15 +677,6 @@ export function AttachmentPicker({
           >
             <LinkIcon className="h-4 w-4" aria-hidden />
             링크
-          </button>
-          <button
-            type="button"
-            disabled={disabled || atLimit}
-            onClick={() => imageInputRef.current?.click()}
-            className="inline-flex items-center gap-1.5 text-body-sm text-gray-500 hover:text-gray-700 disabled:text-gray-300"
-          >
-            <Image className="h-4 w-4" aria-hidden />
-            이미지
           </button>
         </div>
       )}
@@ -450,6 +801,17 @@ export function AttachmentPicker({
             type="button"
             variant="outline"
             size="sm"
+            disabled={disabled || atLimit || isGoogleDriveProcessing}
+            loading={isGoogleDriveProcessing}
+            icon={<Cloud className="h-4 w-4" aria-hidden />}
+            onClick={() => void selectGoogleDriveFile()}
+          >
+            Google Drive
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
             disabled={disabled || atLimit}
             icon={<LinkIcon className="h-4 w-4" aria-hidden />}
             onClick={openLinkModal}
@@ -460,70 +822,140 @@ export function AttachmentPicker({
       )}
 
       {isTaskVariant && (
-        <div className="mt-3 rounded-md border border-dashed border-gray-300 bg-white px-4 py-4 text-center">
-          <p className="text-caption font-normal text-gray-500">
-            파일 또는 링크 첨부 (선택)
-          </p>
-          <p className="mt-1 text-caption font-normal text-gray-400">
-            최대 50MB, PDF, PPTX, DOCX, ZIP, IMG
-          </p>
-          <div className="mt-3 flex justify-center gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              fullWidth={false}
-              disabled={disabled || atLimit}
-              icon={<Paperclip className="h-4 w-4" aria-hidden />}
-              onClick={() => fileInputRef.current?.click()}
-            >
-              파일 선택
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              fullWidth={false}
-              disabled={disabled || atLimit}
-              icon={<LinkIcon className="h-4 w-4" aria-hidden />}
-              onClick={openLinkModal}
-            >
-              링크 추가
-            </Button>
-          </div>
+        <div className="relative mt-3">
+          <button
+            ref={attachmentMenuTriggerRef}
+            type="button"
+            disabled={disabled || atLimit || isGoogleDriveProcessing}
+            aria-haspopup="menu"
+            aria-expanded={isAttachmentMenuOpen}
+            onClick={() => openAttachmentMenu('task-root')}
+            onDragEnter={handleTaskDragEnter}
+            onDragOver={handleTaskDragOver}
+            onDragLeave={handleTaskDragLeave}
+            onDrop={handleTaskDrop}
+            onDragEnd={() => {
+              taskDragDepthRef.current = 0
+              setIsTaskDragActive(false)
+            }}
+            className={`block w-full rounded-md border border-dashed px-4 py-4 text-center transition-colors ${
+              isTaskDragActive
+                ? 'border-primary bg-primary-50'
+                : 'border-gray-300 bg-white hover:bg-gray-50'
+            } disabled:cursor-not-allowed disabled:opacity-60`}
+          >
+            <span className="block text-caption font-normal text-gray-500">
+              파일 또는 링크 첨부 (선택)
+            </span>
+            <span className="mt-1 block text-caption font-normal text-gray-400">
+              최대 50MB, PDF, PPTX, DOCX, ZIP, IMG
+            </span>
+          </button>
+
+          {isAttachmentMenuOpen &&
+            attachmentMenuView === 'task-root' && (
+              <div
+                ref={attachmentMenuRef}
+                role="menu"
+                aria-label="업무 첨부 유형"
+                className={attachmentPopoverClassName}
+              >
+                <button
+                  ref={firstAttachmentOptionRef}
+                  type="button"
+                  role="menuitem"
+                  disabled={disabled || atLimit}
+                  onClick={openAttachmentSourceMenu}
+                  className="flex min-h-10 w-full items-center gap-2 rounded-md px-2 text-left text-caption font-normal text-gray-900 hover:bg-gray-50 active:bg-gray-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-300 disabled:text-gray-300"
+                >
+                  <Paperclip className="h-4 w-4 shrink-0" aria-hidden />
+                  파일 및 이미지
+                </button>
+                <button
+                  type="button"
+                  role="menuitem"
+                  disabled={disabled || atLimit}
+                  onClick={openTaskLinkModal}
+                  className="flex min-h-10 w-full items-center gap-2 rounded-md px-2 text-left text-caption font-normal text-gray-900 hover:bg-gray-50 active:bg-gray-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-300 disabled:text-gray-300"
+                >
+                  <LinkIcon className="h-4 w-4 shrink-0" aria-hidden />
+                  링크
+                </button>
+              </div>
+            )}
+
+          {isAttachmentMenuOpen &&
+            attachmentMenuView === 'source' &&
+            renderAttachmentSourceMenu()}
         </div>
       )}
 
-      <input
-        ref={fileInputRef}
-        id={inputId}
-        type="file"
-        className="hidden"
-        multiple
-        accept={
-          isPostVariant
-            ? FILE_ACCEPT
-            : `${FILE_ACCEPT},${IMAGE_ACCEPT}`
-        }
-        aria-label="첨부 파일 선택"
-        onChange={handleFileInputChange}
-      />
-
-      {isPostVariant && (
+      {!isPostVariant && !isTaskVariant && (
         <input
-          ref={imageInputRef}
+          ref={fileInputRef}
+          id={inputId}
           type="file"
           className="hidden"
           multiple
-          accept={IMAGE_ACCEPT}
-          aria-label="첨부 이미지 선택"
+          accept={`${FILE_ACCEPT},${IMAGE_ACCEPT}`}
+          disabled={disabled || atLimit}
+          aria-label="첨부 파일 선택"
           onChange={handleFileInputChange}
         />
+      )}
+
+      {(isPostVariant || isTaskVariant) && (
+        <>
+          <input
+            ref={fileInputRef}
+            id={inputId}
+            type="file"
+            className="hidden"
+            multiple
+            accept={`${FILE_ACCEPT},${IMAGE_ACCEPT}`}
+            disabled={disabled || atLimit}
+            aria-label="첨부할 파일 또는 이미지 선택"
+            onChange={handleFileInputChange}
+          />
+          <input
+            ref={cameraInputRef}
+            type="file"
+            className="hidden"
+            accept="image/*"
+            capture="environment"
+            disabled={disabled || atLimit}
+            aria-label="카메라로 첨부할 사진 촬영"
+            onChange={handleFileInputChange}
+          />
+          <input
+            ref={imageLibraryInputRef}
+            type="file"
+            className="hidden"
+            multiple
+            accept="image/*"
+            disabled={disabled || atLimit}
+            aria-label="사진 라이브러리에서 첨부할 이미지 선택"
+            onChange={handleFileInputChange}
+          />
+        </>
       )}
 
       {attachmentError && (
         <p className="mt-2 text-caption font-normal text-error">
           {attachmentError}
+        </p>
+      )}
+
+      {isGoogleDriveProcessing && (
+        <p
+          role="status"
+          className="mt-2 inline-flex items-center gap-2 text-caption font-normal text-gray-500"
+        >
+          <span
+            className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-primary border-t-transparent"
+            aria-hidden
+          />
+          Google Drive 파일을 가져오는 중...
         </p>
       )}
 
