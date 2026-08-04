@@ -21,6 +21,7 @@ interface BottomSheetProps extends ModalProps {
   minHeight?: number;
   maxHeight?: number;
   closeOnHandleClick?: boolean;
+  handleCloseLabel?: string;
 }
 
 /** Plog 전역 공통 Modal — 중앙 정렬 팝업 (업무카드 상세, 삭제확인 등) */
@@ -80,6 +81,7 @@ export function BottomSheet({
   minHeight = 250,
   maxHeight = 588,
   closeOnHandleClick = false,
+  handleCloseLabel = "바텀시트 닫기",
 }: BottomSheetProps) {
   useEffect(() => {
     if (!open) return;
@@ -117,17 +119,29 @@ export function BottomSheet({
         style={sheetStyle}
         onClick={(e) => e.stopPropagation()}
       >
-        {draggable ? (
+        {closeOnHandleClick ? (
           <button
             type="button"
-            aria-label="바텀시트 닫기"
-            className="relative -top-1 mx-auto mb-[15px] flex h-5 w-16 shrink-0 cursor-pointer items-start justify-center"
-            onClick={() => closeOnHandleClick && onClose?.()}
+            onClick={onClose}
+            disabled={!onClose}
+            aria-label={handleCloseLabel}
+            className="relative -top-1 mx-auto mb-[15px] flex h-5 w-16 shrink-0 cursor-pointer items-start justify-center rounded-full before:absolute before:-inset-y-3 before:inset-x-0 before:content-[''] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:cursor-not-allowed"
           >
-            <span className="h-[5px] w-11 rounded-full bg-gray-200" />
+            <span className="h-[5px] w-11 rounded-full bg-gray-200" aria-hidden />
+          </button>
+        ) : draggable ? (
+          <button
+            type="button"
+            aria-label="바텀시트 크기 조절 핸들"
+            className="relative -top-1 mx-auto mb-[15px] flex h-5 w-16 shrink-0 cursor-pointer items-start justify-center"
+          >
+            <span className="h-[5px] w-11 rounded-full bg-gray-200" aria-hidden />
           </button>
         ) : (
-          <div className="relative -top-1 mx-auto mb-[15px] h-[5px] w-11 shrink-0 rounded-full bg-gray-200" />
+          <div
+            className="relative -top-1 mx-auto mb-[15px] h-[5px] w-11 shrink-0 rounded-full bg-gray-200"
+            aria-hidden
+          />
         )}
         <div className="min-h-0 flex-1">{children}</div>
       </div>

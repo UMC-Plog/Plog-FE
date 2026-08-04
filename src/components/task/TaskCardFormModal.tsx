@@ -1,4 +1,4 @@
-import { ChevronDown, UserRound } from 'lucide-react'
+import { ChevronDown, Info, UserRound } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ApiError } from '../../api/client'
 import {
@@ -476,6 +476,8 @@ export function TaskCardFormModal({
     <BottomSheet
       open={open}
       onClose={isSubmitting ? undefined : onClose}
+      closeOnHandleClick
+      handleCloseLabel="업무카드 바텀시트 닫기"
     >
       <div className="max-h-[calc(100svh-7rem)] overflow-x-hidden overflow-y-auto overscroll-contain pr-1">
         <h2 className="text-h3 text-gray-900">
@@ -770,6 +772,17 @@ export function TaskCardFormModal({
                 disabled={isSubmitting}
               />
             </div>
+            <p className="mt-3 flex items-start gap-2 rounded-md bg-primary-50 p-3 text-caption font-normal text-primary-700">
+              <Info className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
+              <span>
+                <span className="block">
+                  파일 첨부만으로 기여도가 높아지지 않아요
+                </span>
+                <span className="block">
+                  담당 업무와 연결된 산출물이 리포트에 반영됩니다
+                </span>
+              </span>
+            </p>
           </div>
         </div>
 
