@@ -594,7 +594,15 @@ export default function ProjectTaskPage() {
 
       <ConfirmDialog
         open={deleteTarget !== null}
+        variant="task"
         title="업무를 삭제하시겠습니까?"
+        highlight={
+          deleteTarget ? (
+            <div className="flex h-12 items-center justify-center rounded-[12px] bg-gray-100 px-3 text-body-sm text-gray-900">
+              {deleteTarget.title}
+            </div>
+          ) : undefined
+        }
         description={
           deleteError ??
           '삭제된 업무는 복구할 수 없습니다.'

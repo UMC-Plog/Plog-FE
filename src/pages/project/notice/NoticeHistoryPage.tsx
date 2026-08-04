@@ -154,7 +154,7 @@ export default function NoticeHistoryPage() {
 
   return (
     <Layout>
-      <TopNavBar title="공지" onBack={goToFeed} />
+      <TopNavBar title="공지" onBack={goToFeed} variant="projectContent" />
 
       <main className="flex flex-1 flex-col bg-gray-25">
         {isLoading ? (
@@ -211,6 +211,7 @@ export default function NoticeHistoryPage() {
 
       <ConfirmDialog
         open={Boolean(pendingDeleteNotice)}
+        variant="notice"
         title="공지를 삭제하시겠습니까?"
         description={
           deleteError ? (

@@ -123,6 +123,8 @@ export default {
         md: "0 4px 10px rgba(22, 26, 32, 0.08)", // 카드
         lg: "0 10px 24px rgba(22, 26, 32, 0.12)", // 팝오버/드롭다운
         xl: "0 20px 40px rgba(22, 26, 32, 0.16)", // 모달
+        modal: "0 24px 30px rgba(16, 24, 40, 0.28)",
+        "project-header": "0 4px 2px rgba(204, 204, 204, 0.25)",
         // 2026.07 리포트 화면 Figma 스펙 추가분
         card: "0px 4px 12px rgba(16, 24, 40, 0.05)", // 리포트 카드 테두리 그림자
         cta: "0px 10px 14px rgba(25, 28, 32, 0.28)", // 그라데이션 CTA 카드 그림자

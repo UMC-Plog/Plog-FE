@@ -13,9 +13,10 @@ interface ModalProps {
   ariaLabelledby?: string;
   contentClassName?: string;
   overlayClassName?: string;
+  variant?: "default" | "projectContent";
 }
 
-interface BottomSheetProps extends ModalProps {
+interface BottomSheetProps extends Omit<ModalProps, "variant"> {
   draggable?: boolean;
   initialHeight?: number;
   minHeight?: number;
@@ -31,7 +32,10 @@ export function Modal({
   ariaLabelledby,
   contentClassName,
   overlayClassName,
+  variant = "default",
 }: ModalProps) {
+  const isProjectContent = variant === "projectContent";
+
   useEffect(() => {
     if (!open) return;
     const onKeyDown = (e: KeyboardEvent) => {
@@ -47,6 +51,7 @@ export function Modal({
     <div
       className={cn(
         "fixed inset-0 z-50 flex items-center justify-center bg-gray-900/40 px-[21px]",
+        isProjectContent && "px-5",
         overlayClassName
       )}
       onClick={onClose}
@@ -57,6 +62,7 @@ export function Modal({
         aria-labelledby={ariaLabelledby}
         className={cn(
           "w-full max-w-sm rounded-[22px] bg-white p-6 shadow-xl animate-in",
+          isProjectContent && "max-w-[362px] shadow-modal",
           contentClassName
         )}
         onClick={(e) => e.stopPropagation()}

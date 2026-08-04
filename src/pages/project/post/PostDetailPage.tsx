@@ -329,7 +329,7 @@ export default function PostDetailPage() {
   if (isLoading) {
     return (
       <Layout>
-        <TopNavBar title="게시글" onBack={goToFeed} />
+        <TopNavBar title="게시글" onBack={goToFeed} variant="projectContent" />
         <main
           className="flex flex-1 items-center justify-center"
           role="status"
@@ -344,7 +344,7 @@ export default function PostDetailPage() {
   if (detailError || !post) {
     return (
       <Layout>
-        <TopNavBar title="게시글" onBack={goToFeed} />
+        <TopNavBar title="게시글" onBack={goToFeed} variant="projectContent" />
         <EmptyState
           title="게시글을 불러오지 못했어요"
           description={detailError ?? '게시글 상세 응답을 확인할 수 없습니다.'}
@@ -364,7 +364,7 @@ export default function PostDetailPage() {
 
   return (
     <Layout>
-      <TopNavBar title="게시글" onBack={goToFeed} />
+      <TopNavBar title="게시글" onBack={goToFeed} variant="projectContent" />
 
       <main className="flex-1 px-5 pb-24 pt-5">
         <div className="flex items-center gap-3">
