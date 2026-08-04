@@ -78,6 +78,12 @@ export interface GoogleResourceRegisterRequest {
   fileId: string;
 }
 
+export interface GooglePickerAccessTokenResponse {
+  accessToken: string;
+  connectedAccountName: string;
+  expiresAt: string;
+}
+
 export interface IntegrationCollectionFailureResponse {
   resourceId: number;
   linkType: IntegrationLinkType;
@@ -95,4 +101,10 @@ export interface IntegrationCollectionResponse {
 export interface IntegrationDisconnectionResponse {
   projectId: number;
   linkType: IntegrationLinkType;
+}
+
+export interface IntegrationResourceRemovalResponse {
+  projectId: number;
+  linkType: Exclude<IntegrationLinkType, "GITHUB">;
+  resourceId: number;
 }

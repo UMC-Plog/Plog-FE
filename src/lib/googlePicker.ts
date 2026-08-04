@@ -1,6 +1,5 @@
 const GOOGLE_API_SCRIPT = "https://apis.google.com/js/api.js";
 const GOOGLE_IDENTITY_SCRIPT = "https://accounts.google.com/gsi/client";
-const DRIVE_READONLY_SCOPE = "https://www.googleapis.com/auth/drive.readonly";
 const PERSONAL_DRIVE_FILE_SCOPE = "https://www.googleapis.com/auth/drive.file";
 const PERSONAL_TOKEN_EXPIRY_BUFFER_MS = 60_000;
 const PERSONAL_ATTACHMENT_MIME_TYPES = [
@@ -56,7 +55,6 @@ declare global {
 
 let pickerApiPromise: Promise<void> | null = null;
 let identityApiPromise: Promise<void> | null = null;
-let projectPickerAccessToken: string | null = null;
 let personalPickerToken: { accessToken: string; expiresAt: number } | null = null;
 
 function loadScript(src: string): Promise<void> {
@@ -99,33 +97,6 @@ function loadPickerApi() {
 function loadIdentityApi() {
   identityApiPromise ??= loadScript(GOOGLE_IDENTITY_SCRIPT);
   return identityApiPromise;
-}
-
-function requestProjectPickerAccessToken(clientId: string): Promise<string> {
-  if (projectPickerAccessToken) return Promise.resolve(projectPickerAccessToken);
-
-  return new Promise((resolve, reject) => {
-    const oauth2 = window.google?.accounts?.oauth2;
-    if (!oauth2) {
-      reject(new Error("Google 인증 모듈을 초기화하지 못했습니다."));
-      return;
-    }
-
-    const tokenClient = oauth2.initTokenClient({
-      client_id: clientId,
-      scope: DRIVE_READONLY_SCOPE,
-      callback: (response: GoogleTokenResponse) => {
-        if (response.error || !response.access_token) {
-          reject(new Error(response.error_description ?? "Google Drive 권한을 받지 못했습니다."));
-          return;
-        }
-        projectPickerAccessToken = response.access_token;
-        resolve(response.access_token);
-      },
-      error_callback: () => reject(new Error("Google 계정 선택 창이 닫혔습니다.")),
-    });
-    tokenClient.requestAccessToken({ prompt: "consent" });
-  });
 }
 
 function getValidPersonalPickerAccessToken() {
@@ -240,11 +211,13 @@ function toPersonalPickerFile(
   };
 }
 
-export async function openGooglePicker(kind: GoogleFileKind): Promise<GooglePickerDocument | null> {
-  const { clientId, apiKey, appId } = getPickerEnvironment();
+export async function openGooglePicker(
+  kind: GoogleFileKind,
+  accessToken: string
+): Promise<GooglePickerDocument | null> {
+  const { apiKey, appId } = getPickerEnvironment();
 
-  await Promise.all([loadPickerApi(), loadIdentityApi()]);
-  const token = await requestProjectPickerAccessToken(clientId);
+  await loadPickerApi();
   const picker = window.google?.picker;
   if (!picker) throw new Error("Google Picker를 초기화하지 못했습니다.");
 
@@ -256,7 +229,7 @@ export async function openGooglePicker(kind: GoogleFileKind): Promise<GooglePick
     const view = new picker.DocsView().setMimeTypes(mimeType).setIncludeFolders(false);
     const instance = new picker.PickerBuilder()
       .addView(view)
-      .setOAuthToken(token)
+      .setOAuthToken(accessToken)
       .setDeveloperKey(apiKey)
       .setAppId(appId)
       .setOrigin(window.location.origin)

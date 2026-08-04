@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ChevronDown, ChevronLeft, ChevronRight, Link2, QrCode } from "lucide-react";
+import { ChevronDown, ChevronLeft, ChevronRight, QrCode } from "lucide-react";
+import inviteLinkIcon from "../../assets/project-settings-invite-link-icon.svg";
 import QRCode from "qrcode";
 import { useNavigate, useParams } from "react-router-dom";
 import { createProjectInvitationUrl } from "../../lib/projectInvitation";
@@ -10,11 +11,11 @@ import {
   toApiProjectType,
   updateProjectSettings,
 } from "../../api/projectApi";
-import { getIntegrationStatus } from "../../api/integrationApi";
+import { disconnectIntegration, getIntegrationStatus } from "../../api/integrationApi";
 import { ApiError } from "../../api/client";
 import githubIcon from "../../assets/integrations/github.svg";
 import figmaIcon from "../../assets/integrations/figma.svg";
-import notionIcon from "../../assets/integrations/notion.png";
+import notionIcon from "../../assets/integrations/notion-figma.png";
 import docsIcon from "../../assets/integrations/google-docs.svg";
 import slidesIcon from "../../assets/integrations/google-slides.svg";
 import { Modal } from "../../components/Modal";
@@ -28,18 +29,21 @@ import type {
 import { getDaysFromToday } from "../../lib/projectDate";
 
 const INTEGRATIONS = [
-  { id: "github", label: "GitHub", icon: githubIcon, logo: 32, type: "GITHUB" },
-  { id: "figma", label: "Figma", icon: figmaIcon, logo: 22, type: "FIGMA" },
-  { id: "notion", label: "Notion", icon: notionIcon, logo: 16, type: "NOTION" },
-  { id: "docs", label: "Google docs", icon: docsIcon, logo: 19, type: "GOOGLE" },
-  { id: "slides", label: "Google slides", icon: slidesIcon, logo: 19, type: "GOOGLE" },
+  { id: "github", label: "GitHub", icon: githubIcon, logo: 32, type: "GITHUB", provider: "github" },
+  { id: "figma", label: "Figma", icon: figmaIcon, logo: 22, type: "FIGMA", provider: "figma" },
+  { id: "notion", label: "Notion", icon: notionIcon, logo: 16, type: "NOTION", provider: "notion" },
+  { id: "docs", label: "Google Docs", icon: docsIcon, logo: 19, type: "GOOGLE", provider: "google" },
+  { id: "slides", label: "Google Slides", icon: slidesIcon, logo: 19, type: "GOOGLE", provider: "google" },
 ] as const satisfies ReadonlyArray<{
   id: string;
   label: string;
   icon: string;
   logo: number;
   type: ProjectIntegrationType;
+  provider: "github" | "figma" | "notion" | "google";
 }>;
+
+type IntegrationItem = (typeof INTEGRATIONS)[number];
 
 const MONTHS = Array.from({ length: 12 }, (_, index) => String(index + 1).padStart(2, "0"));
 const DAYS = Array.from({ length: 31 }, (_, index) => String(index + 1).padStart(2, "0"));
@@ -229,6 +233,9 @@ export function ProjectSettingsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isIntegrationLoading, setIsIntegrationLoading] = useState(true);
   const [integrationError, setIntegrationError] = useState<string | null>(null);
+  const [disconnectTarget, setDisconnectTarget] = useState<IntegrationItem | null>(null);
+  const [isDisconnecting, setIsDisconnecting] = useState(false);
+  const [disconnectError, setDisconnectError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [isLeaving, setIsLeaving] = useState(false);
   const [isLeaveDialogOpen, setIsLeaveDialogOpen] = useState(false);
@@ -384,6 +391,42 @@ export function ProjectSettingsPage() {
     }
   };
 
+  const openDisconnectDialog = (integration: IntegrationItem) => {
+    setDisconnectError(null);
+    setDisconnectTarget(integration);
+  };
+
+  const closeDisconnectDialog = () => {
+    if (isDisconnecting) return;
+    setDisconnectTarget(null);
+    setDisconnectError(null);
+  };
+
+  const handleDisconnectIntegration = async () => {
+    if (!disconnectTarget || isDisconnecting) return;
+
+    setIsDisconnecting(true);
+    setDisconnectError(null);
+    try {
+      await disconnectIntegration(id, disconnectTarget.provider);
+      setIntegrationLinks((links) => ({ ...links, [disconnectTarget.type]: false }));
+      setDisconnectTarget(null);
+      setNotice(
+        disconnectTarget.type === "GOOGLE"
+          ? "Google Docs와 Google Slides 연동을 해제했어요."
+          : `${disconnectTarget.label} 연동을 해제했어요.`
+      );
+    } catch (requestError) {
+      setDisconnectError(
+        requestError instanceof ApiError
+          ? requestError.message
+          : "연동을 해제하지 못했어요. 다시 시도해 주세요."
+      );
+    } finally {
+      setIsDisconnecting(false);
+    }
+  };
+
   const openLeaveDialog = () => {
     setLeaveError(null);
     setIsLeaveDialogOpen(true);
@@ -481,7 +524,7 @@ export function ProjectSettingsPage() {
         <h1 className="text-[18px] font-semibold text-gray-900">프로젝트 설정</h1>
       </header>
 
-      <main className="px-5 pt-[18px]">
+      <main className="px-5 pt-6">
         {isCompleted && (
           <p className="mb-4 rounded-[12px] bg-gray-100 px-4 py-3 text-[13px] text-gray-600">
             완료된 프로젝트의 설정은 변경할 수 없어요.
@@ -495,13 +538,13 @@ export function ProjectSettingsPage() {
             onChange={(event) => setName(event.target.value)}
             disabled={formDisabled}
             maxLength={20}
-            className="mt-[11px] h-14 w-full rounded-[14px] border border-gray-200 bg-transparent px-[18px] text-[15px] text-gray-900 outline-none focus:border-blue-500 disabled:bg-gray-50 disabled:text-gray-400"
+            className="mt-3 h-14 w-full rounded-[14px] border border-gray-200 bg-transparent px-[18px] text-[15px] text-gray-900 outline-none focus:border-blue-500 disabled:bg-gray-50 disabled:text-gray-400"
           />
         </label>
 
-        <label className="mt-[22px] block text-[14px] font-normal text-gray-700">
+        <label className="mt-6 block text-[14px] font-normal text-gray-700">
           프로젝트 유형
-          <div className="relative mt-[11px]">
+          <div className="relative mt-3">
             <select
               value={type}
               onChange={(event) => setType(event.target.value as ProjectType)}
@@ -515,9 +558,9 @@ export function ProjectSettingsPage() {
           </div>
         </label>
 
-        <fieldset className="mt-[22px]">
+        <fieldset className="mt-6">
           <legend className="text-[14px] font-normal text-gray-700">예상 종료일</legend>
-          <div className="mt-[11px] flex gap-[7px]">
+          <div className="mt-3 flex gap-[7px]">
             <DateDropdownSelect value={year} onChange={setYear} options={years} ariaLabel="종료 연도" disabled={formDisabled} rounded="xl" />
             <DateDropdownSelect value={month} onChange={setMonth} options={MONTHS} ariaLabel="종료 월" disabled={formDisabled} rounded="xl" />
             <DateDropdownSelect value={day} onChange={setDay} options={DAYS} ariaLabel="종료 일" disabled={formDisabled} rounded="xl" />
@@ -527,23 +570,23 @@ export function ProjectSettingsPage() {
           )}
         </fieldset>
 
-        <section className="mt-[22px]">
+        <section className="mt-6">
           <h2 className="text-[14px] font-normal text-gray-700">팀원 초대</h2>
-          <div className="mt-[11px] grid grid-cols-2 gap-4">
+          <div className="mt-3 grid grid-cols-2 gap-4">
             <button type="button" onClick={() => void handleCopyInvite()} className="flex h-14 items-center justify-center gap-2 rounded-[14px] bg-blue-100 text-[16px] font-semibold text-navy-700">
-              <Link2 className="h-[18px] w-[18px]" /> 링크 초대
+              <img src={inviteLinkIcon} alt="" className="h-4 w-4" aria-hidden="true" /> 링크 초대
             </button>
             <button type="button" onClick={() => void handleOpenQr()} className="flex h-14 items-center justify-center gap-2 rounded-[14px] bg-blue-100 text-[16px] font-semibold text-navy-700">
-              <QrCode className="h-[18px] w-[18px]" /> QR 초대
+              <QrCode className="h-4 w-4" /> QR 초대
             </button>
           </div>
         </section>
 
-        <section className="mt-[17px]">
+        <section className="mt-5">
           <h2 className="text-[14px] font-normal text-gray-900">
-            팀 워크스페이스 연동 <span className="text-error">*</span>
+            팀(워크) 스페이스 연동 <span className="text-error">*</span>
           </h2>
-          <p className="mt-1 text-[12px] font-normal text-gray-400">워크스페이스를 소유한 팀원만 연동할 수 있어요.</p>
+          <p className="mt-1 text-[12px] font-normal text-gray-400">워크스페이스의 소유자(생성자)의 연동이 필요합니다</p>
           <div className="mt-2 rounded-[16px] border border-gray-100 bg-white/10 px-[18px] shadow-card">
             {isIntegrationLoading ? (
               <div className="flex h-[61px] items-center justify-center text-[13px] text-gray-400" role="status">
@@ -579,7 +622,11 @@ export function ProjectSettingsPage() {
                     <span className="ml-3 flex-1 text-left text-[15px] font-normal text-gray-900">{integration.label}</span>
                     <button
                       type="button"
-                      onClick={() => openIntegration(connected ? "disconnect" : "resources")}
+                      onClick={() =>
+                        connected
+                          ? openDisconnectDialog(integration)
+                          : openIntegration("resources")
+                      }
                       className={`mr-[14px] rounded-full px-[14px] py-[5px] text-[12px] ${connected ? "bg-[#E9F8F0] text-success" : "bg-[#FDEDEE] text-error"}`}
                     >
                       {connected ? "연동" : "미연동"}
@@ -635,6 +682,48 @@ export function ProjectSettingsPage() {
         open={isOwnerTransferOpen}
         onClose={() => setIsOwnerTransferOpen(false)}
       />
+
+      <Modal
+        open={disconnectTarget !== null}
+        onClose={isDisconnecting ? undefined : closeDisconnectDialog}
+        contentClassName="h-[292px] max-w-[362px] rounded-[22px] px-6 pb-[26px] pt-[42px]"
+      >
+        <div className="flex h-full flex-col items-center text-center">
+          <h2 className="text-[18px] font-semibold leading-[26px] text-gray-900">
+            {disconnectTarget?.type === "GOOGLE"
+              ? "Google Docs와 Google Slides 연동을 모두 해제하시겠습니까?"
+              : `${disconnectTarget?.label ?? "외부 서비스"} 연동을 해제하시겠습니까?`}
+          </h2>
+          <p className="mt-8 text-[13px] leading-[21px] text-gray-400">
+            연동 해제 시 자동 데이터가 기여도 분석에 반영되지 않으며,
+            <br />
+            기여도 분석 정확도가 낮아질 수 있어요!
+          </p>
+          {disconnectError && (
+            <p className="mt-3 text-[12px] text-error" role="alert">
+              {disconnectError}
+            </p>
+          )}
+          <div className="mt-auto grid w-full grid-cols-2 gap-4">
+            <button
+              type="button"
+              onClick={closeDisconnectDialog}
+              disabled={isDisconnecting}
+              className="h-14 rounded-[14px] bg-gray-100 text-[16px] font-semibold text-gray-400 disabled:opacity-50"
+            >
+              취소
+            </button>
+            <button
+              type="button"
+              onClick={() => void handleDisconnectIntegration()}
+              disabled={isDisconnecting}
+              className="h-14 rounded-[14px] bg-error text-[16px] font-semibold text-white disabled:opacity-60"
+            >
+              {isDisconnecting ? "해제 중..." : "연동 해제"}
+            </button>
+          </div>
+        </div>
+      </Modal>
 
       <Modal open={isQrOpen} onClose={() => setIsQrOpen(false)}>
         <div className="flex flex-col items-center text-center">

@@ -10,7 +10,7 @@ import { ApiError } from '../../api/client';
 import { AlertModal } from '../../components/Modal';
 import githubIcon from '../../assets/integrations/github.svg';
 import figmaIcon from '../../assets/integrations/figma.svg';
-import notionIcon from '../../assets/integrations/notion.png';
+import notionIcon from '../../assets/integrations/notion-figma.png';
 import googleIcon from '../../assets/integrations/google-docs.svg';
 import type { IntegrationProviderActorResponse, ProjectIntegrationType } from '../../types/project';
 
