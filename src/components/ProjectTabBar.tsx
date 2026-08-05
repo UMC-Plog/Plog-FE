@@ -1,6 +1,7 @@
-import { NavLink, Outlet, useNavigate, useParams } from 'react-router-dom'
+import { NavLink, Outlet, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { TopNavBar } from './TopNavBar'
 import { useProjectStore } from '../store/projectStore'
+import { cn } from '../lib/utils'
 
 // Figma 프로젝트 상세 상단 탭 기준: 피드 / 채팅 / 업무 / 리포트
 const tabs = [
@@ -11,13 +12,23 @@ const tabs = [
 ]
 
 export default function ProjectTabBar() {
+  const location = useLocation()
   const navigate = useNavigate()
   const { id: projectId } = useParams<{ id: string }>()
   const project = useProjectStore((state) =>
     state.projects.find((item) => item.id === projectId)
   )
+  const isChatRoute = location.pathname.endsWith('/chat')
+
   return (
-    <div className="flex flex-col min-h-svh">
+    <div
+      className={cn(
+        'flex flex-col bg-gray-25',
+        isChatRoute
+          ? 'h-[calc(100dvh-env(safe-area-inset-top))] overflow-hidden'
+          : 'min-h-svh'
+      )}
+    >
       <TopNavBar
         title={project?.name ?? '프로젝트'}
         onBack={() => navigate('/home')}
@@ -26,7 +37,7 @@ export default function ProjectTabBar() {
         }}
       />
 
-      <nav className="border-b border-gray-200 bg-white">
+      <nav className="shrink-0 border-b border-gray-200 bg-white">
         <ul className="flex">
           {tabs.map((tab) => (
             <li key={tab.to} className="flex-1">
@@ -52,7 +63,7 @@ export default function ProjectTabBar() {
         </ul>
       </nav>
 
-      <main className="flex-1">
+      <main className={cn('flex-1', isChatRoute && 'min-h-0 overflow-hidden')}>
         <Outlet />
       </main>
     </div>

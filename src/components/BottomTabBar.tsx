@@ -61,12 +61,12 @@ const tabs = [
 
 export default function BottomTabBar() {
   return (
-    <div className="flex min-h-svh flex-col">
-      <main className="flex-1 pb-[88px]">
+    <div className="flex min-h-[calc(100dvh-env(safe-area-inset-top))] flex-col bg-gray-25">
+      <main className="flex-1 bg-gray-25 pb-[calc(66px+max(22px,env(safe-area-inset-bottom)))]">
         <Outlet />
       </main>
 
-      <nav className="fixed bottom-0 left-1/2 z-40 w-full max-w-mobile -translate-x-1/2 border-t border-gray-100 bg-white pb-[22px] pt-[11px]">
+      <nav className="fixed bottom-0 left-1/2 z-40 w-full max-w-mobile -translate-x-1/2 border-t border-gray-100 bg-white pb-[max(22px,env(safe-area-inset-bottom))] pt-[11px]">
         <ul className="grid grid-cols-4">
           {tabs.map(({ to, label, Icon }) => (
             <li key={to}>

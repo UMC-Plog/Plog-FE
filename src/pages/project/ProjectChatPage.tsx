@@ -491,7 +491,7 @@ export default function ProjectChatPage() {
   return (
     <div
       ref={chatPageRef}
-      className="flex h-[calc(100dvh-92px)] min-h-0 flex-col overflow-hidden bg-gray-25"
+      className="flex h-full min-h-0 flex-col overflow-hidden bg-gray-25"
     >
       <div ref={messagesRef} className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4">
         <div className="flex flex-col gap-4">
