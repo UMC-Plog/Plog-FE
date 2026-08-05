@@ -1,6 +1,6 @@
 import { apiRequest } from './client'
 
-export type NotificationType = 'CHAT_MENTION'
+export type NotificationType = 'CHAT_MESSAGE' | 'CHAT_MENTION'
 
 export interface NotificationResponse {
   notificationId: number
