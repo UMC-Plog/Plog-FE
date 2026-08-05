@@ -54,7 +54,10 @@ import {
   useIntegrationStore,
   type IntegrationProvider,
 } from "../../store/integrationStore";
-import { rememberIntegrationReturnPath } from "../../lib/integrationCallback";
+import {
+  clearIntegrationReturnPath,
+  rememberIntegrationReturnPath,
+} from "../../lib/integrationCallback";
 
 type NotionFilter = "전체" | "페이지" | "DB";
 type IntegrationNavigationState = {
@@ -523,6 +526,10 @@ export default function IntegrationConnectionPage() {
   const handleAuthorize = async () => {
     if (isAuthorizing) return;
 
+    // 새 창은 생성 시점의 sessionStorage만 복사하므로, OAuth 창을 열기 전에
+    // 복귀 정보를 저장해야 팝업·새 탭·현재 탭 모두 콜백 경로를 복원할 수 있다.
+    rememberIntegrationReturnPath(id, providerId);
+
     // 팝업 차단을 피하려면 연동 URL을 받기 전에 창부터 열어야 한다
     const authWindow = openBlankAuthWindow();
     const controller = new AbortController();
@@ -535,7 +542,6 @@ export default function IntegrationConnectionPage() {
 
       if (!authWindow) {
         // 팝업이 차단되면 현재 창을 승인 화면으로 보낸다 (콜백 처리는 서버 몫)
-        rememberIntegrationReturnPath(id, providerId);
         window.location.href = authorization;
         return;
       }
@@ -551,15 +557,18 @@ export default function IntegrationConnectionPage() {
       if (controller.signal.aborted) return;
 
       if (!integration) {
+        clearIntegrationReturnPath();
         setAuthError("계정 연결을 완료하지 못했어요. 승인 창에서 권한을 허용한 뒤 다시 시도해 주세요.");
         return;
       }
 
       authWindow.close();
+      clearIntegrationReturnPath();
       setAccountName(integration.connectedAccountName);
       setStep(2);
     } catch (error) {
       authWindow?.close();
+      clearIntegrationReturnPath();
 
       // 이미 연결된 프로젝트면 409 — 연결된 상태로 이어서 진행한다
       if (error instanceof ApiError && error.status === 409) {
@@ -1122,4 +1131,3 @@ export default function IntegrationConnectionPage() {
     </div>
   );
 }
-

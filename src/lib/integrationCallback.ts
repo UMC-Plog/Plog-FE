@@ -17,6 +17,10 @@ export function rememberIntegrationReturnPath(projectId: string, providerId: str
   );
 }
 
+export function clearIntegrationReturnPath() {
+  sessionStorage.removeItem(INTEGRATION_RETURN_KEY);
+}
+
 export function consumeIntegrationReturnPath(): string | null {
   const raw = sessionStorage.getItem(INTEGRATION_RETURN_KEY);
   sessionStorage.removeItem(INTEGRATION_RETURN_KEY);
