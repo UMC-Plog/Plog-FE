@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import { Search } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import ChatListItem, { type ChatParticipant } from '../components/ChatListItem';
@@ -47,14 +47,17 @@ export default function ChatPage() {
   const [notice, setNotice] = useState<string | null>(null);
   const navigate = useNavigate();
 
-  useEffect(() => {
+  const loadChannels = useCallback((background: boolean) => {
     let cancelled = false;
+    if (!background) setLoading(true);
     fetchChannels({ size: 100 })
       .then((res) => {
         if (!cancelled) setChats(res.content.map(toChatRoom));
       })
       .catch(() => {
-        if (!cancelled) setNotice('채팅방 목록을 불러오지 못했어요. 다시 시도해 주세요.');
+        // 포그라운드 push로 트리거된 재조회 실패는 목록이 이미 떠있는 화면을
+        // 방해하지 않도록 조용히 무시하고, 최초 진입 실패일 때만 안내한다.
+        if (!cancelled && !background) setNotice('채팅방 목록을 불러오지 못했어요. 다시 시도해 주세요.');
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -63,6 +66,18 @@ export default function ChatPage() {
       cancelled = true;
     };
   }, []);
+
+  useEffect(() => {
+    const cancel = loadChannels(false);
+    return cancel;
+  }, [loadChannels]);
+
+  // 채팅 알림 push를 받으면(포그라운드) 목록을 다시 불러와 마지막 메시지/안읽음 배지를 최신화한다
+  useEffect(() => {
+    const refresh = () => loadChannels(true);
+    window.addEventListener('plog:notification-received', refresh);
+    return () => window.removeEventListener('plog:notification-received', refresh);
+  }, [loadChannels]);
 
   const filtered = useMemo(() => {
     const q = keyword.trim().toLowerCase();

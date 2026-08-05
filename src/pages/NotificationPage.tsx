@@ -80,7 +80,7 @@ export default function NotificationPage() {
   }, [loadPage])
 
   const handleNotificationClick = (notification: NotificationResponse) => {
-    if (notification.type === 'CHAT_MENTION') {
+    if (notification.type === 'CHAT_MENTION' || notification.type === 'CHAT_MESSAGE') {
       navigate(`/project/${notification.projectId}/chat`)
     }
   }
