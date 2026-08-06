@@ -118,7 +118,7 @@ export function ProfileSetupPage() {
         const tokens = await login(draft.email, draft.password);
         completeSignup(tokens);
       }
-      navigate(consumeProjectInvitationPath() ?? "/home", { replace: true });
+      navigate(consumeProjectInvitationPath() ?? "/onboarding/welcome", { replace: true });
     } catch (err) {
       if (err instanceof ApiError) {
         setSignupError(err.message);
