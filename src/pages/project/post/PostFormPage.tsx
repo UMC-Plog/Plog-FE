@@ -249,11 +249,11 @@ export default function PostFormPage() {
   if (isEditMode && (isEditLoading || editLoadError || !existingPost)) {
     return (
       <Layout>
-        <header className="grid h-12 grid-cols-3 items-center border-b border-gray-200 bg-white px-3">
-          <Button type="button" variant="ghost" size="sm" fullWidth={false} onClick={handleCancel} className="justify-self-start px-0 text-gray-500">
+        <header className="relative flex h-12 shrink-0 items-center border-b border-gray-200 bg-white px-3">
+          <Button type="button" variant="ghost" size="sm" fullWidth={false} onClick={handleCancel} className="px-0 text-gray-500">
             취소
           </Button>
-          <h1 className="text-center text-body font-semibold text-gray-900">
+          <h1 className="absolute left-1/2 -translate-x-1/2 text-center text-body font-semibold text-gray-900">
             {isEditMode ? '게시글 수정' : '게시글 작성'}
           </h1>
         </header>
@@ -274,14 +274,14 @@ export default function PostFormPage() {
 
   return (
     <Layout>
-      <header className="grid h-12 grid-cols-3 items-center border-b border-gray-200 bg-white px-3">
-        <Button type="button" variant="ghost" size="sm" fullWidth={false} onClick={handleCancel} className="justify-self-start px-0 text-gray-500">
+      <header className="relative flex h-12 shrink-0 items-center border-b border-gray-200 bg-white px-3">
+        <Button type="button" variant="ghost" size="sm" fullWidth={false} onClick={handleCancel} className="px-0 text-gray-500">
           취소
         </Button>
-        <h1 className="text-center text-body font-semibold text-gray-900">
+        <h1 className="absolute left-1/2 -translate-x-1/2 text-center text-body font-semibold text-gray-900">
           {isEditMode ? '게시글 수정' : '게시글 작성'}
         </h1>
-        <Button type="button" size="sm" fullWidth={false} disabled={!canSubmit} onClick={() => void handleSubmit()} className="hidden justify-self-end text-white sm:inline-flex">
+        <Button type="button" size="sm" fullWidth={false} disabled={!canSubmit} onClick={() => void handleSubmit()} className="ml-auto text-white">
           {isSubmitting
             ? isEditMode
               ? '수정 중'
@@ -292,7 +292,7 @@ export default function PostFormPage() {
         </Button>
       </header>
 
-      <main className="flex flex-1 flex-col px-5 pb-[calc(5rem+env(safe-area-inset-bottom))] pt-5 sm:pb-5">
+      <main className="flex flex-1 flex-col px-5 pb-5 pt-5">
         <div className="mb-5 flex items-center gap-3">
           <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-gray-100">
             {existingPost ? (
@@ -360,25 +360,6 @@ export default function PostFormPage() {
           />
         </div>
       </main>
-
-      <div className="pointer-events-none fixed inset-x-0 bottom-0 z-30 mx-auto w-full max-w-mobile px-5 pb-[max(16px,env(safe-area-inset-bottom))] sm:hidden">
-        <Button
-          type="button"
-          size="sm"
-          fullWidth={false}
-          disabled={!canSubmit}
-          onClick={() => void handleSubmit()}
-          className="pointer-events-auto ml-auto text-white shadow-lg"
-        >
-          {isSubmitting
-            ? isEditMode
-              ? '수정 중'
-              : '게시 중'
-            : isEditMode
-              ? '수정'
-              : '게시'}
-        </Button>
-      </div>
     </Layout>
   )
 }
