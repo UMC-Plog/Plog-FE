@@ -244,15 +244,40 @@ export function TaskCardFormModal({
   useEffect(() => {
     if (!open) return
 
-    const previousOverflow = document.body.style.overflow
-    const previousOverscrollBehavior = document.body.style.overscrollBehavior
+    const scrollX = window.scrollX
+    const scrollY = window.scrollY
+    const bodyStyle = document.body.style
+    const documentStyle = document.documentElement.style
+    const previousBodyStyles = {
+      overflow: bodyStyle.overflow,
+      overscrollBehavior: bodyStyle.overscrollBehavior,
+      position: bodyStyle.position,
+      top: bodyStyle.top,
+      width: bodyStyle.width,
+    }
+    const previousDocumentStyles = {
+      overflow: documentStyle.overflow,
+      overscrollBehavior: documentStyle.overscrollBehavior,
+    }
 
-    document.body.style.overflow = 'hidden'
-    document.body.style.overscrollBehavior = 'none'
+    bodyStyle.overflow = 'hidden'
+    bodyStyle.overscrollBehavior = 'none'
+    bodyStyle.position = 'fixed'
+    bodyStyle.top = `-${scrollY}px`
+    bodyStyle.width = '100%'
+    documentStyle.overflow = 'hidden'
+    documentStyle.overscrollBehavior = 'none'
 
     return () => {
-      document.body.style.overflow = previousOverflow
-      document.body.style.overscrollBehavior = previousOverscrollBehavior
+      bodyStyle.overflow = previousBodyStyles.overflow
+      bodyStyle.overscrollBehavior = previousBodyStyles.overscrollBehavior
+      bodyStyle.position = previousBodyStyles.position
+      bodyStyle.top = previousBodyStyles.top
+      bodyStyle.width = previousBodyStyles.width
+      documentStyle.overflow = previousDocumentStyles.overflow
+      documentStyle.overscrollBehavior =
+        previousDocumentStyles.overscrollBehavior
+      window.scrollTo(scrollX, scrollY)
     }
   }, [open])
 
@@ -503,7 +528,7 @@ export function TaskCardFormModal({
           {isEditMode ? '업무카드 수정' : '업무카드 등록'}
         </h2>
 
-        <div className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain pr-1">
+        <div className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-none pr-1">
           <div className="mt-4 flex flex-col gap-4">
           <div>
             <label
