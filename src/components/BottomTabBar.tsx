@@ -1,4 +1,7 @@
-import { NavLink, Outlet } from "react-router-dom";
+import { useEffect } from "react";
+import { NavLink, Outlet, useLocation } from "react-router-dom";
+import { useNotificationBadgeStore } from "../store/notificationBadgeStore";
+import { NotificationDot } from "./NotificationDot";
 
 function FolderIcon() {
   return (
@@ -60,6 +63,26 @@ const tabs = [
 ];
 
 export default function BottomTabBar() {
+  const location = useLocation();
+  const hasUnreadChat = useNotificationBadgeStore((state) => state.hasUnreadChat);
+  const refreshBadges = useNotificationBadgeStore((state) => state.refresh);
+
+  useEffect(() => {
+    void refreshBadges();
+  }, [refreshBadges]);
+
+  useEffect(() => {
+    if (location.pathname === "/home" || location.pathname === "/chat") {
+      void refreshBadges();
+    }
+  }, [location.pathname, refreshBadges]);
+
+  useEffect(() => {
+    const onPush = () => void refreshBadges();
+    window.addEventListener("plog:notification-received", onPush);
+    return () => window.removeEventListener("plog:notification-received", onPush);
+  }, [refreshBadges]);
+
   return (
     <div className="flex min-h-[calc(100dvh-env(safe-area-inset-top))] flex-col bg-gray-25">
       <main className="flex-1 bg-gray-25 pb-[calc(66px+max(22px,env(safe-area-inset-bottom)))]">
@@ -79,7 +102,10 @@ export default function BottomTabBar() {
                   }`
                 }
               >
-                <Icon />
+                <span className="relative inline-flex">
+                  <Icon />
+                  <NotificationDot show={to === "/chat" && hasUnreadChat} />
+                </span>
                 {label}
               </NavLink>
             </li>
