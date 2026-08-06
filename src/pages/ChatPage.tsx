@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useCallback } from 'react';
+import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { Search } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import ChatListItem, { type ChatParticipant } from '../components/ChatListItem';
@@ -6,10 +6,17 @@ import { PlogIcon } from '../components/PlogIcon';
 import { AlertModal } from '../components/Modal';
 import { cn } from '../lib/utils';
 import { fetchChannels, type ChatChannelResponse } from '../api/chat';
+import {
+  chatDestinations,
+  createChatStompClient,
+  subscribeToDestination,
+  type ChatUpdateEvent,
+} from '../api/chatSocket';
 import { AVATAR_PRESETS } from '../components/AvatarPicker';
 import { toAvatarId } from '../lib/profilePreset';
 
 interface ChatRoom {
+  roomId: number;
   projectId: number;
   projectName: string;
   participants: ChatParticipant[];
@@ -23,8 +30,12 @@ const avatarUrl = (preset: string | null) => {
   return id ? AVATAR_PRESETS.find((item) => item.id === id)?.src ?? '' : '';
 };
 
+const formatTime = (value: Date) =>
+  new Intl.DateTimeFormat('ko-KR', { hour: '2-digit', minute: '2-digit', hour12: false }).format(value);
+
 function toChatRoom(channel: ChatChannelResponse): ChatRoom {
   return {
+    roomId: channel.roomId,
     projectId: channel.projectId,
     projectName: channel.projectName,
     participants: channel.participants.map((p) => ({
@@ -33,9 +44,7 @@ function toChatRoom(channel: ChatChannelResponse): ChatRoom {
       avatarUrl: avatarUrl(p.profilePreset),
     })),
     lastMessage: channel.latestMessage ?? '아직 메시지가 없어요',
-    time: channel.latestMessageAt
-      ? new Intl.DateTimeFormat('ko-KR', { hour: '2-digit', minute: '2-digit', hour12: false }).format(new Date(channel.latestMessageAt))
-      : '',
+    time: channel.latestMessageAt ? formatTime(new Date(channel.latestMessageAt)) : '',
     unreadCount: channel.unreadMessageCount,
   };
 }
@@ -46,6 +55,12 @@ export default function ChatPage() {
   const [loading, setLoading] = useState(true);
   const [notice, setNotice] = useState<string | null>(null);
   const navigate = useNavigate();
+  // chat-update push는 비동기+재시도로 발송돼 도착 순서가 보장되지 않는다.
+  // 방별로 마지막 반영 sequence를 들고 있다가 더 큰 값일 때만 갱신해, 늦게 도착한
+  // 예전 이벤트가 최신 상태를 과거 값으로 되돌리는 것을 막는다.
+  // messageSequence(새 메시지)와 lastReadMessageSequence(읽음)는 의미가 달라 따로 추적한다.
+  const summarySeqRef = useRef(new Map<number, number>());
+  const readSeqRef = useRef(new Map<number, number>());
 
   const loadChannels = useCallback((background: boolean) => {
     let cancelled = false;
@@ -72,12 +87,69 @@ export default function ChatPage() {
     return cancel;
   }, [loadChannels]);
 
-  // 채팅 알림 push를 받으면(포그라운드) 목록을 다시 불러와 마지막 메시지/안읽음 배지를 최신화한다
+  // 채팅 알림 push를 받으면(포그라운드) 목록을 다시 불러와 마지막 메시지/안읽음 배지를 최신화한다.
+  // 아래 STOMP 구독이 주 경로이고, 이건 백그라운드에서 복귀했을 때를 위한 보조 경로다.
   useEffect(() => {
     const refresh = () => loadChannels(true);
     window.addEventListener('plog:notification-received', refresh);
     return () => window.removeEventListener('plog:notification-received', refresh);
   }, [loadChannels]);
+
+  const applyChatUpdate = useCallback((event: ChatUpdateEvent) => {
+    if (event.type === 'ROOM_SUMMARY') {
+      const lastSeq = summarySeqRef.current.get(event.roomId);
+      if (lastSeq !== undefined && event.messageSequence <= lastSeq) return;
+      summarySeqRef.current.set(event.roomId, event.messageSequence);
+      // payload에 발송 시각이 없어 수신 시각으로 표시한다. 분 단위 표시라 오차는 드러나지 않고,
+      // 화면에 다시 진입하면 서버의 latestMessageAt으로 교정된다.
+      const receivedAt = formatTime(new Date());
+      setChats((prev) =>
+        prev.map((chat) =>
+          chat.roomId === event.roomId
+            ? {
+                ...chat,
+                lastMessage: event.latestMessage,
+                unreadCount: event.unreadMessageCount,
+                time: receivedAt,
+              }
+            : chat
+        )
+      );
+      return;
+    }
+
+    const lastReadSeq = readSeqRef.current.get(event.roomId);
+    if (lastReadSeq !== undefined && event.lastReadMessageSequence <= lastReadSeq) return;
+    readSeqRef.current.set(event.roomId, event.lastReadMessageSequence);
+    setChats((prev) =>
+      prev.map((chat) =>
+        chat.roomId === event.roomId ? { ...chat, unreadCount: event.unreadMessageCount } : chat
+      )
+    );
+  }, []);
+
+  // 채팅방 밖에서도 목록이 실시간으로 갱신되도록 사용자 전용 큐를 구독한다.
+  // 채팅방 내부(ProjectChatPage)는 /topic/chat-rooms/{roomId}로 메시지를 직접 받으므로 별개다.
+  useEffect(() => {
+    const client = createChatStompClient(
+      () => {
+        subscribeToDestination(client, chatDestinations.subscribeChatUpdate(), (frame) => {
+          try {
+            applyChatUpdate(JSON.parse(frame.body) as ChatUpdateEvent);
+          } catch {
+            // 형식이 어긋난 프레임 하나 때문에 목록 화면이 깨지지 않도록 무시한다
+          }
+        });
+      },
+      // 실시간 갱신이 안 되더라도 목록 자체는 이미 떠 있으므로 모달로 막지 않고,
+      // 원인을 추적할 수 있도록 콘솔에만 남긴다.
+      (error) => console.warn('[chat] 채팅 목록 실시간 연결 실패', error)
+    );
+    client.activate();
+    return () => {
+      client.deactivate();
+    };
+  }, [applyChatUpdate]);
 
   const filtered = useMemo(() => {
     const q = keyword.trim().toLowerCase();
