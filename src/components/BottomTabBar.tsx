@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { NavLink, Outlet, useLocation } from "react-router-dom";
 import { useNotificationBadgeStore } from "../store/notificationBadgeStore";
 import { NotificationDot } from "./NotificationDot";
@@ -67,11 +67,17 @@ export default function BottomTabBar() {
   const hasUnreadChat = useNotificationBadgeStore((state) => state.hasUnreadChat);
   const refreshBadges = useNotificationBadgeStore((state) => state.refresh);
 
-  useEffect(() => {
-    void refreshBadges();
-  }, [refreshBadges]);
+  const isFirstRender = useRef(true);
 
   useEffect(() => {
+    // 최초 진입 시에는 경로와 무관하게 한 번 갱신하고, 이후로는 홈/채팅 탭으로
+    // 이동할 때만 갱신한다 (합치지 않으면 첫 진입 경로가 /home일 때 두 번 호출됨).
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      void refreshBadges();
+      return;
+    }
+
     if (location.pathname === "/home" || location.pathname === "/chat") {
       void refreshBadges();
     }
