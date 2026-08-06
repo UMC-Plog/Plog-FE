@@ -41,11 +41,16 @@ async function rawRequest<T>(path: string, options: ApiRequestOptions, token?: s
   return { status: res.status, data }
 }
 
-let reissuePromise: Promise<string | null> | null = null
+let reissuePromise: Promise<string | null | undefined> | null = null
 
 // accessToken 만료(401) 시 refreshToken으로 한 번만 재발급 시도. 동시에 여러 요청이 401을 받아도
 // 재발급 API는 한 번만 호출되도록 진행 중인 Promise를 공유한다 (refreshToken은 재발급마다 회전되므로).
-export function reissueAccessToken(): Promise<string | null> {
+//
+// 반환값 구분이 중요하다: null은 "백엔드가 명시적으로 재발급을 거부함(진짜 만료)" -> 로그아웃 처리.
+// undefined는 "네트워크 단절 등으로 재발급 시도 자체가 실패함(토큰 유효성은 알 수 없음)" -> 세션은
+// 유지하고 이번 요청만 실패시킨다. 이 둘을 구분하지 않으면 노트북 절전 복귀 등으로 잠깐 네트워크가
+// 끊긴 순간에 유효한 refreshToken까지 지워버려 "웹 껐다 켜면 로그아웃된다"는 문제가 생긴다.
+export function reissueAccessToken(): Promise<string | null | undefined> {
   const refreshToken = useAuthStore.getState().refreshToken
   if (!refreshToken) return Promise.resolve(null)
 
@@ -59,7 +64,7 @@ export function reissueAccessToken(): Promise<string | null> {
         useAuthStore.getState().setTokens(data.result)
         return data.result.accessToken
       })
-      .catch(() => null)
+      .catch(() => undefined)
       .finally(() => {
         reissuePromise = null
       })
@@ -81,6 +86,10 @@ export async function apiRequest<T>(path: string, options: ApiRequestOptions = {
         throw new ApiError(retried.data.code, retried.data.message, retried.status)
       }
       return retried.data.result
+    }
+
+    if (newToken === undefined) {
+      throw new ApiError('NETWORK_ERROR', '네트워크 연결을 확인한 후 다시 시도해 주세요.', status)
     }
 
     useAuthStore.getState().logout()
