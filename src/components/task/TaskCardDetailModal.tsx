@@ -10,7 +10,10 @@ import type {
   ServerTaskStatus,
   TaskDetailViewModel,
 } from '../../types/task'
-import { parseTaskDate } from '../../utils/taskDate'
+import {
+  getTaskDueDateInfo,
+  parseTaskDate,
+} from '../../utils/taskDate'
 import type { NormalizedAttachment } from '../../types/attachment'
 import {
   SERVER_TASK_CATEGORY_CONFIG,
@@ -99,6 +102,21 @@ export function TaskCardDetailModal({
   const normalizedAttachments = task
     ? normalizeTaskAttachments(task)
     : []
+  const dueDateInfo = task
+    ? getTaskDueDateInfo(task.dueDate)
+    : null
+  const deadlineNotice = task?.isOverdue
+    ? 'OVERDUE'
+    : task?.status === 'DONE'
+      ? null
+      : dueDateInfo?.state === 'TODAY'
+        ? 'TODAY'
+        : dueDateInfo?.state === 'UPCOMING' &&
+            dueDateInfo.daysUntilDue <= 3
+          ? 'UPCOMING'
+          : null
+  const showWarningNotice =
+    deadlineNotice === 'TODAY' || deadlineNotice === 'UPCOMING'
   return (
     <BottomSheet
       open={open}
@@ -140,18 +158,22 @@ export function TaskCardDetailModal({
           </div>
         ) : task && category ? (
           <>
-        {task.isImminent && (
-          <div className="mt-4 flex items-center gap-2 rounded-md bg-warning/10 px-3 py-2 text-caption text-warning">
-            <TriangleAlert className="h-4 w-4 shrink-0" aria-hidden />
-            마감일이 {task.dDay === 0 ? '오늘이에요' : `${task.dDay}일 남았어요`}
-          </div>
-        )}
-        {task.isOverdue && (
+        {deadlineNotice === 'OVERDUE' ? (
           <div className="mt-4 flex items-center gap-2 rounded-md bg-error/10 px-3 py-2 text-caption text-error">
             <TriangleAlert className="h-4 w-4 shrink-0" aria-hidden />
             마감일이 지났어요
           </div>
-        )}
+        ) : deadlineNotice === 'TODAY' ? (
+          <div className="mt-4 flex items-center gap-2 rounded-md bg-warning/10 px-3 py-2 text-caption text-warning">
+            <TriangleAlert className="h-4 w-4 shrink-0" aria-hidden />
+            마감일이 오늘이에요
+          </div>
+        ) : deadlineNotice === 'UPCOMING' ? (
+          <div className="mt-4 flex items-center gap-2 rounded-md bg-warning/10 px-3 py-2 text-caption text-warning">
+            <TriangleAlert className="h-4 w-4 shrink-0" aria-hidden />
+            마감일까지 {dueDateInfo?.daysUntilDue}일 남았어요
+          </div>
+        ) : null}
 
         <div className="mt-4 border-b border-gray-200 pb-4">
           <p className="text-body-sm text-gray-600">업무명</p>
@@ -190,7 +212,7 @@ export function TaskCardDetailModal({
           </div>
           <div>
             <dt className="text-body-sm text-gray-600">마감일</dt>
-            <dd className={cn('mt-2 flex items-center gap-1 text-body-sm text-gray-700', task.isOverdue && 'text-error', task.isImminent && 'text-warning')}>
+            <dd className={cn('mt-2 flex items-center gap-1 text-body-sm text-gray-700', deadlineNotice === 'OVERDUE' && 'text-error', showWarningNotice && 'text-warning')}>
               <CalendarDays className="h-4 w-4" aria-hidden />
               {formatDueDate(task.dueDate)}
             </dd>
