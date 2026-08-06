@@ -384,15 +384,10 @@ export default function ProjectTaskPage() {
         cardStatus: nextStatus,
       })
 
-      if (nextStatus === 'IN_PROGRESS') {
-        await Promise.all([
-          loadTasks(),
-          loadTaskDetail(selectedTaskId),
-        ])
-      } else {
-        closeTaskDetail()
-        await loadTasks()
-      }
+      await Promise.all([
+        loadTasks(),
+        loadTaskDetail(selectedTaskId),
+      ])
     } catch (updateError: unknown) {
       setStatusError(getErrorMessage(updateError))
     } finally {
@@ -400,7 +395,6 @@ export default function ProjectTaskPage() {
       setIsStatusUpdating(false)
     }
   }, [
-    closeTaskDetail,
     detail,
     loadTaskDetail,
     loadTasks,

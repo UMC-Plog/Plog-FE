@@ -1,4 +1,5 @@
 import { CalendarDays, Info, TriangleAlert, UserRound } from 'lucide-react'
+import { useState } from 'react'
 import { AVATAR_PRESETS } from '../AvatarPicker'
 import { AttachmentList } from '../attachment/AttachmentList'
 import { BottomSheet } from '../Modal'
@@ -88,6 +89,8 @@ export function TaskCardDetailModal({
   isDeleting,
   onStatusChange,
 }: TaskCardDetailModalProps) {
+  const [pendingStatus, setPendingStatus] =
+    useState<ServerTaskStatus | null>(null)
   const avatarId = task?.assignee.profilePreset
     ? PROFILE_PRESET_TO_AVATAR_ID[task.assignee.profilePreset]
     : undefined
@@ -215,42 +218,74 @@ export function TaskCardDetailModal({
           </span>
         </p>
 
-        <div className="mt-5 flex gap-3">
-          <Button type="button" variant="ghost" size="lg" fullWidth={false} disabled={isStatusUpdating} onClick={onUnavailableAction} className="flex-1 bg-gray-100 text-gray-400">
-            파일 추가
-          </Button>
-          {task.status !== 'DONE' ? (
+        {task.status === 'TODO' ? (
+          <div className="mt-5 flex gap-3">
             <Button
               type="button"
               size="lg"
               fullWidth={false}
-              loading={isStatusUpdating}
-              disabled={isStatusUpdating}
-              onClick={() =>
-                onStatusChange(
-                  task.status === 'TODO' ? 'IN_PROGRESS' : 'DONE'
-                )
+              loading={
+                isStatusUpdating && pendingStatus === 'IN_PROGRESS'
               }
-              className="flex-[2] text-white"
+              disabled={isStatusUpdating}
+              onClick={() => {
+                setPendingStatus('IN_PROGRESS')
+                onStatusChange('IN_PROGRESS')
+              }}
+              className="flex-1 text-white"
             >
-              {isStatusUpdating
-                ? '변경 중'
-                : task.status === 'TODO'
-                  ? '진행 중'
-                  : '완료 처리'}
+              진행중
             </Button>
-          ) : (
             <Button
               type="button"
               size="lg"
               fullWidth={false}
-              disabled
+              loading={isStatusUpdating && pendingStatus === 'DONE'}
+              disabled={isStatusUpdating}
+              onClick={() => {
+                setPendingStatus('DONE')
+                onStatusChange('DONE')
+              }}
+              className="flex-1 text-white"
+            >
+              완료 처리
+            </Button>
+          </div>
+        ) : task.status === 'IN_PROGRESS' ? (
+          <div className="mt-5 flex gap-3">
+            <Button
+              type="button"
+              variant="outline"
+              size="lg"
+              fullWidth={false}
+              disabled={isStatusUpdating}
+              onClick={onUnavailableAction}
+              className="flex-1"
+            >
+              파일추가
+            </Button>
+            <Button
+              type="button"
+              size="lg"
+              fullWidth={false}
+              loading={isStatusUpdating && pendingStatus === 'DONE'}
+              disabled={isStatusUpdating}
+              onClick={() => {
+                setPendingStatus('DONE')
+                onStatusChange('DONE')
+              }}
               className="flex-[2] text-white"
             >
-              완료됨
+              완료 처리
             </Button>
-          )}
-        </div>
+          </div>
+        ) : (
+          <div className="mt-5">
+            <Button type="button" size="lg" disabled>
+              이미 완료된 업무입니다
+            </Button>
+          </div>
+        )}
           </>
         ) : null}
       </div>

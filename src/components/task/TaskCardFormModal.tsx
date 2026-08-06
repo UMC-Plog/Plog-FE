@@ -498,12 +498,13 @@ export function TaskCardFormModal({
       closeOnHandleClick
       handleCloseLabel="업무카드 바텀시트 닫기"
     >
-      <div className="h-full max-h-[calc(100dvh-4.75rem)] overflow-x-hidden overflow-y-auto overscroll-contain pr-1">
-        <h2 className="text-h3 text-gray-900">
+      <div className="flex h-full max-h-[calc(100dvh-4.75rem)] min-h-0 flex-col overflow-hidden">
+        <h2 className="shrink-0 text-h3 text-gray-900">
           {isEditMode ? '업무카드 수정' : '업무카드 등록'}
         </h2>
 
-        <div className="mt-4 flex flex-col gap-4">
+        <div className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain pr-1">
+          <div className="mt-4 flex flex-col gap-4">
           <div>
             <label
               htmlFor="task-title"
@@ -853,15 +854,16 @@ export function TaskCardFormModal({
               </span>
             </p>
           </div>
+          </div>
+
+          {submitError && (
+            <p className="mt-3 text-caption font-normal text-error">
+              {submitError}
+            </p>
+          )}
         </div>
 
-        {submitError && (
-          <p className="mt-3 text-caption font-normal text-error">
-            {submitError}
-          </p>
-        )}
-
-        <div className="mt-5 flex gap-3">
+        <div className="mt-5 flex shrink-0 gap-3 bg-white">
           <Button
             type="button"
             variant="ghost"
