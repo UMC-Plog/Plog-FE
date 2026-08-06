@@ -1,29 +1,46 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import notificationGuideImage from "../../assets/onboarding/welcome1.png";
+import alertSettingsGuideImage from "../../assets/onboarding/welcome4.png";
 import peerEvalGuideImage from "../../assets/onboarding/welcome2.png";
 
-// 회원가입 완료 직후 한 번 보여주는 2단계 온보딩 코치마크.
-// 두 화면 모두 Figma 목업이 하나로 합쳐진 이미지(402x874)를 그대로 사용한다.
-type Step = "notification" | "peerEval";
+// 회원가입 완료 직후 한 번 보여주는 3단계 온보딩 코치마크.
+// 세 화면 모두 Figma 목업이 하나로 합쳐진 이미지(402x874)를 그대로 사용한다.
+const STEPS = [
+  {
+    src: notificationGuideImage,
+    alt: "홈 화면에 추가 안내: iOS에서는 홈 화면에 추가해야 채팅 및 활동 알림을 받을 수 있어요",
+  },
+  {
+    src: alertSettingsGuideImage,
+    alt: "알림 설정 안내: 마이페이지 > 알림 설정에서 전체 알림을 켜주세요",
+  },
+  {
+    src: peerEvalGuideImage,
+    alt: "Peer 평가 안내: 프로젝트 예상 종료일이 되면 리포트 탭에서 Peer 평가를 시작할 수 있어요",
+  },
+] as const;
 
 export default function PostSignupGuidePage() {
   const navigate = useNavigate();
-  const [step, setStep] = useState<Step>("notification");
+  const [stepIndex, setStepIndex] = useState(0);
+  const isLastStep = stepIndex === STEPS.length - 1;
+  const step = STEPS[stepIndex];
 
-  return step === "notification" ? (
+  const goNext = () => {
+    if (isLastStep) {
+      navigate("/home", { replace: true });
+    } else {
+      setStepIndex((current) => current + 1);
+    }
+  };
+
+  return (
     <GuideImageStep
-      src={notificationGuideImage}
-      alt="알림 설정 안내: iOS에서는 홈 화면에 추가해야 채팅 및 활동 알림을 받을 수 있어요"
-      ariaLabel="다음 안내로 이동"
-      onNext={() => setStep("peerEval")}
-    />
-  ) : (
-    <GuideImageStep
-      src={peerEvalGuideImage}
-      alt="Peer 평가 안내: 프로젝트 예상 종료일이 되면 리포트 탭에서 Peer 평가를 시작할 수 있어요"
-      ariaLabel="온보딩 안내 마치기"
-      onNext={() => navigate("/home", { replace: true })}
+      src={step.src}
+      alt={step.alt}
+      ariaLabel={isLastStep ? "온보딩 안내 마치기" : "다음 안내로 이동"}
+      onNext={goNext}
     />
   );
 }
