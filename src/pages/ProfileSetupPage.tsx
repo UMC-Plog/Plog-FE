@@ -132,7 +132,11 @@ export function ProfileSetupPage() {
 
   return (
     <div className="app-shell">
-      <AuthHeader title="" showBack />
+      <AuthHeader
+        title=""
+        showBack
+        onBack={() => navigate(isSocialSignup ? "/signup/social-consent" : "/signup/email")}
+      />
       <div className="px-5">
         <ProgressBar total={2} current={2} />
       </div>

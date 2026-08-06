@@ -146,7 +146,7 @@ export function SignupEmailStepPage() {
 
   return (
     <div className="app-shell">
-      <AuthHeader title="" showBack />
+      <AuthHeader title="" showBack onBack={() => navigate("/signup")} />
       <div className="px-5">
         <ProgressBar total={2} current={step === "terms" ? 1 : 2} />
       </div>
@@ -337,7 +337,7 @@ export function SignupEmailStepPage() {
         title="이메일 인증이 완료되었어요"
         description="이어서 프로필을 설정해 주세요"
         confirmText="다음"
-        onConfirm={() => navigate("/signup/profile")}
+        onConfirm={() => navigate("/signup/profile", { replace: true })}
       />
     </div>
   );
