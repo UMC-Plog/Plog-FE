@@ -59,10 +59,15 @@ export function reissueAccessToken(): Promise<string | null | undefined> {
       '/api/auth/reissue',
       { method: 'POST', body: { refreshToken } }
     )
-      .then(({ data }) => {
-        if (!data.isSuccess) return null
-        useAuthStore.getState().setTokens(data.result)
-        return data.result.accessToken
+      .then(({ status, data }) => {
+        if (data.isSuccess) {
+          useAuthStore.getState().setTokens(data.result)
+          return data.result.accessToken
+        }
+        // 500/503 같은 일시적 서버 오류는 "refreshToken이 진짜 무효함"과 다르므로
+        // 네트워크 실패와 동일하게 세션을 유지한 채 이번 시도만 실패 처리한다.
+        if (status >= 500) return undefined
+        return null
       })
       .catch(() => undefined)
       .finally(() => {
