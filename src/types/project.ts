@@ -99,7 +99,13 @@ export interface ProjectSettingsInviteResponse {
   qrUrl: string;
 }
 
-export type ProjectIntegrationType = "GITHUB" | "FIGMA" | "NOTION" | "GOOGLE";
+export type ProjectIntegrationType =
+  | "GITHUB"
+  | "FIGMA"
+  | "NOTION"
+  | "GOOGLE"
+  | "GOOGLE_DOCS"
+  | "GOOGLE_SLIDES";
 
 export interface ProjectExternalConnectionResponse {
   connectionId: number;

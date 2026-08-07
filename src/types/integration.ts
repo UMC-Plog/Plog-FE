@@ -1,9 +1,19 @@
 /** 외부 연동 API 타입 — https://api.umc-plog.site/v3/api-docs 의 Integration 태그 기준 */
 
-export type IntegrationLinkType = "GITHUB" | "FIGMA" | "NOTION" | "GOOGLE";
+export type IntegrationLinkType =
+  | "GITHUB"
+  | "FIGMA"
+  | "NOTION"
+  | "GOOGLE_DOCS"
+  | "GOOGLE_SLIDES";
 
 /** 연동 API의 path variable. 스웨거 소셜 인증(`kakao | google`)과 동일하게 소문자를 쓴다 */
-export type IntegrationProviderPath = "github" | "figma" | "notion" | "google";
+export type IntegrationProviderPath =
+  | "github"
+  | "figma"
+  | "notion"
+  | "google-docs"
+  | "google-slides";
 
 export type IntegrationResourceType =
   | "GITHUB_REPOSITORY"
@@ -28,7 +38,7 @@ export interface IntegrationItemResponse {
 export interface IntegrationStatusResponse {
   projectId: number;
   projectMemberId: number;
-  /** GITHUB, FIGMA, NOTION, GOOGLE 순서로 항상 4개가 내려온다 */
+  /** GITHUB, FIGMA, NOTION, GOOGLE_DOCS, GOOGLE_SLIDES 순서로 항상 5개가 내려온다 */
   integrations: IntegrationItemResponse[];
 }
 
