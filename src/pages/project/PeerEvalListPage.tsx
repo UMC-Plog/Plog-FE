@@ -7,6 +7,7 @@ import { ApiError } from '../../api/client';
 import { AlertModal } from '../../components/Modal';
 import type { ProjectIntegrationType } from '../../types/project';
 import { PeerEvalAvatar } from '../../components/PeerEvalAvatar';
+import { isAccountCheckDone } from '../../lib/peerEvalAccountCheck';
 
 // actor-mappings API는 Google을 google-docs/google-slides로 분리해서 받는다.
 type AccountProvider = 'github' | 'figma' | 'notion' | 'google-docs' | 'google-slides';
@@ -93,9 +94,9 @@ export default function PeerEvalListPage() {
   const [loading, setLoading] = useState(true);
   const [notice, setNotice] = useState<string | null>(null);
   const [linkedProviders, setLinkedProviders] = useState<AccountProvider[]>([]);
-  // 모든 연동 툴에서 실제 본인 계정 매핑이 저장된 경우에만 화면에 "완료"로 표시한다.
-  // 계정 선택은 건너뛸 수 있으므로 최종 제출 조건에는 포함하지 않고, 표시 용도로만 쓴다.
-  const [accountDone, setAccountDone] = useState(false);
+  // 계정 선택은 전부 건너뛸 수 있어 최종 제출 조건에는 넣지 않고, 배지 표시에만 쓴다.
+  // selected = 계정을 하나 이상 골라 서버에 매핑이 남음 / checked = 끝까지 진행했지만 전부 건너뜀
+  const [accountStatus, setAccountStatus] = useState<'none' | 'checked' | 'selected'>('none');
   const [integrationsUnavailable, setIntegrationsUnavailable] = useState(false);
   const [integrationsRetryToken, setIntegrationsRetryToken] = useState(0);
 
@@ -104,7 +105,7 @@ export default function PeerEvalListPage() {
     if (!Number.isFinite(projectId) || !id) return;
     let cancelled = false;
     setLoading(true);
-    setAccountDone(false);
+    setAccountStatus('none');
     Promise.all([
       fetchEvaluationTargets(projectId),
       fetchMySelfFeedback(projectId)
@@ -139,17 +140,16 @@ export default function PeerEvalListPage() {
             linked.map((provider) => getIntegrationActorMappings(id, provider).catch(() => null))
           );
           if (cancelled) return;
-          const mappingsAvailable = mappings.every((res) => res !== null);
-          if (!mappingsAvailable) {
-            setIntegrationsUnavailable(true);
-            return;
-          }
-
-          setAccountDone(
-            mappings.every((res) =>
-              res.mappings.some((mapping) => mapping.projectMemberId === res.currentProjectMemberId)
-            )
+          // 매핑 조회는 활동이 한 번이라도 수집된 뒤에야 정상 응답한다. 아직 수집 전인 툴에서
+          // 실패해도 연동 자체는 되어 있으므로 카드를 숨기지 않고, 배지 판정에서만 빠지게 둔다.
+          // (예전에는 하나라도 실패하면 카드를 통째로 감춰, 로그 없는 툴 하나 때문에
+          //  나머지 연동 툴까지 보이지 않았다.)
+          const hasMapping = mappings.some(
+            (res) =>
+              res?.mappings.some((mapping) => mapping.projectMemberId === res.currentProjectMemberId) ??
+              false
           );
+          setAccountStatus(hasMapping ? 'selected' : isAccountCheckDone(id) ? 'checked' : 'none');
         }
       })
       .catch((err) => {
@@ -180,7 +180,9 @@ export default function PeerEvalListPage() {
     <div className="flex flex-col min-h-full bg-gray-25">
       {/* 헤더 */}
       <header className="sticky top-0 z-10 bg-gray-25 border-b border-gray-100 h-14 px-6 flex items-center gap-6">
-        <button type="button" onClick={() => navigate(-1)} aria-label="뒤로" className="shrink-0">
+        {/* 진입 경로가 리포트 탭·자기 피드백·계정 선택 등으로 여러 갈래라, navigate(-1)이면 방금
+            작성을 마친 화면으로 되돌아간다. 이 화면에서는 항상 홈으로 보낸다. */}
+        <button type="button" onClick={() => navigate('/home')} aria-label="뒤로" className="shrink-0">
           <ChevronLeft />
         </button>
         <span className="text-title text-gray-900">Peer 평가</span>
@@ -299,12 +301,16 @@ export default function PeerEvalListPage() {
                     onClick={() => navigate(`/project/${id}/peer-eval/accounts/${linkedProviders[0]}`)}
                     className={cn(
                       CARD_ACTION_CLASS,
-                      accountDone
-                        ? 'bg-success/10 text-success hover:bg-success/20'
-                        : 'bg-gray-25 border border-primary text-primary hover:bg-primary-100',
+                      accountStatus === 'none'
+                        ? 'bg-gray-25 border border-primary text-primary hover:bg-primary-100'
+                        : 'bg-success/10 text-success hover:bg-success/20',
                     )}
                   >
-                    {accountDone ? '완료' : '연결하기'}
+                    {accountStatus === 'selected'
+                      ? '선택완료'
+                      : accountStatus === 'checked'
+                        ? '확인완료'
+                        : '연결하기'}
                   </button>
                 </div>
                 <p className="text-caption font-normal leading-4 text-gray-400">

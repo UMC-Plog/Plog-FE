@@ -8,6 +8,7 @@ import {
 } from '../../api/projectApi';
 import { ApiError } from '../../api/client';
 import { AlertModal } from '../../components/Modal';
+import { markAccountCheckDone } from '../../lib/peerEvalAccountCheck';
 import githubIcon from '../../assets/integrations/github.svg';
 import figmaIcon from '../../assets/integrations/figma.svg';
 import notionIcon from '../../assets/integrations/notion-figma.png';
@@ -139,7 +140,10 @@ export default function PeerEvalAccountSelectPage() {
 
     Promise.all([
       getProjectIntegrations(id),
-      getIntegrationActorMappings(id, providerParam),
+      // 매핑 조회는 활동이 한 번이라도 수집된 뒤에야 정상 응답한다. 아직 수집 전인 툴에서 실패했다고
+      // 단계 전체를 막으면 연동해둔 툴을 건너뛰지도 못하고 흐름이 끊기므로, 계정 목록만 비운 채
+      // 진행할 수 있게 둔다. 아래 catch로 가는 건 연동 상태 조회가 실패한 경우뿐이다.
+      getIntegrationActorMappings(id, providerParam).catch(() => null),
     ])
       .then(([integrationsRes, mappingsRes]) => {
         if (cancelled) return;
@@ -149,14 +153,15 @@ export default function PeerEvalAccountSelectPage() {
           )
         );
         setLinkedProviders(linked);
-        setActors(mappingsRes.availableProviderActors);
-        const mine = mappingsRes.availableProviderActors.find((actor) => actor.mappedByCurrentMember);
+        const availableActors = mappingsRes?.availableProviderActors ?? [];
+        setActors(availableActors);
+        const mine = availableActors.find((actor) => actor.mappedByCurrentMember);
         setSelectedKey(mine?.actorKey ?? null);
       })
       .catch((err) => {
         if (!cancelled) {
           setLoadFailed(true);
-          setNotice(err instanceof ApiError ? err.message : '계정 목록을 불러오지 못했어요. 다시 시도해 주세요.');
+          setNotice(err instanceof ApiError ? err.message : '연동 정보를 불러오지 못했어요. 다시 시도해 주세요.');
         }
       })
       .finally(() => {
@@ -171,11 +176,16 @@ export default function PeerEvalAccountSelectPage() {
   const providerIndex = linkedProviders?.indexOf(providerParam) ?? -1;
   const isLast = linkedProviders !== null && providerIndex === linkedProviders.length - 1;
   const nextProvider = linkedProviders && providerIndex >= 0 ? linkedProviders[providerIndex + 1] : undefined;
-  // 매핑 저장은 계정을 고른 경우에만 가능하다. 선택하지 않고 넘어가는 건 건너뛰기 버튼이 담당한다.
-  const canSubmit = !loading && !submitting && Boolean(selectedKey);
+  // 계정 선택은 전부 건너뛸 수 있으므로 선택 여부로 버튼을 잠그지 않는다. 잠가두면 선택이
+  // 필수인 것처럼 보이고, 마지막 단계에서 "완료"를 누르지 못해 흐름을 빠져나갈 수 없다.
+  const canSubmit = !loading && !submitting;
 
   const goToNextStep = () => {
     if (isLast || !nextProvider) {
+      // 마지막 단계를 정상적으로 넘긴 경우에만 확인 완료로 기록한다. 전부 건너뛰면 서버에
+      // 아무것도 남지 않아, 목록에서 "확인완료"를 보여주려면 이 기록이 필요하다.
+      // 연동 상태 조회가 실패해 단계 목록을 모르는 채로 빠져나가는 경우(isLast=false)는 제외한다.
+      if (id && isLast) markAccountCheckDone(id);
       navigate(`/project/${id}/peer-eval`);
     } else {
       navigate(`/project/${id}/peer-eval/accounts/${nextProvider}`);
