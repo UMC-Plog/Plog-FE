@@ -470,12 +470,12 @@ export function CreateProjectPage() {
               </button>
             </div>
 
-            <div className="absolute left-[22px] top-[92px] flex h-[260px] w-[318px] items-center justify-center overflow-hidden rounded-[18px] bg-gray-25">
+            <div className="absolute inset-x-[22px] top-[92px] flex h-[260px] items-center justify-center overflow-hidden rounded-[18px] bg-gray-25">
               {qrDataUrl ? (
                 <img
                   src={qrDataUrl}
                   alt={`${createdProject.name} 프로젝트 초대 QR 코드`}
-                  className="h-[254px] w-[254px]"
+                  className="aspect-square h-auto w-[calc(100%-12px)] max-w-[254px]"
                 />
               ) : qrError ? (
                 <p className="text-body-sm text-gray-500">
@@ -493,7 +493,7 @@ export function CreateProjectPage() {
             <button
               type="button"
               onClick={handleCopyLink}
-              className="absolute bottom-[22px] left-[22px] flex h-14 w-[318px] items-center justify-center gap-2 rounded-[14px] border border-blue-500 text-body font-semibold text-blue-500"
+              className="absolute inset-x-[22px] bottom-[22px] flex h-14 items-center justify-center gap-2 rounded-[14px] border border-blue-500 text-body font-semibold text-blue-500"
             >
               <img src={inviteLinkIcon} alt="" className="h-4 w-4" aria-hidden="true" />
               <span aria-live="polite">{copied ? "복사 완료" : "초대 링크 복사"}</span>
