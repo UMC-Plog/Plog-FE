@@ -8,14 +8,17 @@ import { AlertModal } from '../../components/Modal';
 import type { ProjectIntegrationType } from '../../types/project';
 import { PeerEvalAvatar } from '../../components/PeerEvalAvatar';
 
-type AccountProvider = 'github' | 'figma' | 'notion' | 'google';
+// actor-mappings API는 Google을 google-docs/google-slides로 분리해서 받는다(연동 자체는 GOOGLE 하나).
+type AccountProvider = 'github' | 'figma' | 'notion' | 'google-docs' | 'google-slides';
 
-// 백엔드가 연동 상태를 내려주는 순서(GITHUB, FIGMA, NOTION, GOOGLE)와 동일하게 순회한다
+// 연동 상태(GITHUB, FIGMA, NOTION, GOOGLE)를 내려주는 순서와 동일하게 순회하되,
+// Google만 계정 매핑을 docs/slides 두 단계로 나눠 조회한다(type은 둘 다 GOOGLE).
 const PROVIDER_ORDER: { param: AccountProvider; type: ProjectIntegrationType }[] = [
   { param: 'github', type: 'GITHUB' },
   { param: 'figma', type: 'FIGMA' },
   { param: 'notion', type: 'NOTION' },
-  { param: 'google', type: 'GOOGLE' },
+  { param: 'google-docs', type: 'GOOGLE' },
+  { param: 'google-slides', type: 'GOOGLE' },
 ];
 
 // 카드 우측 액션(작성하기/연결하기/완료)은 Figma 실측 기준 높이 32px 고정이다.
