@@ -157,10 +157,13 @@ export function TaskCardFormModal({
   const submittingRef = useRef(false)
   const assigneeDropdownRef = useRef<HTMLDivElement>(null)
   const assigneeTriggerRef = useRef<HTMLButtonElement>(null)
+  const categoryDropdownRef = useRef<HTMLSpanElement>(null)
+  const categoryTriggerRef = useRef<HTMLButtonElement>(null)
   const [members, setMembers] = useState<ProjectActiveMember[]>([])
   const [isMembersLoading, setIsMembersLoading] = useState(false)
   const [membersError, setMembersError] = useState<string>()
   const [isAssigneeDropdownOpen, setIsAssigneeDropdownOpen] = useState(false)
+  const [isCategoryDropdownOpen, setIsCategoryDropdownOpen] = useState(false)
   const [title, setTitle] = useState('')
   const [projectMemberId, setProjectMemberId] = useState<number | null>(null)
   const [status, setStatus] = useState<ServerTaskStatus>('TODO')
@@ -213,6 +216,7 @@ export function TaskCardFormModal({
     setEndDate(task?.dueDate ?? '')
     setAttachments(task ? mapTaskAttachments(task) : [])
     setIsAssigneeDropdownOpen(false)
+    setIsCategoryDropdownOpen(false)
     setEditBaseline(
       task
         ? {
@@ -240,30 +244,66 @@ export function TaskCardFormModal({
   useEffect(() => {
     if (!open) return
 
-    const previousOverflow = document.body.style.overflow
-    const previousOverscrollBehavior = document.body.style.overscrollBehavior
+    const scrollX = window.scrollX
+    const scrollY = window.scrollY
+    const bodyStyle = document.body.style
+    const documentStyle = document.documentElement.style
+    const previousBodyStyles = {
+      overflow: bodyStyle.overflow,
+      overscrollBehavior: bodyStyle.overscrollBehavior,
+      position: bodyStyle.position,
+      top: bodyStyle.top,
+      width: bodyStyle.width,
+    }
+    const previousDocumentStyles = {
+      overflow: documentStyle.overflow,
+      overscrollBehavior: documentStyle.overscrollBehavior,
+    }
 
-    document.body.style.overflow = 'hidden'
-    document.body.style.overscrollBehavior = 'none'
+    bodyStyle.overflow = 'hidden'
+    bodyStyle.overscrollBehavior = 'none'
+    bodyStyle.position = 'fixed'
+    bodyStyle.top = `-${scrollY}px`
+    bodyStyle.width = '100%'
+    documentStyle.overflow = 'hidden'
+    documentStyle.overscrollBehavior = 'none'
 
     return () => {
-      document.body.style.overflow = previousOverflow
-      document.body.style.overscrollBehavior = previousOverscrollBehavior
+      bodyStyle.overflow = previousBodyStyles.overflow
+      bodyStyle.overscrollBehavior = previousBodyStyles.overscrollBehavior
+      bodyStyle.position = previousBodyStyles.position
+      bodyStyle.top = previousBodyStyles.top
+      bodyStyle.width = previousBodyStyles.width
+      documentStyle.overflow = previousDocumentStyles.overflow
+      documentStyle.overscrollBehavior =
+        previousDocumentStyles.overscrollBehavior
+      window.scrollTo(scrollX, scrollY)
     }
   }, [open])
 
   useEffect(() => {
-    if (!isAssigneeDropdownOpen) return
+    if (!isAssigneeDropdownOpen && !isCategoryDropdownOpen) return
 
     const handlePointerDown = (event: PointerEvent) => {
-      if (!assigneeDropdownRef.current?.contains(event.target as Node)) {
+      const target = event.target as Node
+
+      if (
+        isAssigneeDropdownOpen &&
+        !assigneeDropdownRef.current?.contains(target)
+      ) {
         setIsAssigneeDropdownOpen(false)
+      }
+      if (
+        isCategoryDropdownOpen &&
+        !categoryDropdownRef.current?.contains(target)
+      ) {
+        setIsCategoryDropdownOpen(false)
       }
     }
 
     document.addEventListener('pointerdown', handlePointerDown)
     return () => document.removeEventListener('pointerdown', handlePointerDown)
-  }, [isAssigneeDropdownOpen])
+  }, [isAssigneeDropdownOpen, isCategoryDropdownOpen])
 
   useEffect(() => {
     if (category && !categories.some((option) => option.value === category)) {
@@ -274,6 +314,9 @@ export function TaskCardFormModal({
   const normalizedTitle = title.trim()
   const selectedMember = members.find(
     (member) => member.projectMemberId === projectMemberId
+  )
+  const selectedCategory = categories.find(
+    (option) => option.value === category
   )
   const selectedMemberAvatar = selectedMember?.profilePreset
     ? AVATAR_PRESETS.find(
@@ -480,12 +523,13 @@ export function TaskCardFormModal({
       closeOnHandleClick
       handleCloseLabel="업무카드 바텀시트 닫기"
     >
-      <div className="h-full max-h-[calc(100dvh-4.75rem)] overflow-x-hidden overflow-y-auto overscroll-contain pr-1">
-        <h2 className="text-h3 text-gray-900">
+      <div className="flex h-full max-h-[calc(100dvh-4.75rem)] min-h-0 flex-col overflow-hidden">
+        <h2 className="shrink-0 text-h3 text-gray-900">
           {isEditMode ? '업무카드 수정' : '업무카드 등록'}
         </h2>
 
-        <div className="mt-4 flex flex-col gap-4">
+        <div className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-none pr-1">
+          <div className="mt-4 flex flex-col gap-4">
           <div>
             <label
               htmlFor="task-title"
@@ -541,9 +585,10 @@ export function TaskCardFormModal({
                   members.length === 0 ||
                   isSubmitting
                 }
-                onClick={() =>
+                onClick={() => {
+                  setIsCategoryDropdownOpen(false)
                   setIsAssigneeDropdownOpen((isOpen) => !isOpen)
-                }
+                }}
                 className={cn(
                   'flex h-14 w-full min-w-0 items-center gap-3 rounded-lg border border-gray-200 bg-white px-[18px] text-left text-body transition-colors',
                   'focus:border-primary focus:outline-none disabled:cursor-not-allowed disabled:bg-gray-50',
@@ -694,41 +739,90 @@ export function TaskCardFormModal({
             </div>
           </fieldset>
 
-          <div className="grid grid-cols-2 items-start gap-3">
-            <label className="block min-w-0 text-body-sm font-medium text-gray-700">
-              담당 영역 <span className="text-error">*</span>
-              <span className="relative mt-1.5 block">
-                <select
-                  value={category}
-                  disabled={categories.length === 0}
-                  onChange={(event) =>
-                    setCategory(event.target.value as ServerTaskCategory)
+          <div
+            className={cn(
+              'grid grid-cols-2 items-start gap-3',
+              isCategoryDropdownOpen && 'pb-[12.5rem]'
+            )}
+          >
+            <div className="block min-w-0 text-body-sm font-medium text-gray-700">
+              <span id="task-category-label">
+                담당 영역 <span className="text-error">*</span>
+              </span>
+              <span
+                ref={categoryDropdownRef}
+                className="relative mt-1.5 block"
+                onKeyDown={(event) => {
+                  if (event.key === 'Escape' && isCategoryDropdownOpen) {
+                    event.stopPropagation()
+                    setIsCategoryDropdownOpen(false)
+                    categoryTriggerRef.current?.focus()
                   }
+                }}
+              >
+                <button
+                  ref={categoryTriggerRef}
+                  type="button"
+                  aria-labelledby="task-category-label"
+                  aria-haspopup="listbox"
+                  aria-expanded={isCategoryDropdownOpen}
+                  aria-controls="task-category-options"
+                  disabled={categories.length === 0}
+                  onClick={() => {
+                    setIsAssigneeDropdownOpen(false)
+                    setIsCategoryDropdownOpen((isOpen) => !isOpen)
+                  }}
                   className={cn(
                     TASK_META_FIELD_CLASS,
-                    'appearance-none border border-gray-200 bg-white pr-10 text-gray-900 focus:border-primary focus:outline-none disabled:bg-gray-50 disabled:text-gray-400'
+                    'flex items-center justify-between border border-gray-200 bg-white pr-10 text-left focus:border-primary focus:outline-none disabled:bg-gray-50 disabled:text-gray-400',
+                    selectedCategory ? 'text-gray-900' : 'text-gray-400'
                   )}
                 >
-                  <option value="" disabled>
-                    영역 선택
-                  </option>
-                  {categories.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
+                  {selectedCategory?.label ?? '영역 선택'}
+                </button>
                 <ChevronDown
-                  className="pointer-events-none absolute right-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500"
+                  className={cn(
+                    'pointer-events-none absolute right-3.5 top-6 h-4 w-4 -translate-y-1/2 text-gray-500 transition-transform',
+                    isCategoryDropdownOpen && 'rotate-180'
+                  )}
                   aria-hidden
                 />
+                {isCategoryDropdownOpen && (
+                  <span
+                    id="task-category-options"
+                    role="listbox"
+                    aria-labelledby="task-category-label"
+                    className="absolute left-0 right-0 top-full z-20 mt-2 max-h-48 overflow-x-hidden overflow-y-auto overscroll-contain rounded-lg border border-gray-200 bg-white p-1.5 shadow-lg"
+                  >
+                    {categories.map((option) => (
+                      <button
+                        key={option.value}
+                        type="button"
+                        role="option"
+                        aria-selected={category === option.value}
+                        onClick={() => {
+                          setCategory(option.value)
+                          setIsCategoryDropdownOpen(false)
+                        }}
+                        className={cn(
+                          'block w-full rounded-md px-3 py-2 text-left text-body-sm text-gray-700',
+                          'focus:outline-none focus-visible:bg-primary-50 hover:bg-gray-50',
+                          category === option.value &&
+                            'bg-primary-50 text-primary'
+                        )}
+                      >
+                        {option.label}
+                      </button>
+                    ))}
+                  </span>
+                )}
               </span>
               {categories.length === 0 && (
                 <span className="mt-1.5 block text-caption font-normal text-error">
                   프로젝트 유형을 확인할 수 없어요.
                 </span>
               )}
-            </label>
+            </div>
 
             <div className="min-w-0">
               <label
@@ -785,15 +879,16 @@ export function TaskCardFormModal({
               </span>
             </p>
           </div>
+          </div>
+
+          {submitError && (
+            <p className="mt-3 text-caption font-normal text-error">
+              {submitError}
+            </p>
+          )}
         </div>
 
-        {submitError && (
-          <p className="mt-3 text-caption font-normal text-error">
-            {submitError}
-          </p>
-        )}
-
-        <div className="mt-5 flex gap-3">
+        <div className="mt-5 flex shrink-0 gap-3 bg-white">
           <Button
             type="button"
             variant="ghost"

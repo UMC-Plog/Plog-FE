@@ -1,4 +1,5 @@
 import { CalendarDays, Info, TriangleAlert, UserRound } from 'lucide-react'
+import { useState } from 'react'
 import { AVATAR_PRESETS } from '../AvatarPicker'
 import { AttachmentList } from '../attachment/AttachmentList'
 import { BottomSheet } from '../Modal'
@@ -9,7 +10,10 @@ import type {
   ServerTaskStatus,
   TaskDetailViewModel,
 } from '../../types/task'
-import { parseTaskDate } from '../../utils/taskDate'
+import {
+  getTaskDueDateInfo,
+  parseTaskDate,
+} from '../../utils/taskDate'
 import type { NormalizedAttachment } from '../../types/attachment'
 import {
   SERVER_TASK_CATEGORY_CONFIG,
@@ -88,6 +92,8 @@ export function TaskCardDetailModal({
   isDeleting,
   onStatusChange,
 }: TaskCardDetailModalProps) {
+  const [pendingStatus, setPendingStatus] =
+    useState<ServerTaskStatus | null>(null)
   const avatarId = task?.assignee.profilePreset
     ? PROFILE_PRESET_TO_AVATAR_ID[task.assignee.profilePreset]
     : undefined
@@ -96,6 +102,21 @@ export function TaskCardDetailModal({
   const normalizedAttachments = task
     ? normalizeTaskAttachments(task)
     : []
+  const dueDateInfo = task
+    ? getTaskDueDateInfo(task.dueDate)
+    : null
+  const deadlineNotice = task?.isOverdue
+    ? 'OVERDUE'
+    : task?.status === 'DONE'
+      ? null
+      : dueDateInfo?.state === 'TODAY'
+        ? 'TODAY'
+        : dueDateInfo?.state === 'UPCOMING' &&
+            dueDateInfo.daysUntilDue <= 3
+          ? 'UPCOMING'
+          : null
+  const showWarningNotice =
+    deadlineNotice === 'TODAY' || deadlineNotice === 'UPCOMING'
   return (
     <BottomSheet
       open={open}
@@ -137,18 +158,22 @@ export function TaskCardDetailModal({
           </div>
         ) : task && category ? (
           <>
-        {task.isImminent && (
-          <div className="mt-4 flex items-center gap-2 rounded-md bg-warning/10 px-3 py-2 text-caption text-warning">
-            <TriangleAlert className="h-4 w-4 shrink-0" aria-hidden />
-            마감일이 {task.dDay === 0 ? '오늘이에요' : `${task.dDay}일 남았어요`}
-          </div>
-        )}
-        {task.isOverdue && (
+        {deadlineNotice === 'OVERDUE' ? (
           <div className="mt-4 flex items-center gap-2 rounded-md bg-error/10 px-3 py-2 text-caption text-error">
             <TriangleAlert className="h-4 w-4 shrink-0" aria-hidden />
             마감일이 지났어요
           </div>
-        )}
+        ) : deadlineNotice === 'TODAY' ? (
+          <div className="mt-4 flex items-center gap-2 rounded-md bg-warning/10 px-3 py-2 text-caption text-warning">
+            <TriangleAlert className="h-4 w-4 shrink-0" aria-hidden />
+            마감일이 오늘이에요
+          </div>
+        ) : deadlineNotice === 'UPCOMING' ? (
+          <div className="mt-4 flex items-center gap-2 rounded-md bg-warning/10 px-3 py-2 text-caption text-warning">
+            <TriangleAlert className="h-4 w-4 shrink-0" aria-hidden />
+            마감일까지 {dueDateInfo?.daysUntilDue}일 남았어요
+          </div>
+        ) : null}
 
         <div className="mt-4 border-b border-gray-200 pb-4">
           <p className="text-body-sm text-gray-600">업무명</p>
@@ -187,7 +212,7 @@ export function TaskCardDetailModal({
           </div>
           <div>
             <dt className="text-body-sm text-gray-600">마감일</dt>
-            <dd className={cn('mt-2 flex items-center gap-1 text-body-sm text-gray-700', task.isOverdue && 'text-error', task.isImminent && 'text-warning')}>
+            <dd className={cn('mt-2 flex items-center gap-1 text-body-sm text-gray-700', deadlineNotice === 'OVERDUE' && 'text-error', showWarningNotice && 'text-warning')}>
               <CalendarDays className="h-4 w-4" aria-hidden />
               {formatDueDate(task.dueDate)}
             </dd>
@@ -215,42 +240,74 @@ export function TaskCardDetailModal({
           </span>
         </p>
 
-        <div className="mt-5 flex gap-3">
-          <Button type="button" variant="ghost" size="lg" fullWidth={false} disabled={isStatusUpdating} onClick={onUnavailableAction} className="flex-1 bg-gray-100 text-gray-400">
-            파일 추가
-          </Button>
-          {task.status !== 'DONE' ? (
+        {task.status === 'TODO' ? (
+          <div className="mt-5 flex gap-3">
             <Button
               type="button"
               size="lg"
               fullWidth={false}
-              loading={isStatusUpdating}
-              disabled={isStatusUpdating}
-              onClick={() =>
-                onStatusChange(
-                  task.status === 'TODO' ? 'IN_PROGRESS' : 'DONE'
-                )
+              loading={
+                isStatusUpdating && pendingStatus === 'IN_PROGRESS'
               }
-              className="flex-[2] text-white"
+              disabled={isStatusUpdating}
+              onClick={() => {
+                setPendingStatus('IN_PROGRESS')
+                onStatusChange('IN_PROGRESS')
+              }}
+              className="flex-1 text-white"
             >
-              {isStatusUpdating
-                ? '변경 중'
-                : task.status === 'TODO'
-                  ? '진행 중'
-                  : '완료 처리'}
+              진행중
             </Button>
-          ) : (
             <Button
               type="button"
               size="lg"
               fullWidth={false}
-              disabled
+              loading={isStatusUpdating && pendingStatus === 'DONE'}
+              disabled={isStatusUpdating}
+              onClick={() => {
+                setPendingStatus('DONE')
+                onStatusChange('DONE')
+              }}
+              className="flex-1 text-white"
+            >
+              완료 처리
+            </Button>
+          </div>
+        ) : task.status === 'IN_PROGRESS' ? (
+          <div className="mt-5 flex gap-3">
+            <Button
+              type="button"
+              variant="outline"
+              size="lg"
+              fullWidth={false}
+              disabled={isStatusUpdating}
+              onClick={onUnavailableAction}
+              className="flex-1"
+            >
+              파일추가
+            </Button>
+            <Button
+              type="button"
+              size="lg"
+              fullWidth={false}
+              loading={isStatusUpdating && pendingStatus === 'DONE'}
+              disabled={isStatusUpdating}
+              onClick={() => {
+                setPendingStatus('DONE')
+                onStatusChange('DONE')
+              }}
               className="flex-[2] text-white"
             >
-              완료됨
+              완료 처리
             </Button>
-          )}
-        </div>
+          </div>
+        ) : (
+          <div className="mt-5">
+            <Button type="button" size="lg" disabled>
+              이미 완료된 업무입니다
+            </Button>
+          </div>
+        )}
           </>
         ) : null}
       </div>
