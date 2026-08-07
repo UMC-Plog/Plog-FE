@@ -299,7 +299,6 @@ export function CreateProjectPage() {
                 value={projectName}
                 onChange={(event) => setProjectName(event.target.value)}
                 className="h-14 rounded-[14px]"
-                autoFocus
               />
 
               <SelectField value={projectType} onChange={(value) => setProjectType(value as ProjectType)} label="프로젝트 유형">
