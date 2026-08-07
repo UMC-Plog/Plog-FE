@@ -185,3 +185,16 @@ export const useAuthStore = create<AuthState>()(
     }
   )
 );
+
+// zustand persist는 탭이 열릴 때 딱 한 번만 localStorage를 읽어온다. 다른 탭에서 로그인/토큰
+// 재발급/로그아웃이 일어나도 이 탭의 메모리 상태는 자동으로 갱신되지 않는데, refreshToken은
+// 재발급마다 회전(rotate)되므로 오래된 탭이 낡은 refreshToken으로 재발급을 시도하면 실패해서
+// 로그아웃되고, 그 로그아웃이 localStorage까지 지워버려 다른 탭의 정상 세션까지 함께 끊어진다.
+// 다른 탭에서 저장소가 바뀔 때마다 이 탭도 즉시 재하이드레이션해서 항상 최신 토큰을 쓰도록 한다.
+if (typeof window !== "undefined") {
+  window.addEventListener("storage", (event) => {
+    if (event.key === "plog-auth-storage") {
+      void useAuthStore.persist.rehydrate();
+    }
+  });
+}
