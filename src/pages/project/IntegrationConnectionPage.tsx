@@ -99,16 +99,16 @@ const PROVIDER_PATH: Record<ProviderId, IntegrationProviderPath> = {
   github: "github",
   figma: "figma",
   notion: "notion",
-  docs: "google",
-  slides: "google",
+  docs: "google-docs",
+  slides: "google-slides",
 };
 
 const LINK_TYPE: Record<ProviderId, IntegrationLinkType> = {
   github: "GITHUB",
   figma: "FIGMA",
   notion: "NOTION",
-  docs: "GOOGLE",
-  slides: "GOOGLE",
+  docs: "GOOGLE_DOCS",
+  slides: "GOOGLE_SLIDES",
 };
 
 function isServerProviderId(value: ProviderId): value is ServerProviderId {
@@ -284,6 +284,7 @@ export default function IntegrationConnectionPage() {
   const config = PROVIDERS[providerId];
   const isServer = isServerProviderId(providerId);
   const providerPath = PROVIDER_PATH[providerId];
+  const googleProviderPath = providerId === "docs" ? "google-docs" : "google-slides";
   const linkType = LINK_TYPE[providerId];
   const storeProvider: IntegrationProvider =
     providerId === "docs"
@@ -641,7 +642,7 @@ export default function IntegrationConnectionPage() {
     setSaveError(null);
 
     try {
-      await removeIntegrationResource(id, "google", resourceId);
+      await removeIntegrationResource(id, googleProviderPath, resourceId);
       setResources((items) => items.filter((item) => item.resourceId !== resourceId));
       setResourceError(null);
     } catch (error) {
@@ -658,13 +659,13 @@ export default function IntegrationConnectionPage() {
     setSaveError(null);
 
     try {
-      const pickerToken = await issueGooglePickerAccessToken(id);
+      const pickerToken = await issueGooglePickerAccessToken(id, googleProviderPath);
       setAccountName(pickerToken.connectedAccountName);
 
       const selectedFile = await openGooglePicker(providerId, pickerToken.accessToken);
       if (!selectedFile) return;
 
-      const resource = await registerGoogleResource(id, selectedFile.id);
+      const resource = await registerGoogleResource(id, googleProviderPath, selectedFile.id);
       setResources((items) =>
         items.some((item) => item.resourceId === resource.resourceId) ? items : [...items, resource]
       );
@@ -1122,4 +1123,3 @@ export default function IntegrationConnectionPage() {
     </div>
   );
 }
-

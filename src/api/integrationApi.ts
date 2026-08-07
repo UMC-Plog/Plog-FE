@@ -20,7 +20,8 @@ export const LINK_TYPE_BY_PROVIDER: Record<IntegrationProviderPath, IntegrationL
   github: "GITHUB",
   figma: "FIGMA",
   notion: "NOTION",
-  google: "GOOGLE",
+  "google-docs": "GOOGLE_DOCS",
+  "google-slides": "GOOGLE_SLIDES",
 };
 
 /** 1. 프로젝트 외부 연동 상태 조회 */
@@ -84,19 +85,26 @@ export function registerFigmaResource(projectId: string, fileUrl: string) {
 }
 
 /** 3-4. Google Picker가 선택한 Docs/Slides 파일 등록 */
-export function registerGoogleResource(projectId: string, fileId: string) {
+export function registerGoogleResource(
+  projectId: string,
+  provider: Extract<IntegrationProviderPath, "google-docs" | "google-slides">,
+  fileId: string
+) {
   const request: GoogleResourceRegisterRequest = { fileId };
 
   return apiRequest<IntegrationResourceResponse>(
-    `/api/projects/${projectId}/integrations/google/resources`,
+    `/api/projects/${projectId}/integrations/${provider}/resources`,
     { method: "POST", body: request }
   );
 }
 
 /** 3-4. 이미 연결된 프로젝트 Google 계정의 Picker용 단기 access token 발급 */
-export function issueGooglePickerAccessToken(projectId: string) {
+export function issueGooglePickerAccessToken(
+  projectId: string,
+  provider: Extract<IntegrationProviderPath, "google-docs" | "google-slides">
+) {
   return apiRequest<GooglePickerAccessTokenResponse>(
-    `/api/projects/${projectId}/integrations/google/picker-access-token`,
+    `/api/projects/${projectId}/integrations/${provider}/picker-access-token`,
     { method: "POST" }
   );
 }
