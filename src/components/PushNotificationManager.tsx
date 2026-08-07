@@ -62,6 +62,20 @@ export function PushNotificationManager() {
     }
   }, [accessToken])
 
+  // iOS에서는 서비스워커가 FCM 경로를 끊고 직접 알림을 띄우므로 위 onMessage가 호출되지 않는다.
+  // 알림 목록·채팅 목록 갱신이 멈추지 않도록 서비스워커가 보내는 신호를 같은 이벤트로 바꿔준다.
+  // 배너는 띄우지 않는다 — iOS에서는 시스템 알림이 이미 표시된 상태라 중복이 된다.
+  useEffect(() => {
+    if (!('serviceWorker' in navigator)) return
+    const handleMessage = (event: MessageEvent) => {
+      if (event.data?.type === 'plog:push-received') {
+        window.dispatchEvent(new CustomEvent('plog:notification-received'))
+      }
+    }
+    navigator.serviceWorker.addEventListener('message', handleMessage)
+    return () => navigator.serviceWorker.removeEventListener('message', handleMessage)
+  }, [])
+
   useEffect(() => {
     if (!banner) return
     const timer = window.setTimeout(() => setBanner(null), 5000)

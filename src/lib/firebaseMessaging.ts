@@ -48,6 +48,14 @@ async function getFirebaseMessaging(): Promise<Messaging> {
   return getMessaging(app)
 }
 
+// iPadOS 13+는 userAgent를 Macintosh로 보고해서 UA만으로는 iOS를 구분할 수 없다. 데스크톱 맥과
+// 달리 터치 포인트가 있다는 점으로 갈라낸다. 서비스워커 안에서는 이 판별을 할 수 없어(navigator가
+// 제한적) 페이지에서 정한 값을 등록 URL로 넘긴다.
+function isIosDevice() {
+  if (/iPad|iPhone|iPod/.test(navigator.userAgent)) return true
+  return navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1
+}
+
 function getServiceWorkerUrl() {
   const params = new URLSearchParams({
     apiKey: String(firebaseConfig.apiKey),
@@ -56,6 +64,7 @@ function getServiceWorkerUrl() {
     storageBucket: String(firebaseConfig.storageBucket ?? ''),
     messagingSenderId: String(firebaseConfig.messagingSenderId),
     appId: String(firebaseConfig.appId),
+    ios: isIosDevice() ? '1' : '0',
   })
   return `/firebase-messaging-sw.js?${params.toString()}`
 }
