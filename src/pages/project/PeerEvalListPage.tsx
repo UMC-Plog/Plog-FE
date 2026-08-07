@@ -8,17 +8,18 @@ import { AlertModal } from '../../components/Modal';
 import type { ProjectIntegrationType } from '../../types/project';
 import { PeerEvalAvatar } from '../../components/PeerEvalAvatar';
 
-// actor-mappings API는 Google을 google-docs/google-slides로 분리해서 받는다(연동 자체는 GOOGLE 하나).
+// actor-mappings API는 Google을 google-docs/google-slides로 분리해서 받는다.
 type AccountProvider = 'github' | 'figma' | 'notion' | 'google-docs' | 'google-slides';
 
-// 연동 상태(GITHUB, FIGMA, NOTION, GOOGLE)를 내려주는 순서와 동일하게 순회하되,
-// Google만 계정 매핑을 docs/slides 두 단계로 나눠 조회한다(type은 둘 다 GOOGLE).
-const PROVIDER_ORDER: { param: AccountProvider; type: ProjectIntegrationType }[] = [
-  { param: 'github', type: 'GITHUB' },
-  { param: 'figma', type: 'FIGMA' },
-  { param: 'notion', type: 'NOTION' },
-  { param: 'google-docs', type: 'GOOGLE' },
-  { param: 'google-slides', type: 'GOOGLE' },
+// 연동 상태를 내려주는 순서와 동일하게 순회하되, Google만 계정 매핑을 docs/slides 두 단계로 나눈다.
+// linkType의 Google 표기가 확정되지 않아(GOOGLE 하나 / GOOGLE_DOCS·GOOGLE_SLIDES 분리) 어느 쪽이
+// 와도 연동으로 인정하도록 후보를 모두 적는다. 하나라도 맞으면 그 단계를 노출한다.
+const PROVIDER_ORDER: { param: AccountProvider; types: ProjectIntegrationType[] }[] = [
+  { param: 'github', types: ['GITHUB'] },
+  { param: 'figma', types: ['FIGMA'] },
+  { param: 'notion', types: ['NOTION'] },
+  { param: 'google-docs', types: ['GOOGLE_DOCS', 'GOOGLE'] },
+  { param: 'google-slides', types: ['GOOGLE_SLIDES', 'GOOGLE'] },
 ];
 
 // 카드 우측 액션(작성하기/연결하기/완료)은 Figma 실측 기준 높이 32px 고정이다.
@@ -127,7 +128,9 @@ export default function PeerEvalListPage() {
 
         const linked = integrationsResult.ok
           ? PROVIDER_ORDER.filter((p) =>
-              integrationsResult.res.integrations.some((item) => item.linkType === p.type && item.linked)
+              integrationsResult.res.integrations.some(
+                (item) => p.types.includes(item.linkType) && item.linked
+              )
             ).map((p) => p.param)
           : [];
         setLinkedProviders(linked);
