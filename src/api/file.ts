@@ -26,6 +26,14 @@ const CONTENT_TYPE_BY_EXTENSION: Readonly<Record<string, string>> = {
   gif: 'image/gif',
 }
 
+const CONTENT_TYPE_ALIASES_BY_EXTENSION: Readonly<
+  Partial<Record<string, ReadonlySet<string>>>
+> = {
+  pptx: new Set(['application/octet-stream']),
+  docx: new Set(['application/octet-stream']),
+  zip: new Set(['application/x-zip-compressed']),
+}
+
 const IMAGE_EXTENSIONS: ReadonlySet<string> = new Set([
   'jpg',
   'jpeg',
@@ -66,10 +74,11 @@ function validateFileExtension(file: File) {
 
 function validateFileContentType(file: File, extension: string) {
   const expectedContentType = CONTENT_TYPE_BY_EXTENSION[extension]
+  const contentTypeAliases = CONTENT_TYPE_ALIASES_BY_EXTENSION[extension]
   const isValidContentType =
-    extension === 'fig'
-      ? file.type === '' || file.type === expectedContentType
-      : file.type === expectedContentType
+    file.type === '' ||
+    file.type === expectedContentType ||
+    contentTypeAliases?.has(file.type)
   if (!isValidContentType) {
     throw new ApiError(
       'FILE_MIME_TYPE_MISMATCH',
@@ -77,9 +86,7 @@ function validateFileContentType(file: File, extension: string) {
     )
   }
 
-  const contentType =
-    extension === 'fig' ? 'application/octet-stream' : file.type
-  return contentType
+  return expectedContentType
 }
 
 export function validateUploadFileType(file: File) {
