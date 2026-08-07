@@ -292,7 +292,7 @@ export function CreateProjectPage() {
           <form className="flex h-full min-h-0 flex-col overflow-hidden [&>div:first-child]:shrink-0" onSubmit={handleInfoSubmit} noValidate>
             <ProjectCreationProgress step={step} />
 
-            <div className="mt-5 min-h-0 flex-1 space-y-4 overflow-hidden [&>fieldset]:!mt-5 [&_label]:text-[14px] [&_label]:leading-[21px]">
+            <div className="mt-5 min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain [&>fieldset]:!mt-5 [&_label]:text-[14px] [&_label]:leading-[21px]">
               <Input
                 label="프로젝트명"
                 placeholder="예: 앱 리디자인 프로젝트"
@@ -309,7 +309,7 @@ export function CreateProjectPage() {
 
               <fieldset>
                 <legend className="mb-2 text-body-sm font-medium text-gray-700">예상 종료일</legend>
-                <div className="grid grid-cols-[117px_116px_1fr] gap-[7px]">
+                <div className="grid grid-cols-3 gap-[7px]">
                   <DateDropdownSelect
                     ariaLabel="예상 종료 연도"
                     value={year}
@@ -361,30 +361,28 @@ export function CreateProjectPage() {
           <div className="flex h-full min-h-0 flex-col overflow-hidden [&>div:first-child]:shrink-0">
             <ProjectCreationProgress step={step} />
 
-            <div className="min-h-0 flex-1 overflow-hidden">
-              <div className="mt-[21px] flex h-[71px] items-start gap-3 rounded-[12px] bg-blue-50 px-[18px] py-[11px] text-[12px] leading-[17px] text-blue-500">
+            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+              <div className="mt-[21px] flex min-h-[71px] items-start gap-3 rounded-[12px] bg-blue-50 px-[18px] py-[11px] text-[12px] leading-[17px] text-blue-500">
                 <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
                 <p>
                   <strong className="font-semibold">프로젝트 분석을 위해 계정 연동이 필요해요</strong>
                   <br />
-                  계정을 연동 시 팀원들의 활동 데이터를 자동으로 수집해 AI 분석
-                  <br />
-                  기능을 사용할 수 있어요
+                  계정을 연동 시 팀원들의 활동 데이터를 자동으로 수집해 AI 분석 기능을 사용할 수 있어요
                 </p>
               </div>
 
               <ul className="mt-[30px] space-y-[16px] px-[18px] text-[12px] leading-[17px] text-gray-700">
               <li className="flex min-h-8 items-start gap-4">
                 <CircleCheck className="mt-0.5 h-4 w-4 shrink-0 text-blue-500" strokeWidth={1.5} aria-hidden />
-                <span>GitHub, Notion, Google Docs, Slides, Figma 등 외부도구<br />활동을 연동해주세요</span>
+                <span>GitHub, Notion, Google Docs, Slides, Figma 등 외부도구 활동을 연동해주세요</span>
               </li>
               <li className="flex min-h-8 items-start gap-4">
                 <CircleCheck className="mt-0.5 h-4 w-4 shrink-0 text-blue-500" strokeWidth={1.5} aria-hidden />
-                <span>연동계정 등록은 워크스페이스 소유자(생성자)만이 진행할 수<br />있어요</span>
+                <span>연동계정 등록은 워크스페이스 소유자(생성자)만이 진행할 수 있어요</span>
               </li>
               <li className="flex min-h-8 items-start gap-4">
                 <CircleCheck className="mt-0.5 h-4 w-4 shrink-0 text-blue-500" strokeWidth={1.5} aria-hidden />
-                <span>프로젝트 생성 후 [프로젝트 설정] &gt; [계정 연동]에서 추가 또는<br />변경할 수 있어요</span>
+                <span>프로젝트 생성 후 [프로젝트 설정] &gt; [계정 연동]에서 추가 또는 변경할 수 있어요</span>
               </li>
               <li className="flex min-h-8 items-start gap-4">
                 <CircleCheck className="mt-0.5 h-4 w-4 shrink-0 text-blue-500" strokeWidth={1.5} aria-hidden />
