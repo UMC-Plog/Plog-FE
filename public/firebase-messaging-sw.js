@@ -1,11 +1,50 @@
 /* global firebase */
 
+const params = new URL(self.location.href).searchParams
+
+// iOS 홈 화면 웹앱은 백그라운드로 내려가도 페이지를 계속 visible로 보고한다. 그러면 FCM이
+// "앱이 열려 있으니 시스템 알림 대신 페이지로 넘기자"고 오판해서, 얼어붙어 아무것도 못 그리는
+// 페이지로 메시지를 보내고 사용자에게는 알림이 전혀 보이지 않는다. iOS에서는 visibility 판단을
+// 건너뛰고 직접 알림을 띄운다. (UA는 iPadOS가 Macintosh로 보고해 서비스워커 안에서 판별할 수
+// 없어, 페이지가 정해서 넘겨준 값을 쓴다.)
+const IS_IOS = params.get('ios') === '1'
+
 self.addEventListener('install', (event) => {
   event.waitUntil(self.skipWaiting())
 })
 
 self.addEventListener('activate', (event) => {
   event.waitUntil(self.clients.claim())
+})
+
+// FCM이 자체 push 핸들러를 등록하기 전에 먼저 등록해야 stopImmediatePropagation이 먹는다.
+// 전파를 막지 않으면 앱이 완전히 종료된 상태에서 FCM이 알림을 한 번 더 띄워 중복으로 표시된다.
+self.addEventListener('push', (event) => {
+  if (!IS_IOS) return
+  event.stopImmediatePropagation()
+
+  let payload = {}
+  try {
+    payload = event.data ? event.data.json() : {}
+  } catch {
+    // 형식이 어긋난 페이로드 하나 때문에 알림 자체가 사라지지 않도록 기본 문구로 띄운다
+  }
+  const notification = payload.notification ?? {}
+  const data = payload.data ?? {}
+
+  event.waitUntil(
+    (async () => {
+      await self.registration.showNotification(notification.title ?? data.title ?? '새 알림', {
+        body: notification.body ?? data.body ?? '',
+        icon: '/favicon.svg',
+        data,
+      })
+      // FCM 경로를 끊었으므로 페이지의 onMessage가 호출되지 않는다. 알림 목록·채팅 목록이
+      // 갱신되도록 같은 의미의 신호만 직접 전달한다.
+      const clients = await self.clients.matchAll({ type: 'window', includeUncontrolled: true })
+      clients.forEach((client) => client.postMessage({ type: 'plog:push-received' }))
+    })(),
+  )
 })
 
 // FCM이 자체 notificationclick 핸들러를 등록하기 전에 앱 이동 로직을 등록한다.
@@ -31,8 +70,6 @@ self.addEventListener('notificationclick', (event) => {
 
 importScripts('https://www.gstatic.com/firebasejs/12.17.0/firebase-app-compat.js')
 importScripts('https://www.gstatic.com/firebasejs/12.17.0/firebase-messaging-compat.js')
-
-const params = new URL(self.location.href).searchParams
 
 firebase.initializeApp({
   apiKey: params.get('apiKey'),
