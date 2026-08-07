@@ -192,9 +192,14 @@ export default function PeerEvalAccountSelectPage() {
     }
   };
 
+  // 마지막 단계에서는 건너뛰기와 완료가 똑같이 목록으로 빠져나가 선택지가 다른 것처럼 보이고,
+  // 계정을 골라둔 채 건너뛰기를 누르면 선택값이 저장되지 않은 채 넘어간다. 완료는 선택 여부와
+  // 무관하게 항상 눌리므로 건너뛰기를 막아도 빠져나갈 길은 남는다.
+  const canSkip = !submitting && !isLast;
+
   // 본인 계정을 찾지 못했거나 나중에 하고 싶은 경우를 위해, 매핑 저장 없이 다음 단계로 넘어간다.
   const handleSkip = () => {
-    if (!id || submitting) return;
+    if (!id || !canSkip) return;
     goToNextStep();
   };
 
@@ -288,9 +293,14 @@ export default function PeerEvalAccountSelectPage() {
         <div className="flex gap-4">
           <button
             type="button"
-            disabled={submitting}
+            disabled={!canSkip}
             onClick={handleSkip}
-            className="h-14 flex-1 rounded-lg border border-primary text-[16px] font-bold leading-[24px] text-primary transition-colors hover:bg-primary-50 disabled:opacity-50"
+            className={cn(
+              'h-14 flex-1 rounded-lg border text-[16px] font-bold leading-[24px] transition-colors',
+              canSkip
+                ? 'border-primary text-primary hover:bg-primary-50'
+                : 'border-gray-200 text-gray-400 cursor-not-allowed',
+            )}
           >
             건너뛰기
           </button>
