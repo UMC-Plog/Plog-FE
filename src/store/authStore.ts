@@ -103,7 +103,11 @@ export const useAuthStore = create<AuthState>()(
           user,
           ...(tokens ? { accessToken: tokens.accessToken, refreshToken: tokens.refreshToken } : {}),
         }),
-      logout: () => set({ user: null, accessToken: null, refreshToken: null }),
+      logout: () => {
+        set({ user: null, accessToken: null, refreshToken: null });
+        // 로그아웃/계정 전환 시 이전 계정의 안 읽음 배지 상태가 남지 않도록 알린다.
+        window.dispatchEvent(new CustomEvent("plog:logout"));
+      },
       setTokens: (tokens) => set({ accessToken: tokens.accessToken, refreshToken: tokens.refreshToken }),
       updateProfile: (profile) =>
         set((state) => ({
