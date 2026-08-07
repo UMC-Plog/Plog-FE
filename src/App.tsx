@@ -21,6 +21,7 @@ import { SignupPage } from './pages/SignupPage'
 import { SignupSocialConsentPage } from './pages/SignupSocialConsentPage'
 import { SignupEmailStepPage } from './pages/SignupEmailStepPage'
 import { ProfileSetupPage } from './pages/ProfileSetupPage'
+import PostSignupGuidePage from './pages/onboarding/PostSignupGuidePage'
 import { FindPasswordPage } from './pages/FindPasswordPage'
 import { ResetPasswordPage } from './pages/ResetPasswordPage'
 import { OAuthCallbackPage } from './pages/OAuthCallbackPage'
@@ -54,6 +55,7 @@ function App() {
         <Route path="/signup/social-consent" element={<SignupSocialConsentPage />} />
         <Route path="/signup/email" element={<SignupEmailStepPage />} />
         <Route path="/signup/profile" element={<ProfileSetupPage />} />
+        <Route path="/onboarding/welcome" element={<PostSignupGuidePage />} />
         <Route path="/find-password" element={<FindPasswordPage />} />
         <Route path="/reset-password" element={<ResetPasswordPage />} />
         <Route path="/oauth/:provider" element={<OAuthCallbackPage />} />

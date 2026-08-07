@@ -118,7 +118,7 @@ export function ProfileSetupPage() {
         const tokens = await login(draft.email, draft.password);
         completeSignup(tokens);
       }
-      navigate(consumeProjectInvitationPath() ?? "/home", { replace: true });
+      navigate(consumeProjectInvitationPath() ?? "/onboarding/welcome", { replace: true });
     } catch (err) {
       if (err instanceof ApiError) {
         setSignupError(err.message);
@@ -132,7 +132,11 @@ export function ProfileSetupPage() {
 
   return (
     <div className="app-shell">
-      <AuthHeader title="" showBack />
+      <AuthHeader
+        title=""
+        showBack
+        onBack={() => navigate(isSocialSignup ? "/signup/social-consent" : "/signup/email")}
+      />
       <div className="px-5">
         <ProgressBar total={2} current={2} />
       </div>

@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Check, Eye, EyeOff, User } from "lucide-react";
+import { Eye, EyeOff, User } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { cn } from "../lib/utils";
 import { AuthHeader } from "../components/AuthHeader";
@@ -26,6 +26,27 @@ const initialTerms: TermsState = {
 };
 
 type Step = "terms" | "info";
+
+/** Figma: 이메일 인증 완료 모달 체크 아이콘 — 세로 그라데이션 #2186FB -> #07BCC5 */
+function GradientCheck() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" className="h-5 w-5" aria-hidden>
+      <defs>
+        <linearGradient id="signup-email-verified-check" x1="0" y1="0" x2="0" y2="1">
+          <stop stopColor="#2186FB" />
+          <stop offset="1" stopColor="#07BCC5" />
+        </linearGradient>
+      </defs>
+      <path
+        d="M20 6 9 17l-5-5"
+        stroke="url(#signup-email-verified-check)"
+        strokeWidth={4}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
 
 export function SignupEmailStepPage() {
   const navigate = useNavigate();
@@ -125,7 +146,7 @@ export function SignupEmailStepPage() {
 
   return (
     <div className="app-shell">
-      <AuthHeader title="" showBack />
+      <AuthHeader title="" showBack onBack={() => navigate("/signup")} />
       <div className="px-5">
         <ProgressBar total={2} current={step === "terms" ? 1 : 2} />
       </div>
@@ -310,13 +331,13 @@ export function SignupEmailStepPage() {
         open={completeModalOpen}
         icon={
           <span className="flex h-[52px] w-[52px] items-center justify-center rounded-full bg-blue-100">
-            <Check className="h-5 w-5 text-blue-500" strokeWidth={2.5} aria-hidden />
+            <GradientCheck />
           </span>
         }
         title="이메일 인증이 완료되었어요"
         description="이어서 프로필을 설정해 주세요"
         confirmText="다음"
-        onConfirm={() => navigate("/signup/profile")}
+        onConfirm={() => navigate("/signup/profile", { replace: true })}
       />
     </div>
   );
