@@ -104,13 +104,12 @@ export function BottomSheet({
 
   if (!open) return null;
 
-  const clampHeight = (height: number) => {
-    const viewportMax = Math.max(minHeight, window.innerHeight - 12);
-    return Math.min(Math.max(height, minHeight), Math.min(maxHeight, viewportMax));
-  };
-
   const sheetStyle: CSSProperties | undefined = draggable
-    ? { height: clampHeight(initialHeight) }
+    ? {
+        height: `min(${initialHeight}px, calc(100dvh - 12px))`,
+        minHeight: `min(${minHeight}px, calc(100dvh - 12px))`,
+        maxHeight: `min(${maxHeight}px, calc(100dvh - 12px))`,
+      }
     : undefined;
 
   return createPortal(

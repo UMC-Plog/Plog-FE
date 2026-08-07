@@ -20,29 +20,15 @@ type ProviderParam = 'github' | 'figma' | 'notion' | 'google-docs' | 'google-sli
 
 // 아이콘 에셋이 자체 배경(둥근 사각형)을 포함하고 있어, 타일을 거의 채우도록 크게 렌더링해야
 // IntegrationConnectionPage와 동일한 룩이 된다 (Figma 실측: 63px 타일 안에 56~64px 로고)
-//
-// types에 후보를 여러 개 두는 이유: 연동 상태 응답의 Google 표기가 확정되지 않아
-// GOOGLE 하나로 올 수도, GOOGLE_DOCS/GOOGLE_SLIDES로 쪼개져 올 수도 있다. 어느 쪽이 와도
-// 연동으로 인정해야 해당 단계가 사라지지 않는다.
 const PROVIDER_CONFIG: Record<
   ProviderParam,
-  { label: string; types: ProjectIntegrationType[]; icon: string; logoSize: number }
+  { label: string; type: ProjectIntegrationType; icon: string; logoSize: number }
 > = {
-  github: { label: 'GitHub', types: ['GITHUB'], icon: githubIcon, logoSize: 63 },
-  figma: { label: 'Figma', types: ['FIGMA'], icon: figmaIcon, logoSize: 56 },
-  notion: { label: 'Notion', types: ['NOTION'], icon: notionIcon, logoSize: 36 },
-  'google-docs': {
-    label: 'Google Docs',
-    types: ['GOOGLE_DOCS', 'GOOGLE'],
-    icon: docsIcon,
-    logoSize: 38,
-  },
-  'google-slides': {
-    label: 'Google Slides',
-    types: ['GOOGLE_SLIDES', 'GOOGLE'],
-    icon: slidesIcon,
-    logoSize: 38,
-  },
+  github: { label: 'GitHub', type: 'GITHUB', icon: githubIcon, logoSize: 63 },
+  figma: { label: 'Figma', type: 'FIGMA', icon: figmaIcon, logoSize: 56 },
+  notion: { label: 'Notion', type: 'NOTION', icon: notionIcon, logoSize: 36 },
+  'google-docs': { label: 'Google Docs', type: 'GOOGLE_DOCS', icon: docsIcon, logoSize: 38 },
+  'google-slides': { label: 'Google Slides', type: 'GOOGLE_SLIDES', icon: slidesIcon, logoSize: 38 },
 };
 
 // 계정 매핑은 Google만 docs/slides로 나뉘어 순서대로 두 단계를 거친다.
@@ -159,7 +145,7 @@ export default function PeerEvalAccountSelectPage() {
         if (cancelled) return;
         const linked = PROVIDER_ORDER.filter((p) =>
           integrationsRes.integrations.some(
-            (item) => PROVIDER_CONFIG[p].types.includes(item.linkType) && item.linked
+            (item) => item.linkType === PROVIDER_CONFIG[p].type && item.linked
           )
         );
         setLinkedProviders(linked);

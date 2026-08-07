@@ -159,16 +159,25 @@ function requestPersonalPickerAccessToken(clientId: string): Promise<string> {
 }
 
 function getPickerEnvironment() {
-  const clientId =
-    import.meta.env.VITE_GOOGLE_PICKER_CLIENT_ID || import.meta.env.VITE_GOOGLE_CLIENT_ID;
   const apiKey = import.meta.env.VITE_GOOGLE_PICKER_API_KEY;
   const appId = import.meta.env.VITE_GOOGLE_PICKER_APP_ID;
 
-  if (!clientId || !apiKey || !appId) {
-    throw new Error("Google Picker 환경변수(Client ID, API Key, App ID)가 필요합니다.");
+  if (!apiKey || !appId) {
+    throw new Error("Google Picker 환경변수(API Key, App ID)가 필요합니다.");
   }
 
-  return { clientId, apiKey, appId };
+  return { apiKey, appId };
+}
+
+function getPersonalPickerEnvironment() {
+  const clientId =
+    import.meta.env.VITE_GOOGLE_PICKER_CLIENT_ID || import.meta.env.VITE_GOOGLE_CLIENT_ID;
+
+  if (!clientId) {
+    throw new Error("개인 Google Drive 연동에는 Google OAuth Client ID가 필요합니다.");
+  }
+
+  return { ...getPickerEnvironment(), clientId };
 }
 
 function toOptionalFileSize(value: number | string | undefined) {
@@ -243,7 +252,7 @@ export async function openGooglePicker(
 }
 
 export async function openPersonalGoogleDrivePicker(): Promise<PersonalGoogleDrivePickerFile | null> {
-  const { clientId, apiKey, appId } = getPickerEnvironment();
+  const { clientId, apiKey, appId } = getPersonalPickerEnvironment();
 
   await Promise.all([loadPickerApi(), loadIdentityApi()]);
   const token = await requestPersonalPickerAccessToken(clientId);

@@ -99,9 +99,6 @@ export interface ProjectSettingsInviteResponse {
   qrUrl: string;
 }
 
-// 연동 상태 응답의 linkType은 Google 표기가 확정되지 않았다. Swagger의 enum은 GOOGLE 하나인데
-// 같은 API의 설명문은 GOOGLE_DOCS / GOOGLE_SLIDES로 쪼개 내려준다고 되어 있어 서로 어긋난다.
-// 어느 쪽이 오더라도 연동을 놓치지 않도록 세 값을 모두 받아둔다.
 export type ProjectIntegrationType =
   | "GITHUB"
   | "FIGMA"
