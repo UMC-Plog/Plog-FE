@@ -51,29 +51,46 @@ export function DateDropdownSelect({
       const rect = rootRef.current?.getBoundingClientRect();
       if (!rect) return;
 
+      const visualViewport = window.visualViewport;
       const viewportPadding = 8;
       const gap = 4;
-      const top = rect.bottom + gap;
-      const width = Math.min(rect.width, window.innerWidth - viewportPadding * 2);
+      const viewportLeft = visualViewport?.offsetLeft ?? 0;
+      const viewportTop = visualViewport?.offsetTop ?? 0;
+      const viewportWidth = visualViewport?.width ?? window.innerWidth;
+      const viewportHeight = visualViewport?.height ?? window.innerHeight;
+      const viewportRight = viewportLeft + viewportWidth;
+      const viewportBottom = viewportTop + viewportHeight;
+      const spaceBelow = viewportBottom - rect.bottom - gap - viewportPadding;
+      const spaceAbove = rect.top - viewportTop - gap - viewportPadding;
+      const openUpward = spaceBelow < 120 && spaceAbove > spaceBelow;
+      const maxHeight = Math.max(
+        48,
+        Math.min(192, openUpward ? spaceAbove : spaceBelow)
+      );
+      const width = Math.min(rect.width, viewportWidth - viewportPadding * 2);
       const left = Math.min(
-        Math.max(rect.left, viewportPadding),
-        window.innerWidth - width - viewportPadding
+        Math.max(rect.left, viewportLeft + viewportPadding),
+        viewportRight - width - viewportPadding
       );
 
       setPosition({
         left,
-        top,
+        top: openUpward ? rect.top - gap - maxHeight : rect.bottom + gap,
         width,
-        maxHeight: Math.max(48, Math.min(192, window.innerHeight - top - viewportPadding)),
+        maxHeight,
       });
     };
 
     updatePosition();
     window.addEventListener("resize", updatePosition);
     window.addEventListener("scroll", updatePosition, true);
+    window.visualViewport?.addEventListener("resize", updatePosition);
+    window.visualViewport?.addEventListener("scroll", updatePosition);
     return () => {
       window.removeEventListener("resize", updatePosition);
       window.removeEventListener("scroll", updatePosition, true);
+      window.visualViewport?.removeEventListener("resize", updatePosition);
+      window.visualViewport?.removeEventListener("scroll", updatePosition);
     };
   }, [open]);
 

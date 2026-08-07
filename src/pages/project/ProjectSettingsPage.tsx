@@ -32,15 +32,15 @@ const INTEGRATIONS = [
   { id: "github", label: "GitHub", icon: githubIcon, logo: 32, type: "GITHUB", provider: "github" },
   { id: "figma", label: "Figma", icon: figmaIcon, logo: 22, type: "FIGMA", provider: "figma" },
   { id: "notion", label: "Notion", icon: notionIcon, logo: 16, type: "NOTION", provider: "notion" },
-  { id: "docs", label: "Google Docs", icon: docsIcon, logo: 19, type: "GOOGLE", provider: "google" },
-  { id: "slides", label: "Google Slides", icon: slidesIcon, logo: 19, type: "GOOGLE", provider: "google" },
+  { id: "docs", label: "Google Docs", icon: docsIcon, logo: 19, type: "GOOGLE_DOCS", provider: "google-docs" },
+  { id: "slides", label: "Google Slides", icon: slidesIcon, logo: 19, type: "GOOGLE_SLIDES", provider: "google-slides" },
 ] as const satisfies ReadonlyArray<{
   id: string;
   label: string;
   icon: string;
   logo: number;
   type: ProjectIntegrationType;
-  provider: "github" | "figma" | "notion" | "google";
+  provider: "github" | "figma" | "notion" | "google-docs" | "google-slides";
 }>;
 
 type IntegrationItem = (typeof INTEGRATIONS)[number];
@@ -411,11 +411,7 @@ export function ProjectSettingsPage() {
       await disconnectIntegration(id, disconnectTarget.provider);
       setIntegrationLinks((links) => ({ ...links, [disconnectTarget.type]: false }));
       setDisconnectTarget(null);
-      setNotice(
-        disconnectTarget.type === "GOOGLE"
-          ? "Google Docs와 Google Slides 연동을 해제했어요."
-          : `${disconnectTarget.label} 연동을 해제했어요.`
-      );
+      setNotice(`${disconnectTarget.label} 연동을 해제했어요.`);
     } catch (requestError) {
       setDisconnectError(
         requestError instanceof ApiError
@@ -690,9 +686,7 @@ export function ProjectSettingsPage() {
       >
         <div className="flex h-full flex-col items-center text-center">
           <h2 className="text-[18px] font-semibold leading-[26px] text-gray-900">
-            {disconnectTarget?.type === "GOOGLE"
-              ? "Google Docs와 Google Slides 연동을 모두 해제하시겠습니까?"
-              : `${disconnectTarget?.label ?? "외부 서비스"} 연동을 해제하시겠습니까?`}
+            {`${disconnectTarget?.label ?? "외부 서비스"} 연동을 해제하시겠습니까?`}
           </h2>
           <p className="mt-8 text-[13px] leading-[21px] text-gray-400">
             연동 해제 시 자동 데이터가 기여도 분석에 반영되지 않으며,

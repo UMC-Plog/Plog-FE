@@ -10,8 +10,10 @@ import {
 } from "../components/project/ProjectStatusFilter";
 import { ProjectViewToggle } from "../components/project/ProjectViewToggle";
 import { PlogIcon } from "../components/PlogIcon";
+import { NotificationDot } from "../components/NotificationDot";
 import { cn } from "../lib/utils";
 import { useProjectStore } from "../store/projectStore";
+import { useNotificationBadgeStore } from "../store/notificationBadgeStore";
 import type { ProjectViewMode } from "../types/project";
 
 const VIEW_MODE_STORAGE_KEY = "plog-project-view-mode";
@@ -57,6 +59,7 @@ export default function HomePage() {
   const isLoading = useProjectStore((state) => state.isLoading);
   const error = useProjectStore((state) => state.error);
   const fetchProjects = useProjectStore((state) => state.fetchProjects);
+  const hasUnreadNotification = useNotificationBadgeStore((state) => state.hasUnreadNotification);
   const [statusFilter, setStatusFilter] = useState<ProjectStatusFilterValue>("ALL");
   const [viewMode, setViewMode] = useState<ProjectViewMode>(getInitialViewMode);
 
@@ -90,7 +93,10 @@ export default function HomePage() {
             onClick={() => navigate("/notifications")}
             className="flex h-10 w-10 items-center justify-center rounded-full text-gray-600 hover:bg-gray-100"
           >
-            <Bell size={22} strokeWidth={2} aria-hidden="true" />
+            <span className="relative inline-flex">
+              <Bell size={22} strokeWidth={2} aria-hidden="true" />
+              <NotificationDot show={hasUnreadNotification} ring="gray-25" />
+            </span>
           </button>
           <button
             type="button"

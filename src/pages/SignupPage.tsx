@@ -13,7 +13,9 @@ export function SignupPage() {
 
   const handleEmailSignup = () => {
     setSignupMethod("email");
-    navigate("/signup/email");
+    // replace: 가입 완료 후 뒤로가기로 회원가입 단계 화면에 다시 진입하지 않도록,
+    // 가입 단계 전환은 히스토리에 쌓지 않고 교체한다.
+    navigate("/signup/email", { replace: true });
   };
 
   const handleSocial = (provider: SocialProvider) => {

@@ -26,7 +26,8 @@ export function SignupSocialConsentPage() {
   const handleNext = () => {
     setTerms(terms);
     // 소셜 로그인은 이메일만 provider로부터 받아온다고 가정 (mock). 실명은 제공되지 않아 프로필 설정 화면에서 별도로 입력받음
-    navigate("/signup/profile");
+    // replace: 가입 완료 후 뒤로가기로 이 단계에 다시 진입하지 않도록 히스토리에 쌓지 않는다.
+    navigate("/signup/profile", { replace: true });
   };
 
   return (
