@@ -8,17 +8,17 @@ import { AlertModal } from '../../components/Modal';
 import type { ProjectIntegrationType } from '../../types/project';
 import { PeerEvalAvatar } from '../../components/PeerEvalAvatar';
 
-// actor-mappings API는 Google을 google-docs/google-slides로 분리해서 받는다(연동 자체는 GOOGLE 하나).
+// actor-mappings API는 Google을 google-docs/google-slides로 분리해서 받는다.
 type AccountProvider = 'github' | 'figma' | 'notion' | 'google-docs' | 'google-slides';
 
-// 연동 상태(GITHUB, FIGMA, NOTION, GOOGLE)를 내려주는 순서와 동일하게 순회하되,
-// Google만 계정 매핑을 docs/slides 두 단계로 나눠 조회한다(type은 둘 다 GOOGLE).
+// 연동 상태 조회는 GITHUB, FIGMA, NOTION, GOOGLE_DOCS, GOOGLE_SLIDES 5개를 순서대로 내려준다.
+// Google은 연동도 계정 매핑도 Docs/Slides로 나뉘므로 각각 별개 단계로 취급한다.
 const PROVIDER_ORDER: { param: AccountProvider; type: ProjectIntegrationType }[] = [
   { param: 'github', type: 'GITHUB' },
   { param: 'figma', type: 'FIGMA' },
   { param: 'notion', type: 'NOTION' },
-  { param: 'google-docs', type: 'GOOGLE' },
-  { param: 'google-slides', type: 'GOOGLE' },
+  { param: 'google-docs', type: 'GOOGLE_DOCS' },
+  { param: 'google-slides', type: 'GOOGLE_SLIDES' },
 ];
 
 // 카드 우측 액션(작성하기/연결하기/완료)은 Figma 실측 기준 높이 32px 고정이다.
@@ -127,7 +127,9 @@ export default function PeerEvalListPage() {
 
         const linked = integrationsResult.ok
           ? PROVIDER_ORDER.filter((p) =>
-              integrationsResult.res.integrations.some((item) => item.linkType === p.type && item.linked)
+              integrationsResult.res.integrations.some(
+                (item) => item.linkType === p.type && item.linked
+              )
             ).map((p) => p.param)
           : [];
         setLinkedProviders(linked);

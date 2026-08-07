@@ -15,7 +15,7 @@ import docsIcon from '../../assets/integrations/google-docs.svg';
 import slidesIcon from '../../assets/integrations/google-slides.svg';
 import type { IntegrationProviderActorResponse, ProjectIntegrationType } from '../../types/project';
 
-// actor-mappings API는 Google을 google-docs/google-slides로 분리해서 받는다(연동 자체는 GOOGLE 하나).
+// actor-mappings API는 Google을 google-docs/google-slides로 분리해서 받는다.
 type ProviderParam = 'github' | 'figma' | 'notion' | 'google-docs' | 'google-slides';
 
 // 아이콘 에셋이 자체 배경(둥근 사각형)을 포함하고 있어, 타일을 거의 채우도록 크게 렌더링해야
@@ -27,12 +27,11 @@ const PROVIDER_CONFIG: Record<
   github: { label: 'GitHub', type: 'GITHUB', icon: githubIcon, logoSize: 63 },
   figma: { label: 'Figma', type: 'FIGMA', icon: figmaIcon, logoSize: 56 },
   notion: { label: 'Notion', type: 'NOTION', icon: notionIcon, logoSize: 36 },
-  'google-docs': { label: 'Google Docs', type: 'GOOGLE', icon: docsIcon, logoSize: 38 },
-  'google-slides': { label: 'Google Slides', type: 'GOOGLE', icon: slidesIcon, logoSize: 38 },
+  'google-docs': { label: 'Google Docs', type: 'GOOGLE_DOCS', icon: docsIcon, logoSize: 38 },
+  'google-slides': { label: 'Google Slides', type: 'GOOGLE_SLIDES', icon: slidesIcon, logoSize: 38 },
 };
 
-// 연동 상태(GITHUB, FIGMA, NOTION, GOOGLE)는 하나지만, 계정 매핑은 Google만 docs/slides로 나뉘어
-// 순서대로 두 단계를 거친다. type이 둘 다 GOOGLE이라 연동 여부 체크는 동일하게 통과한다.
+// 계정 매핑은 Google만 docs/slides로 나뉘어 순서대로 두 단계를 거친다.
 const PROVIDER_ORDER: ProviderParam[] = ['github', 'figma', 'notion', 'google-docs', 'google-slides'];
 
 // ── SVG 아이콘 ──────────────────────────────────────────────────────────────
@@ -145,7 +144,9 @@ export default function PeerEvalAccountSelectPage() {
       .then(([integrationsRes, mappingsRes]) => {
         if (cancelled) return;
         const linked = PROVIDER_ORDER.filter((p) =>
-          integrationsRes.integrations.some((item) => item.linkType === PROVIDER_CONFIG[p].type && item.linked)
+          integrationsRes.integrations.some(
+            (item) => item.linkType === PROVIDER_CONFIG[p].type && item.linked
+          )
         );
         setLinkedProviders(linked);
         setActors(mappingsRes.availableProviderActors);
