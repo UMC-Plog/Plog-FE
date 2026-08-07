@@ -298,7 +298,7 @@ export function CreateProjectPage() {
                 placeholder="예: 앱 리디자인 프로젝트"
                 value={projectName}
                 onChange={(event) => setProjectName(event.target.value)}
-                className="h-14 rounded-[14px]"
+                className="h-14 rounded-[14px] text-[16px]"
               />
 
               <SelectField value={projectType} onChange={(value) => setProjectType(value as ProjectType)} label="프로젝트 유형">
