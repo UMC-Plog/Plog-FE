@@ -83,7 +83,8 @@ function ActorRow({
       onClick={onSelect}
       disabled={disabled}
       className={cn(
-        'flex w-full items-center gap-3 rounded-2xl border px-[21px] py-[17px] transition-colors',
+        // 목록이 스크롤될 때 행 높이가 눌리지 않도록 shrink-0을 준다
+        'flex w-full shrink-0 items-center gap-3 rounded-2xl border px-[21px] py-[17px] transition-colors',
         selected ? 'border-primary bg-primary-50 shadow-card-selected' : 'border-gray-100 bg-transparent shadow-card',
         disabled && !selected && 'opacity-50',
       )}
@@ -118,7 +119,7 @@ export default function PeerEvalAccountSelectPage() {
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
   const [linkedProviders, setLinkedProviders] = useState<ProviderParam[] | null>(null);
   const [loading, setLoading] = useState(true);
-  // 목록 조회 자체가 실패했을 때는 "선택지가 없어서 건너뛰기 가능"과 구분해야 한다 (실패 시에는 건너뛰기 불가)
+  // 조회 실패와 "수집된 활동이 없어 선택지가 비어있는" 정상 상태를 구분해 다른 안내를 띄운다
   const [loadFailed, setLoadFailed] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
@@ -165,9 +166,22 @@ export default function PeerEvalAccountSelectPage() {
   const providerIndex = linkedProviders?.indexOf(providerParam) ?? -1;
   const isLast = linkedProviders !== null && providerIndex === linkedProviders.length - 1;
   const nextProvider = linkedProviders && providerIndex >= 0 ? linkedProviders[providerIndex + 1] : undefined;
-  // 수집된 활동이 없다고 "확인된" 경우에만 매핑 없이 다음 단계로 넘어갈 수 있다 (조회 실패 시엔 재시도해야 함)
-  const canSkip = !loading && !loadFailed && actors.length === 0;
-  const canSubmit = !loading && !submitting && (canSkip || Boolean(selectedKey));
+  // 매핑 저장은 계정을 고른 경우에만 가능하다. 선택하지 않고 넘어가는 건 건너뛰기 버튼이 담당한다.
+  const canSubmit = !loading && !submitting && Boolean(selectedKey);
+
+  const goToNextStep = () => {
+    if (isLast || !nextProvider) {
+      navigate(`/project/${id}/peer-eval`);
+    } else {
+      navigate(`/project/${id}/peer-eval/accounts/${nextProvider}`);
+    }
+  };
+
+  // 본인 계정을 찾지 못했거나 나중에 하고 싶은 경우를 위해, 매핑 저장 없이 다음 단계로 넘어간다.
+  const handleSkip = () => {
+    if (!id || submitting) return;
+    goToNextStep();
+  };
 
   const handleSubmit = async () => {
     if (!id || submitting || !canSubmit) return;
@@ -176,11 +190,7 @@ export default function PeerEvalAccountSelectPage() {
       if (selectedKey) {
         await saveMyActorMapping(id, providerParam, selectedKey);
       }
-      if (isLast || !nextProvider) {
-        navigate(`/project/${id}/peer-eval`);
-      } else {
-        navigate(`/project/${id}/peer-eval/accounts/${nextProvider}`);
-      }
+      goToNextStep();
     } catch (err) {
       setNotice(err instanceof ApiError ? err.message : '계정을 저장하지 못했어요. 다시 시도해 주세요.');
     } finally {
@@ -235,7 +245,9 @@ export default function PeerEvalAccountSelectPage() {
             아직 수집된 {config.label} 활동이 없어요. 데이터 수집 후 다시 시도해 주세요.
           </p>
         ) : (
-          <div className="flex flex-col items-center gap-[23px] rounded-2xl border border-gray-100 bg-transparent px-[22px] py-[25px] shadow-card">
+          /* 계정이 많아져도 페이지 전체가 길어지지 않도록, 시안 기준 4개 높이까지만 보이고
+             나머지는 이 박스 안에서만 스크롤한다 */
+          <div className="flex max-h-[393px] flex-col items-center gap-[23px] overflow-y-auto overscroll-contain rounded-2xl border border-gray-100 bg-transparent px-[22px] py-[25px] shadow-card">
             {actors.map((actor) => (
               <ActorRow
                 key={actor.actorKey}
@@ -257,20 +269,30 @@ export default function PeerEvalAccountSelectPage() {
         </div>
       </div>
 
-      <div className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-mobile bg-white px-5 pt-3 pb-8">
-        <button
-          type="button"
-          disabled={!canSubmit}
-          onClick={() => void handleSubmit()}
-          className={cn(
-            'w-full h-14 rounded-lg text-body font-bold transition-colors',
-            canSubmit
-              ? 'bg-primary text-gray-25 hover:bg-primary-600'
-              : 'bg-gray-100 text-gray-400 cursor-not-allowed',
-          )}
-        >
-          {submitting ? '저장 중...' : isLast ? '완료' : '다음'}
-        </button>
+      <div className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-mobile bg-white px-5 pb-[30px] pt-3.5">
+        <div className="flex gap-4">
+          <button
+            type="button"
+            disabled={submitting}
+            onClick={handleSkip}
+            className="h-14 flex-1 rounded-lg border border-primary text-[16px] font-bold leading-[24px] text-primary transition-colors hover:bg-primary-50 disabled:opacity-50"
+          >
+            건너뛰기
+          </button>
+          <button
+            type="button"
+            disabled={!canSubmit}
+            onClick={() => void handleSubmit()}
+            className={cn(
+              'h-14 flex-1 rounded-lg text-[16px] font-bold leading-[24px] transition-colors',
+              canSubmit
+                ? 'bg-primary text-gray-25 hover:bg-primary-600'
+                : 'bg-gray-100 text-gray-400 cursor-not-allowed',
+            )}
+          >
+            {submitting ? '저장 중...' : isLast ? '완료' : '다음'}
+          </button>
+        </div>
       </div>
 
       <AlertModal open={Boolean(notice)} title={notice ?? ''} onConfirm={() => setNotice(null)} />
