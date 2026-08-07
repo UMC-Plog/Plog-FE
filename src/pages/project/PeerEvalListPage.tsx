@@ -8,15 +8,24 @@ import { AlertModal } from '../../components/Modal';
 import type { ProjectIntegrationType } from '../../types/project';
 import { PeerEvalAvatar } from '../../components/PeerEvalAvatar';
 
-type AccountProvider = 'github' | 'figma' | 'notion' | 'google';
+// actor-mappings API는 Google을 google-docs/google-slides로 분리해서 받는다(연동 자체는 GOOGLE 하나).
+type AccountProvider = 'github' | 'figma' | 'notion' | 'google-docs' | 'google-slides';
 
-// 백엔드가 연동 상태를 내려주는 순서(GITHUB, FIGMA, NOTION, GOOGLE)와 동일하게 순회한다
+// 연동 상태(GITHUB, FIGMA, NOTION, GOOGLE)를 내려주는 순서와 동일하게 순회하되,
+// Google만 계정 매핑을 docs/slides 두 단계로 나눠 조회한다(type은 둘 다 GOOGLE).
 const PROVIDER_ORDER: { param: AccountProvider; type: ProjectIntegrationType }[] = [
   { param: 'github', type: 'GITHUB' },
   { param: 'figma', type: 'FIGMA' },
   { param: 'notion', type: 'NOTION' },
-  { param: 'google', type: 'GOOGLE' },
+  { param: 'google-docs', type: 'GOOGLE' },
+  { param: 'google-slides', type: 'GOOGLE' },
 ];
+
+// 카드 우측 액션(작성하기/연결하기/완료)은 Figma 실측 기준 높이 32px 고정이다.
+// text-body-sm의 기본 line-height(21px)를 쓰면 37px가 되어 제목 행이 밀리므로 leading을 고정한다.
+const CARD_ACTION_CLASS =
+  'inline-flex h-8 shrink-0 items-center rounded-full px-3.5 text-[14px] leading-4 transition-colors';
+const CARD_ACTION_DONE_CLASS = `${CARD_ACTION_CLASS} bg-success/10 text-success`;
 
 // ── SVG 아이콘 ──────────────────────────────────────────────────────────────
 
@@ -85,10 +94,8 @@ export default function PeerEvalListPage() {
   const [notice, setNotice] = useState<string | null>(null);
   const [linkedProviders, setLinkedProviders] = useState<AccountProvider[]>([]);
   // 모든 연동 툴에서 실제 본인 계정 매핑이 저장된 경우에만 화면에 "완료"로 표시한다.
+  // 계정 선택은 건너뛸 수 있으므로 최종 제출 조건에는 포함하지 않고, 표시 용도로만 쓴다.
   const [accountDone, setAccountDone] = useState(false);
-  // 수집된 활동이 없어 선택할 계정이 없는 툴은 제출 조건에서는 건너뛸 수 있다.
-  const [accountRequirementSatisfied, setAccountRequirementSatisfied] = useState(false);
-  // 연동 상태를 확인하지 못한 동안은 "연동된 툴 없음"으로 단정하지 않고 계정 선택을 필수로 간주한다
   const [integrationsUnavailable, setIntegrationsUnavailable] = useState(false);
   const [integrationsRetryToken, setIntegrationsRetryToken] = useState(0);
 
@@ -98,7 +105,6 @@ export default function PeerEvalListPage() {
     let cancelled = false;
     setLoading(true);
     setAccountDone(false);
-    setAccountRequirementSatisfied(false);
     Promise.all([
       fetchEvaluationTargets(projectId),
       fetchMySelfFeedback(projectId)
@@ -137,17 +143,11 @@ export default function PeerEvalListPage() {
             return;
           }
 
-          const hasMyMapping = mappings.map((res) =>
-            res.mappings.some((mapping) => mapping.projectMemberId === res.currentProjectMemberId)
-          );
-          setAccountDone(hasMyMapping.every(Boolean));
-          setAccountRequirementSatisfied(
-            mappings.every(
-              (res, index) => hasMyMapping[index] || res.availableProviderActors.length === 0
+          setAccountDone(
+            mappings.every((res) =>
+              res.mappings.some((mapping) => mapping.projectMemberId === res.currentProjectMemberId)
             )
           );
-        } else {
-          setAccountRequirementSatisfied(true);
         }
       })
       .catch((err) => {
@@ -163,15 +163,11 @@ export default function PeerEvalListPage() {
     };
   }, [id, integrationsRetryToken]);
 
-  const doneCount = targets.filter((t) => t.isEvaluated).length + (selfDone ? 1 : 0);
-  const totalCount = targets.length + 1;
-  // 연동된 외부 툴이 있으면 "내 계정 선택"도 필수 항목이라 완료해야 제출할 수 있다.
-  // 연동 상태 조회 자체가 실패했을 때도 우회되지 않도록 안전하게 필수로 취급한다.
-  const accountRequired = integrationsUnavailable || linkedProviders.length > 0;
-  const allDone =
-    totalCount > 0 &&
-    doneCount === totalCount &&
-    (!accountRequired || accountRequirementSatisfied);
+  // 자기 피드백과 "내 계정 선택"은 둘 다 선택 사항이라 진행률/제출 조건에서 제외한다.
+  // 팀원 평가만 전부 마치면 최종 제출할 수 있다.
+  const doneCount = targets.filter((t) => t.isEvaluated).length;
+  const totalCount = targets.length;
+  const allDone = totalCount > 0 && doneCount === totalCount;
 
   const handleSubmit = () => {
     if (!allDone || !id) return;
@@ -196,7 +192,7 @@ export default function PeerEvalListPage() {
           </h1>
           <p className="text-caption font-normal text-gray-400">
             {allDone
-              ? '자기 피드백까지 평가가 완료되었습니다. 최종 제출해 주세요.'
+              ? '모든 팀원 평가가 완료되었습니다. 최종 제출해 주세요.'
               : '닉네임 기반 익명 평가 / 리포트 발행 후 실명 공개'}
           </p>
         </div>
@@ -217,19 +213,17 @@ export default function PeerEvalListPage() {
             targets.map((target) => (
               <div
                 key={target.projectMemberId}
-                className="bg-white border border-gray-100 rounded-2xl shadow-md px-5 py-4 flex items-center gap-3"
+                className="bg-white border border-gray-100 rounded-2xl shadow-card px-5 py-4 flex items-center gap-3"
               >
                 <PeerEvalAvatar profilePreset={target.profilePreset} size="sm" />
-                <span className="flex-1 text-title text-gray-900">{target.nickname}</span>
+                <span className="flex-1 text-title leading-[28px] text-gray-900">{target.nickname}</span>
                 {target.isEvaluated ? (
-                  <span className="bg-success/10 text-success rounded-full px-3.5 py-2 text-body-sm shrink-0">
-                    완료
-                  </span>
+                  <span className={CARD_ACTION_DONE_CLASS}>완료</span>
                 ) : (
                   <button
                     type="button"
                     onClick={() => navigate(`/project/${id}/peer-eval/${target.projectMemberId}/star`)}
-                    className="bg-primary text-gray-25 rounded-full px-3.5 py-2 text-body-sm hover:bg-primary-600 transition-colors shrink-0"
+                    className={cn(CARD_ACTION_CLASS, 'bg-primary text-gray-25 hover:bg-primary-600')}
                   >
                     평가하기
                   </button>
@@ -240,26 +234,24 @@ export default function PeerEvalListPage() {
 
           {/* 자기 피드백 카드 */}
           {!loading && (
-            <div className="bg-white border border-gray-100 rounded-2xl shadow-md px-5 py-4 flex items-start gap-3">
+            <div className="bg-white border border-gray-100 rounded-2xl shadow-card px-5 py-4 flex items-start gap-3">
               <PersonIcon />
               <div className="flex-1">
-                <div className="flex items-center justify-between">
-                  <span className="text-title text-gray-900">자기 피드백</span>
+                <div className="flex h-8 items-center justify-between">
+                  <span className="text-title leading-[28px] text-gray-900">자기 피드백</span>
                   {selfDone ? (
-                    <span className="bg-success/10 text-success rounded-full px-3.5 py-2 text-body-sm shrink-0">
-                      완료
-                    </span>
+                    <span className={CARD_ACTION_DONE_CLASS}>완료</span>
                   ) : (
                     <button
                       type="button"
                       onClick={() => navigate(`/project/${id}/peer-eval/self`)}
-                      className="bg-primary text-gray-25 rounded-full px-3.5 py-2 text-body-sm hover:bg-primary-600 transition-colors shrink-0"
+                      className={cn(CARD_ACTION_CLASS, 'bg-primary text-gray-25 hover:bg-primary-600')}
                     >
                       작성하기
                     </button>
                   )}
                 </div>
-                <p className="text-caption text-gray-400 mt-2">
+                <p className="text-caption font-normal leading-4 text-gray-400">
                   활동 로그로 파악하기 어려운
                   <br />
                   기여 맥락을 작성해 주세요
@@ -270,17 +262,22 @@ export default function PeerEvalListPage() {
 
           {/* 연동 상태 조회 실패 카드 - 재시도 전까지는 이유를 알 수 없는 채로 제출이 막히지 않도록 안내 */}
           {!loading && integrationsUnavailable && (
-            <div className="bg-error/5 border border-error/30 rounded-2xl shadow-md px-5 py-4 flex items-start gap-3">
+            <div className="bg-error/5 border border-error/30 rounded-2xl shadow-card px-5 py-4 flex items-start gap-3">
               <PersonIcon />
               <div className="flex-1">
-                <span className="text-title text-gray-900">내 계정 선택</span>
-                <p className="text-caption text-gray-400 mt-2">
+                <span className="flex h-8 items-center text-title leading-[28px] text-gray-900">
+                  내 계정 선택
+                </span>
+                <p className="text-caption font-normal leading-4 text-gray-400">
                   연동 상태를 확인하지 못했어요. 연동된 툴이 있다면 계정 선택 후 제출할 수 있어요.
                 </p>
                 <button
                   type="button"
                   onClick={() => setIntegrationsRetryToken((value) => value + 1)}
-                  className="mt-3 bg-gray-25 border border-error text-error rounded-full px-3.5 py-2 text-body-sm hover:bg-error/10 transition-colors"
+                  className={cn(
+                    CARD_ACTION_CLASS,
+                    'mt-3 bg-gray-25 border border-error text-error hover:bg-error/10',
+                  )}
                 >
                   다시 시도
                 </button>
@@ -290,30 +287,25 @@ export default function PeerEvalListPage() {
 
           {/* 내 계정 선택 카드 - 연동된 외부 툴이 있을 때만 노출 */}
           {!loading && !integrationsUnavailable && linkedProviders.length > 0 && (
-            <div className="bg-white border border-gray-100 rounded-2xl shadow-md px-5 py-4 flex items-start gap-3">
+            <div className="bg-white border border-gray-100 rounded-2xl shadow-card px-5 py-4 flex items-start gap-3">
               <PersonIcon />
               <div className="flex-1">
-                <div className="flex items-center justify-between">
-                  <span className="text-title text-gray-900">내 계정 선택</span>
-                  {accountDone ? (
-                    <button
-                      type="button"
-                      onClick={() => navigate(`/project/${id}/peer-eval/accounts/${linkedProviders[0]}`)}
-                      className="bg-success/10 text-success rounded-full px-3.5 py-2 text-body-sm hover:bg-success/20 transition-colors shrink-0"
-                    >
-                      완료
-                    </button>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() => navigate(`/project/${id}/peer-eval/accounts/${linkedProviders[0]}`)}
-                      className="bg-gray-25 border border-primary text-primary rounded-full px-3.5 py-2 text-body-sm hover:bg-primary-100 transition-colors shrink-0"
-                    >
-                      연결하기
-                    </button>
-                  )}
+                <div className="flex h-8 items-center justify-between">
+                  <span className="text-title leading-[28px] text-gray-900">내 계정 선택</span>
+                  <button
+                    type="button"
+                    onClick={() => navigate(`/project/${id}/peer-eval/accounts/${linkedProviders[0]}`)}
+                    className={cn(
+                      CARD_ACTION_CLASS,
+                      accountDone
+                        ? 'bg-success/10 text-success hover:bg-success/20'
+                        : 'bg-gray-25 border border-primary text-primary hover:bg-primary-100',
+                    )}
+                  >
+                    {accountDone ? '완료' : '연결하기'}
+                  </button>
                 </div>
-                <p className="text-caption text-gray-400 mt-2">
+                <p className="text-caption font-normal leading-4 text-gray-400">
                   신뢰도 높은 리포트 출력을 위해
                   <br />
                   본인 계정 선택이 필요해요
