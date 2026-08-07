@@ -176,9 +176,9 @@ export default function PeerEvalAccountSelectPage() {
   const providerIndex = linkedProviders?.indexOf(providerParam) ?? -1;
   const isLast = linkedProviders !== null && providerIndex === linkedProviders.length - 1;
   const nextProvider = linkedProviders && providerIndex >= 0 ? linkedProviders[providerIndex + 1] : undefined;
-  // 계정 선택은 전부 건너뛸 수 있으므로 선택 여부로 버튼을 잠그지 않는다. 잠가두면 선택이
-  // 필수인 것처럼 보이고, 마지막 단계에서 "완료"를 누르지 못해 흐름을 빠져나갈 수 없다.
-  const canSubmit = !loading && !submitting;
+  // 중간 단계의 "다음"은 계정을 골랐을 때만 누를 수 있다. 선택 없이 넘어가는 건 건너뛰기가 맡는다.
+  // 마지막 단계의 "완료"는 건너뛰기가 비활성이라, 선택 여부로 잠그면 흐름을 빠져나갈 수 없어진다.
+  const canSubmit = !loading && !submitting && (isLast || Boolean(selectedKey));
 
   const goToNextStep = () => {
     if (isLast || !nextProvider) {
