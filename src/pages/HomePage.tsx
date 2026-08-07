@@ -95,7 +95,7 @@ export default function HomePage() {
           >
             <span className="relative inline-flex">
               <Bell size={22} strokeWidth={2} aria-hidden="true" />
-              <NotificationDot show={hasUnreadNotification} />
+              <NotificationDot show={hasUnreadNotification} ring="gray-25" />
             </span>
           </button>
           <button
