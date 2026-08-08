@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import notificationGuideImage from "../../assets/onboarding/welcome1.png";
-import alertSettingsGuideImage from "../../assets/onboarding/welcome4.png";
-import peerEvalGuideImage from "../../assets/onboarding/welcome2.png";
+import notificationGuideImage from "../../assets/onboarding/landing1.png";
+import alertSettingsGuideImage from "../../assets/onboarding/landing2.png";
+import peerEvalGuideImage from "../../assets/onboarding/landing3.png";
 
 // 회원가입 완료 직후 한 번 보여주는 3단계 온보딩 코치마크.
 // 세 화면 모두 Figma 목업이 하나로 합쳐진 이미지(402x874)를 그대로 사용한다.
