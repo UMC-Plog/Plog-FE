@@ -67,7 +67,11 @@ export function reissueAccessToken(): Promise<string | null | undefined> {
         // 500/503 같은 일시적 서버 오류는 "refreshToken이 진짜 무효함"과 다르므로
         // 네트워크 실패와 동일하게 세션을 유지한 채 이번 시도만 실패 처리한다.
         if (status >= 500) return undefined
-        return null
+        // 재발급 실패는 AUTH013(INVALID_REFRESH_TOKEN)일 때만 "진짜 만료"로 확정한다.
+        // 코드 문자열은 성공/에러 enum이 같은 대역(AUTH001~013)을 공유해 의미가 겹칠 수 있으므로
+        // (status, code) 쌍으로 판단해야 한다. 예상 못한 코드는 로그아웃 대신 세션을 유지한다.
+        if (data.code === 'AUTH013') return null
+        return undefined
       })
       .catch(() => undefined)
       .finally(() => {
@@ -83,6 +87,14 @@ export async function apiRequest<T>(path: string, options: ApiRequestOptions = {
   const { status, data } = await rawRequest<T>(path, options, token)
 
   if (status === 401 && token) {
+    // AUTH011(위조·손상된 토큰)은 재발급을 시도해도 의미가 없으므로 곧바로 로그아웃한다.
+    // AUTH012(액세스 토큰 만료)를 포함한 그 외의 경우는 재발급을 시도한다.
+    if (data.code === 'AUTH011') {
+      useAuthStore.getState().logout()
+      window.location.href = '/login'
+      throw new ApiError(data.code, data.message, status)
+    }
+
     const newToken = await reissueAccessToken()
 
     if (newToken) {
