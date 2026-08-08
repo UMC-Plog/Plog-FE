@@ -1,11 +1,16 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { cn } from '../../lib/utils';
 import { fetchEvaluationTargets, fetchMySelfFeedback, type TargetMember } from '../../api/evaluation';
 import { getIntegrationActorMappings, getProjectIntegrations } from '../../api/projectApi';
+import { collectIntegrationData } from '../../api/integrationApi';
 import { ApiError } from '../../api/client';
 import { AlertModal } from '../../components/Modal';
-import type { ProjectIntegrationType } from '../../types/project';
+import {
+  isCollectionFinished,
+  type CollectionJobStatus,
+  type ProjectIntegrationType,
+} from '../../types/project';
 import { PeerEvalAvatar } from '../../components/PeerEvalAvatar';
 import { isAccountCheckDone } from '../../lib/peerEvalAccountCheck';
 
@@ -27,6 +32,17 @@ const PROVIDER_ORDER: { param: AccountProvider; type: ProjectIntegrationType }[]
 const CARD_ACTION_CLASS =
   'inline-flex h-8 shrink-0 items-center rounded-full px-3.5 text-[14px] leading-4 transition-colors';
 const CARD_ACTION_DONE_CLASS = `${CARD_ACTION_CLASS} bg-success/10 text-success`;
+
+// 수집 소요 시간은 provider별 활동량과 rate limit에 따라 크게 달라진다. 초반엔 자주 확인해
+// 빨리 반응하고, 길어지면 간격을 늘려 불필요한 요청을 줄인다.
+const POLL_START_MS = 2000;
+const POLL_MAX_MS = 15000;
+// 429는 서버가 자동 재시도하므로 수집이 길어지는 것을 실패로 단정하면 안 된다. 원칙은 종료
+// 상태가 될 때까지 계속 보는 것이고, 이 상한은 잡이 끝나지 않은 채 방치될 때를 막는 안전장치다.
+// 실제로는 화면을 벗어나면 폴링이 멈추므로 상한을 길게 둬도 요청이 쌓이지 않는다.
+const POLL_TIMEOUT_MS = 30 * 60 * 1000;
+
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 // ── SVG 아이콘 ──────────────────────────────────────────────────────────────
 
@@ -99,6 +115,64 @@ export default function PeerEvalListPage() {
   const [accountStatus, setAccountStatus] = useState<'none' | 'checked' | 'selected'>('none');
   const [integrationsUnavailable, setIntegrationsUnavailable] = useState(false);
   const [integrationsRetryToken, setIntegrationsRetryToken] = useState(0);
+  // 외부 활동 수집이 진행 중인지. "고를 계정이 아직 없다"와 "기다리면 채워진다"를 구분해 보여준다.
+  const [collecting, setCollecting] = useState(false);
+  // 수집은 프로젝트당 한 번만 시작한다. 수집 완료 후 목록을 다시 불러올 때 재호출되면 안 된다.
+  const collectionStartedRef = useRef(false);
+  const activeRef = useRef(true);
+
+  useEffect(() => {
+    activeRef.current = true;
+    return () => {
+      activeRef.current = false;
+    };
+  }, []);
+
+  // 프로젝트가 바뀌면 수집 시작 이력도 초기화한다.
+  useEffect(() => {
+    collectionStartedRef.current = false;
+  }, [id]);
+
+  // 수집은 수동 호출 방식이라 아무도 부르지 않으면 계정 목록이 영원히 비어 있다.
+  // 서버의 자동 수집(finalCollection)은 프로젝트 완료 후에 돌아 계정 매핑 시점에는 늦다.
+  const runCollection = useCallback(
+    async (initialStatus: CollectionJobStatus | null) => {
+      if (!id) return;
+      setCollecting(true);
+      try {
+        // 진행 중인 잡이 있으면 서버가 새로 만들지 않고 기존 잡 ID를 돌려주므로,
+        // 팀원 여러 명이 동시에 들어와도 중복 수집은 생기지 않는다.
+        if (initialStatus === null || initialStatus === 'FAILED') {
+          // 시작에 실패했으면 기다릴 잡이 없다. 폴링해봐야 상태가 바뀌지 않으므로 바로 끝낸다.
+          const started = await collectIntegrationData(id).then(
+            () => true,
+            () => false
+          );
+          if (!started) return;
+        }
+
+        const startedAt = Date.now();
+        let delay = POLL_START_MS;
+        while (Date.now() - startedAt < POLL_TIMEOUT_MS) {
+          await sleep(delay);
+          if (!activeRef.current) return;
+
+          const res = await getProjectIntegrations(id).catch(() => null);
+          if (!activeRef.current) return;
+
+          if (res && isCollectionFinished(res.collectionJobStatus)) {
+            // 수집된 계정으로 매핑 상태를 다시 계산해야 하므로 목록 전체를 재조회한다.
+            setIntegrationsRetryToken((value) => value + 1);
+            return;
+          }
+          delay = Math.min(Math.round(delay * 1.5), POLL_MAX_MS);
+        }
+      } finally {
+        if (activeRef.current) setCollecting(false);
+      }
+    },
+    [id]
+  );
 
   useEffect(() => {
     const projectId = Number(id);
@@ -150,6 +224,21 @@ export default function PeerEvalListPage() {
               false
           );
           setAccountStatus(hasMapping ? 'selected' : isAccountCheckDone(id) ? 'checked' : 'none');
+
+          // 수집을 시작하거나 지켜봐야 하는 경우:
+          //   null    아직 한 번도 안 함        → 호출
+          //   FAILED  실패했으니 다시 시도       → 호출 (재시도 버튼 대신 재진입으로 처리)
+          //   진행 중  이미 돌고 있음            → 호출 없이 완료만 기다림
+          // SUCCEEDED / PARTIAL_FAILED는 쓸 데이터가 있으므로 건드리지 않는다.
+          // await하지 않아야 목록 로딩이 수집을 기다리지 않는다.
+          const jobStatus = integrationsResult.ok
+            ? integrationsResult.res.collectionJobStatus
+            : null;
+          const needsCollection = jobStatus === 'FAILED' || !isCollectionFinished(jobStatus);
+          if (needsCollection && !collectionStartedRef.current) {
+            collectionStartedRef.current = true;
+            void runCollection(jobStatus);
+          }
         }
       })
       .catch((err) => {
@@ -163,7 +252,7 @@ export default function PeerEvalListPage() {
     return () => {
       cancelled = true;
     };
-  }, [id, integrationsRetryToken]);
+  }, [id, integrationsRetryToken, runCollection]);
 
   // 자기 피드백과 "내 계정 선택"은 둘 다 선택 사항이라 진행률/제출 조건에서 제외한다.
   // 팀원 평가만 전부 마치면 최종 제출할 수 있다.
@@ -314,9 +403,15 @@ export default function PeerEvalListPage() {
                   </button>
                 </div>
                 <p className="text-caption font-normal leading-4 text-gray-400">
-                  신뢰도 높은 리포트 출력을 위해
-                  <br />
-                  본인 계정 선택이 필요해요
+                  {collecting ? (
+                    '활동을 수집하고 있어요. 잠시 후 계정을 선택할 수 있어요'
+                  ) : (
+                    <>
+                      신뢰도 높은 리포트 출력을 위해
+                      <br />
+                      본인 계정 선택이 필요해요
+                    </>
+                  )}
                 </p>
               </div>
             </div>

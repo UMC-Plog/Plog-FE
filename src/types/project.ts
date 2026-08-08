@@ -154,10 +154,37 @@ export interface IntegrationItemResponse {
   connectedAccountName: string | null;
 }
 
+/**
+ * 수집 잡의 상태. 서버가 내려주는 진행 중 값의 이름이 확정되지 않았다 —
+ * Swagger enum은 PENDING/RETRYABLE인데 백엔드 안내는 QUEUED/RETRYING이었다.
+ * 그래서 진행 중 상태를 열거하지 않고 종료 상태 3개만 정의하고, 나머지는 string으로 열어둔다.
+ * 어떤 이름이 오든 isCollectionFinished로 판정하므로 동작에 영향이 없다.
+ */
+export type CollectionFinishedStatus = "SUCCEEDED" | "PARTIAL_FAILED" | "FAILED";
+export type CollectionJobStatus = CollectionFinishedStatus | (string & {});
+
+const FINISHED_STATUSES: readonly string[] = ["SUCCEEDED", "PARTIAL_FAILED", "FAILED"];
+
+/** 종료 상태면 true. 아직 시작 전(null)이거나 진행 중인 값은 모두 false. */
+export function isCollectionFinished(status: CollectionJobStatus | null | undefined) {
+  return status != null && FINISHED_STATUSES.includes(status);
+}
+
 export interface ProjectIntegrationStatusResponse {
   projectId: number;
   projectMemberId: number;
   integrations: IntegrationItemResponse[];
+  /** 가장 최근 수동 수집 잡의 상태. 요청한 적이 없으면 null */
+  collectionJobStatus: CollectionJobStatus | null;
+  /** 가장 최근 수집 잡의 실패 요약. 실패가 없으면 null */
+  collectionJobFailure: string | null;
+  /** 프로젝트 완료 시 실행되는 최종 수집 상태. 실행 전이면 null */
+  finalCollectionStatus: CollectionJobStatus | null;
+  finalCollectionFailure: string | null;
+  /** 최근 수집 잡이 시도한 리소스 수. 아직 끝나지 않았으면 null */
+  requestedResourceCount: number | null;
+  /** 최근 수집 잡이 성공한 리소스 수. 아직 끝나지 않았으면 null */
+  collectedResourceCount: number | null;
 }
 
 export interface IntegrationProviderActorResponse {

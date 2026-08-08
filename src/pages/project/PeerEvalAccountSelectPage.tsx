@@ -14,7 +14,11 @@ import figmaIcon from '../../assets/integrations/figma.svg';
 import notionIcon from '../../assets/integrations/notion-figma.png';
 import docsIcon from '../../assets/integrations/google-docs.svg';
 import slidesIcon from '../../assets/integrations/google-slides.svg';
-import type { IntegrationProviderActorResponse, ProjectIntegrationType } from '../../types/project';
+import {
+  isCollectionFinished,
+  type IntegrationProviderActorResponse,
+  type ProjectIntegrationType,
+} from '../../types/project';
 
 // actor-mappings API는 Google을 google-docs/google-slides로 분리해서 받는다.
 type ProviderParam = 'github' | 'figma' | 'notion' | 'google-docs' | 'google-slides';
@@ -125,6 +129,8 @@ export default function PeerEvalAccountSelectPage() {
   const [loading, setLoading] = useState(true);
   // 조회 실패와 "수집된 활동이 없어 선택지가 비어있는" 정상 상태를 구분해 다른 안내를 띄운다
   const [loadFailed, setLoadFailed] = useState(false);
+  // 계정 목록이 비었을 때 "아직 수집 중"과 "수집했는데 활동이 없음"을 구분해 안내한다.
+  const [collecting, setCollecting] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const [retryToken, setRetryToken] = useState(0);
@@ -153,6 +159,7 @@ export default function PeerEvalAccountSelectPage() {
           )
         );
         setLinkedProviders(linked);
+        setCollecting(!isCollectionFinished(integrationsRes.collectionJobStatus));
         const availableActors = mappingsRes?.availableProviderActors ?? [];
         setActors(availableActors);
         const mine = availableActors.find((actor) => actor.mappedByCurrentMember);
@@ -262,7 +269,9 @@ export default function PeerEvalAccountSelectPage() {
           </div>
         ) : actors.length === 0 ? (
           <p className="text-body-sm text-gray-400 text-center py-6">
-            아직 수집된 {config.label} 활동이 없어요. 데이터 수집 후 다시 시도해 주세요.
+            {collecting
+              ? `${config.label} 활동을 수집하고 있어요. 잠시 후 다시 확인해 주세요.`
+              : `아직 수집된 ${config.label} 활동이 없어요. 건너뛰고 진행해도 괜찮아요.`}
           </p>
         ) : (
           /* 계정이 많아져도 페이지 전체가 길어지지 않도록, 시안 기준 4개 높이까지만 보이고
