@@ -6,11 +6,7 @@ import { getIntegrationActorMappings, getProjectIntegrations } from '../../api/p
 import { collectIntegrationData } from '../../api/integrationApi';
 import { ApiError } from '../../api/client';
 import { AlertModal } from '../../components/Modal';
-import {
-  isCollectionFinished,
-  type CollectionJobStatus,
-  type ProjectIntegrationType,
-} from '../../types/project';
+import { isCollectionFinished, type ProjectIntegrationType } from '../../types/project';
 import { PeerEvalAvatar } from '../../components/PeerEvalAvatar';
 import { isAccountCheckDone } from '../../lib/peerEvalAccountCheck';
 
@@ -135,14 +131,15 @@ export default function PeerEvalListPage() {
 
   // 수집은 수동 호출 방식이라 아무도 부르지 않으면 계정 목록이 영원히 비어 있다.
   // 서버의 자동 수집(finalCollection)은 프로젝트 완료 후에 돌아 계정 매핑 시점에는 늦다.
+  // shouldStart=false는 이미 돌고 있는 잡의 완료만 기다리는 경우다.
   const runCollection = useCallback(
-    async (initialStatus: CollectionJobStatus | null) => {
+    async (shouldStart: boolean) => {
       if (!id) return;
       setCollecting(true);
       try {
         // 진행 중인 잡이 있으면 서버가 새로 만들지 않고 기존 잡 ID를 돌려주므로,
         // 팀원 여러 명이 동시에 들어와도 중복 수집은 생기지 않는다.
-        if (initialStatus === null || initialStatus === 'FAILED') {
+        if (shouldStart) {
           // 시작에 실패했으면 기다릴 잡이 없다. 폴링해봐야 상태가 바뀌지 않으므로 바로 끝낸다.
           const started = await collectIntegrationData(id).then(
             () => true,
@@ -234,10 +231,20 @@ export default function PeerEvalListPage() {
           const jobStatus = integrationsResult.ok
             ? integrationsResult.res.collectionJobStatus
             : null;
-          const needsCollection = jobStatus === 'FAILED' || !isCollectionFinished(jobStatus);
+          // 잡 상태만 보면 "예전에 다른 툴을 수집해 SUCCEEDED로 남았는데 그 뒤에 새로 연동한
+          // 툴은 한 번도 수집되지 않은" 경우를 놓친다. provider별 상태까지 확인한다.
+          const hasUncollectedProvider = integrationsResult.ok
+            ? integrationsResult.res.integrations.some(
+                (item) => item.linked && item.collectionStatus === 'NOT_STARTED'
+              )
+            : false;
+          // 새 잡을 만들어야 하는 경우와, 이미 도는 잡의 완료만 기다리면 되는 경우를 구분한다.
+          const shouldStart =
+            jobStatus === null || jobStatus === 'FAILED' || hasUncollectedProvider;
+          const needsCollection = shouldStart || !isCollectionFinished(jobStatus);
           if (needsCollection && !collectionStartedRef.current) {
             collectionStartedRef.current = true;
-            void runCollection(jobStatus);
+            void runCollection(shouldStart);
           }
         }
       })
