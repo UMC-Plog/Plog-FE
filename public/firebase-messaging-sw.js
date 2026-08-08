@@ -17,6 +17,25 @@ self.addEventListener('activate', (event) => {
   event.waitUntil(self.clients.claim())
 })
 
+// 알림을 눌렀을 때 갈 곳. 서비스워커는 번들 밖이라 src를 import할 수 없어 규칙을 옮겨 적는다.
+// src/api/notification.ts 의 resolveNotificationPath와 항상 같이 고쳐야 한다.
+//
+// 서비스워커는 REST 응답을 못 보고 FCM data 필드만 참조한다. data.type이 없으면(서버가 아직
+// 안 넣어주거나 모르는 타입이면) 기존처럼 채팅방으로 보낸다.
+function resolveNotificationPath(type, projectId, resourceId) {
+  const base = `/project/${projectId}`
+  switch (type) {
+    case 'PEER_EVALUATION_STARTED':
+      return `${base}/peer-eval`
+    case 'REPORT_PUBLISHED':
+      return `${base}/report/team`
+    case 'NOTICE':
+      return resourceId ? `${base}/posts/${resourceId}` : `${base}/feed`
+    default:
+      return `${base}/chat`
+  }
+}
+
 // FCM이 자체 push 핸들러를 등록하기 전에 먼저 등록해야 stopImmediatePropagation이 먹는다.
 // 전파를 막지 않으면 앱이 완전히 종료된 상태에서 FCM이 알림을 한 번 더 띄워 중복으로 표시된다.
 self.addEventListener('push', (event) => {
@@ -53,7 +72,7 @@ self.addEventListener('notificationclick', (event) => {
   event.notification.close()
   const fcmData = event.notification.data?.FCM_MSG?.data ?? event.notification.data ?? {}
   const targetUrl = fcmData.projectId
-    ? `/project/${fcmData.projectId}/chat`
+    ? resolveNotificationPath(fcmData.type, fcmData.projectId, fcmData.resourceId)
     : '/notifications'
 
   event.waitUntil(

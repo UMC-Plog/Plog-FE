@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom'
 import { onMessage, type MessagePayload } from 'firebase/messaging'
 import { getApp, getApps, initializeApp } from 'firebase/app'
 import { getMessaging, isSupported } from 'firebase/messaging'
+import { resolveNotificationPath } from '../api/notification'
 import { ensurePushNotificationsRegistered } from '../lib/firebaseMessaging'
 import { isNotificationEnabled } from '../lib/notificationSettings'
 import { useAuthStore } from '../store/authStore'
@@ -12,6 +13,9 @@ interface PushBanner {
   title: string
   body: string
   projectId?: string
+  /** FCM data에 실려 오면 타입별 목적지로 보낸다. 없으면 기존대로 채팅방으로 간다. */
+  type?: string
+  resourceId?: string
 }
 
 const firebaseConfig = {
@@ -27,8 +31,10 @@ const firebaseConfig = {
 function toBanner(payload: MessagePayload): PushBanner {
   return {
     title: payload.notification?.title ?? '새 알림',
-    body: payload.notification?.body ?? '새로운 멘션이 도착했어요.',
+    body: payload.notification?.body ?? '새로운 알림이 도착했어요.',
     projectId: payload.data?.projectId,
+    type: payload.data?.type,
+    resourceId: payload.data?.resourceId,
   }
 }
 
@@ -88,7 +94,9 @@ export function PushNotificationManager() {
     <button
       type="button"
       onClick={() => {
-        if (banner.projectId) navigate(`/project/${banner.projectId}/chat`)
+        if (banner.projectId) {
+          navigate(resolveNotificationPath(banner.type, banner.projectId, banner.resourceId))
+        }
         setBanner(null)
       }}
       className="fixed left-1/2 top-4 z-[100] flex w-[calc(100%-32px)] max-w-[448px] -translate-x-1/2 items-center gap-3 rounded-2xl border border-blue-100 bg-white px-4 py-3 text-left shadow-xl"
