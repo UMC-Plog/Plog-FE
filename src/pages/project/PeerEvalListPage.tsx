@@ -409,9 +409,15 @@ export default function PeerEvalListPage() {
                         : '연결하기'}
                   </button>
                 </div>
+                {/* 다른 카드들과 같이 짧은 두 줄로 맞춘다. 한 줄로 두면 칼럼(276px)을 거의 채워
+                    끝까지 늘어지고, 높이도 16px라 32px인 다른 카드와 어긋난다. */}
                 <p className="text-caption font-normal leading-4 text-gray-400">
                   {collecting ? (
-                    '활동을 수집하고 있어요. 잠시 후 계정을 선택할 수 있어요'
+                    <>
+                      활동을 수집하고 있어요
+                      <br />
+                      잠시 후 계정을 선택할 수 있어요
+                    </>
                   ) : (
                     <>
                       신뢰도 높은 리포트 출력을 위해
