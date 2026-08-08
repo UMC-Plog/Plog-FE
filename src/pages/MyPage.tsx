@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { fetchProfile, logoutRequest } from "../api/auth";
 import { ApiError } from "../api/client";
 import { AVATAR_PRESETS } from "../components/AvatarPicker";
+import { DefaultAvatar } from "../components/DefaultAvatar";
 import { AlertModal } from "../components/Modal";
 import { PlogIcon } from "../components/PlogIcon";
 import { getPersistentProfileImage } from "../lib/profileImage";
@@ -46,8 +47,12 @@ export default function MyPage() {
   const [logoutOpen, setLogoutOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const avatar = AVATAR_PRESETS.find((preset) => preset.id === user?.avatarId) ?? AVATAR_PRESETS[0];
-  const avatarSrc = getPersistentProfileImage(user?.avatarImageUrl) ?? avatar.src;
+  const [avatarImageFailed, setAvatarImageFailed] = useState(false);
+  const avatarPreset = AVATAR_PRESETS.find((preset) => preset.id === user?.avatarId);
+  const customAvatarSrc = avatarImageFailed ? null : getPersistentProfileImage(user?.avatarImageUrl);
+  // 프리셋도 커스텀 이미지도 없으면(profilePreset: null) 특정 프리셋으로 대체하지 않고
+  // AvatarPicker의 "선택 안 됨" 상태와 동일한 기본 아바타(DefaultAvatar)를 보여준다.
+  const avatarSrc = customAvatarSrc ?? avatarPreset?.src ?? null;
   const displayRealName = user?.realName?.trim() || "이름 없음";
   const displayNickname = user?.nickname?.trim() || "닉네임 없음";
 
@@ -105,15 +110,16 @@ export default function MyPage() {
             aria-label="프로필 수정"
             className="flex h-[78px] w-full items-center rounded-16 border border-gray-100 bg-white/10 px-4 text-left shadow-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-300"
           >
-            <img
-              src={avatarSrc}
-              alt={`${displayNickname} 프로필`}
-              className="h-[65px] w-[65px] shrink-0 rounded-full object-cover"
-              onError={(event) => {
-                event.currentTarget.onerror = null;
-                event.currentTarget.src = avatar.src;
-              }}
-            />
+            {avatarSrc ? (
+              <img
+                src={avatarSrc}
+                alt={`${displayNickname} 프로필`}
+                className="h-[65px] w-[65px] shrink-0 rounded-full object-cover"
+                onError={() => setAvatarImageFailed(true)}
+              />
+            ) : (
+              <DefaultAvatar className="h-[65px] w-[65px]" />
+            )}
             <span className="ml-4 min-w-0 flex-1">
               <strong className="block truncate text-[16px] font-normal leading-[22px] text-gray-900">
                 {displayNickname}

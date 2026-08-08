@@ -60,10 +60,12 @@ export function TermsAgreementForm({ value, onChange }: TermsAgreementFormProps)
         <button
           type="button"
           onClick={toggleAll}
-          className="mb-3 flex h-12 w-[calc(100%-16px)] items-center gap-3 rounded-[10px] bg-primary-50 px-4 text-left text-body font-bold text-gray-900"
+          className="relative mb-3 flex h-12 w-[calc(100%-16px)] items-center gap-3 px-4 text-left text-body font-bold text-gray-900"
         >
-          <Checkbox checked={allChecked(value)} />
-          모두 동의하고 시작하기
+          {/* 배경만 살짝 우측으로 이동 — 체크박스/텍스트 위치(px-4)는 그대로 유지 */}
+          <span className="absolute inset-y-0 left-1.5 -right-1.5 rounded-[10px] bg-primary-50" aria-hidden />
+          <Checkbox checked={allChecked(value)} className="relative" />
+          <span className="relative">모두 동의하고 시작하기</span>
         </button>
 
         <div className="space-y-3.5">
