@@ -1,11 +1,11 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import notificationGuideImage from "../../assets/onboarding/landing1.png";
-import alertSettingsGuideImage from "../../assets/onboarding/landing2.png";
-import peerEvalGuideImage from "../../assets/onboarding/landing3.png";
+import notificationGuideImage from "../../assets/onboarding/landingpage1.png";
+import alertSettingsGuideImage from "../../assets/onboarding/landingpage2.png";
+import peerEvalGuideImage from "../../assets/onboarding/landingpage3.png";
 
 // 회원가입 완료 직후 한 번 보여주는 3단계 온보딩 코치마크.
-// 세 화면 모두 Figma 목업이 하나로 합쳐진 이미지(402x874)를 그대로 사용한다.
+// 세 화면 모두 Figma 목업이 하나로 합쳐진 이미지(804x1748, 2x)를 그대로 사용한다.
 const STEPS = [
   {
     src: notificationGuideImage,
@@ -46,7 +46,7 @@ export default function PostSignupGuidePage() {
 }
 
 /**
- * 온보딩 코치마크 한 장(402x874 Figma 목업 이미지)을 그대로 보여준다. object-contain +
+ * 온보딩 코치마크 한 장(804x1748, 2x Figma 목업 이미지)을 그대로 보여준다. object-contain +
  * object-top으로 비율을 유지한 채 화면 상단에 붙이고, 화면이 이미지보다 길 때 아래쪽에
  * 남는 여백은 이미지와 같은 톤(흰 배경 + 어두운 반투명 오버레이)으로 채워 이어져 보이게 한다.
  */
