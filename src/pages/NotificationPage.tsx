@@ -1,9 +1,19 @@
-import { Bell, ChevronRight, MessageCircle } from 'lucide-react'
+import {
+  AtSign,
+  Bell,
+  ChevronRight,
+  FileBarChart,
+  Megaphone,
+  MessageCircle,
+  Star,
+} from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   fetchNotifications,
+  resolveNotificationPath,
   type NotificationResponse,
+  type NotificationType,
 } from '../api/notification'
 import { Button } from '../components/Button'
 import { EmptyState } from '../components/EmptyState'
@@ -12,6 +22,16 @@ import { MySubpageHeader } from '../components/my/MySubpageHeader'
 import { cn } from '../lib/utils'
 
 const PAGE_SIZE = 20
+
+// 목록에서 알림 종류를 한눈에 구분할 수 있도록 타입별 아이콘을 쓴다.
+// 모르는 타입이 와도 깨지지 않게 기본값을 둔다.
+const NOTIFICATION_ICON: Record<NotificationType, typeof MessageCircle> = {
+  CHAT_MESSAGE: MessageCircle,
+  CHAT_MENTION: AtSign,
+  NOTICE: Megaphone,
+  PEER_EVALUATION_STARTED: Star,
+  REPORT_PUBLISHED: FileBarChart,
+}
 
 function formatCreatedAt(value: string) {
   const date = new Date(value)
@@ -80,9 +100,9 @@ export default function NotificationPage() {
   }, [loadPage])
 
   const handleNotificationClick = (notification: NotificationResponse) => {
-    if (notification.type === 'CHAT_MENTION' || notification.type === 'CHAT_MESSAGE') {
-      navigate(`/project/${notification.projectId}/chat`)
-    }
+    navigate(
+      resolveNotificationPath(notification.type, notification.projectId, notification.resourceId)
+    )
   }
 
   return (
@@ -114,7 +134,9 @@ export default function NotificationPage() {
         ) : (
           <>
             <ul className="space-y-3" aria-label="알림 목록">
-              {notifications.map((notification) => (
+              {notifications.map((notification) => {
+                const Icon = NOTIFICATION_ICON[notification.type] ?? MessageCircle
+                return (
                 <li key={notification.notificationId}>
                   <button
                     type="button"
@@ -134,7 +156,7 @@ export default function NotificationPage() {
                           : 'bg-blue-100 text-blue-500',
                       )}
                     >
-                      <MessageCircle size={21} aria-hidden="true" />
+                      <Icon size={21} aria-hidden="true" />
                     </span>
 
                     <span className="min-w-0 flex-1">
@@ -157,7 +179,8 @@ export default function NotificationPage() {
                     <ChevronRight size={18} className="shrink-0 text-gray-300" aria-hidden="true" />
                   </button>
                 </li>
-              ))}
+                )
+              })}
             </ul>
 
             {error && (
