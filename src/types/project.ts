@@ -152,6 +152,15 @@ export interface IntegrationItemResponse {
   linkType: ProjectIntegrationType;
   linked: boolean;
   connectedAccountName: string | null;
+  /**
+   * 해당 provider에 등록된 리소스들의 최근 수집 상태.
+   * 연동만 하고 아직 수집한 적이 없으면 NOT_STARTED로 온다.
+   */
+  collectionStatus: CollectionJobStatus | null;
+  /** 해당 provider 리소스 중 가장 최근 수집 완료 시각. 수집 전이면 null */
+  lastCollectedAt: string | null;
+  /** 가장 최근 수집 실패 원인. 실패가 없으면 null */
+  lastCollectionFailure: string | null;
 }
 
 /**

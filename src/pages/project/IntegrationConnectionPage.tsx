@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import {
+  collectIntegrationData,
   createIntegrationAuthorization,
   disconnectIntegration,
   getIntegrationResources,
@@ -730,6 +731,12 @@ export default function IntegrationConnectionPage() {
         } else {
           connectMock(id, storeProvider);
         }
+      } else {
+        // 연동만 해두면 수집은 아무도 돌리지 않아 계정 매핑에 쓸 활동이 남지 않는다.
+        // 완료 안내에도 "저장 후 데이터 수집이 시작돼요"라고 적혀 있으므로 여기서 시작한다.
+        // 수집은 백그라운드 잡이라 결과를 기다리지 않고, 실패해도 이동을 막지 않는다.
+        // (Peer 평가 진입 시 미수집 provider를 다시 확인해 보정한다)
+        void collectIntegrationData(id).catch(() => undefined);
       }
       navigate(`/project/${id}/settings`);
       return;
