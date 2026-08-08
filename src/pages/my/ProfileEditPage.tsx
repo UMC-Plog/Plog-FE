@@ -15,6 +15,7 @@ import {
 } from "../../components/AvatarPicker";
 import { AuthHeader } from "../../components/AuthHeader";
 import { Button } from "../../components/Button";
+import { DefaultAvatar } from "../../components/DefaultAvatar";
 import { Input } from "../../components/Input";
 import { Layout } from "../../components/Layout";
 import { AlertModal, BottomSheet } from "../../components/Modal";
@@ -29,7 +30,7 @@ export function ProfileEditPage() {
   const user = useAuthStore((state) => state.user);
   const syncProfile = useAuthStore((state) => state.syncProfile);
   const storedImageUrl = getPersistentProfileImage(user?.avatarImageUrl);
-  const storedAvatarId = user?.avatarId ?? (storedImageUrl ? null : "otter");
+  const storedAvatarId = user?.avatarId ?? null;
 
   const [originalRealName, setOriginalRealName] = useState(user?.realName ?? "");
   const [realName, setRealName] = useState(user?.realName ?? "");
@@ -44,6 +45,7 @@ export function ProfileEditPage() {
   const [stagedAvatarId, setStagedAvatarId] = useState<AvatarPresetId | null>(storedAvatarId);
   const [stagedImageUrl, setStagedImageUrl] = useState<string | null>(storedImageUrl);
   const [avatarSheetOpen, setAvatarSheetOpen] = useState(false);
+  const [avatarImageFailed, setAvatarImageFailed] = useState(false);
   const [imageError, setImageError] = useState("");
   const [imageReading, setImageReading] = useState(false);
   const [checkState, setCheckState] = useState<NicknameCheckState>("idle");
@@ -117,7 +119,6 @@ export function ProfileEditPage() {
   const nicknameUnchanged = normalizedNickname === originalNickname;
   const nicknameChecked =
     checkState === "available" && checkedNickname === normalizedNickname;
-  const avatarSelected = avatarId !== null || customImageUrl !== null;
   const hasChanges =
     (!realNameUnchanged && nameChangeAvailable) ||
     normalizedNickname !== originalNickname ||
@@ -129,7 +130,6 @@ export function ProfileEditPage() {
     realNameValid &&
     nicknameValid &&
     (nicknameUnchanged || nicknameChecked) &&
-    avatarSelected &&
     !imageReading &&
     !saving;
 
@@ -142,8 +142,9 @@ export function ProfileEditPage() {
     : undefined;
 
   const nicknameSuccess = nicknameChecked ? "사용 가능한 닉네임이에요" : undefined;
-  const avatarPreset = AVATAR_PRESETS.find((preset) => preset.id === avatarId) ?? AVATAR_PRESETS[0];
-  const avatarSrc = customImageUrl ?? avatarPreset.src;
+  const avatarPreset = AVATAR_PRESETS.find((preset) => preset.id === avatarId);
+  const customAvatarSrc = avatarImageFailed ? null : customImageUrl;
+  const avatarSrc = customAvatarSrc ?? avatarPreset?.src ?? null;
 
   const handleNicknameChange = (value: string) => {
     latestNicknameRef.current = value;
@@ -262,15 +263,16 @@ export function ProfileEditPage() {
           <div className="px-[22px] pt-9">
           <div className="flex justify-center">
             <div className="relative">
-              <img
-                src={avatarSrc}
-                alt={`${user?.nickname ?? "사용자"} 프로필`}
-                className="h-[116px] w-[116px] rounded-full object-cover"
-                onError={(event) => {
-                  event.currentTarget.onerror = null;
-                  event.currentTarget.src = avatarPreset.src;
-                }}
-              />
+              {avatarSrc ? (
+                <img
+                  src={avatarSrc}
+                  alt={`${user?.nickname ?? "사용자"} 프로필`}
+                  className="h-[116px] w-[116px] rounded-full object-cover"
+                  onError={() => setAvatarImageFailed(true)}
+                />
+              ) : (
+                <DefaultAvatar className="h-[116px] w-[116px]" />
+              )}
               <button
                 type="button"
                 onClick={openAvatarSheet}
