@@ -14,6 +14,7 @@ import {
 } from '../api/chatSocket';
 import { AVATAR_PRESETS } from '../components/AvatarPicker';
 import { toAvatarId } from '../lib/profilePreset';
+import defaultProfileIcon from '../assets/default-profile.png';
 
 interface ChatRoom {
   roomId: number;
@@ -27,7 +28,7 @@ interface ChatRoom {
 
 const avatarUrl = (preset: string | null) => {
   const id = toAvatarId(preset);
-  return id ? AVATAR_PRESETS.find((item) => item.id === id)?.src ?? '' : '';
+  return id ? AVATAR_PRESETS.find((item) => item.id === id)?.src ?? defaultProfileIcon : defaultProfileIcon;
 };
 
 const formatTime = (value: Date) =>
