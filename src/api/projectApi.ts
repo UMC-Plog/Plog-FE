@@ -1,3 +1,4 @@
+import defaultProfileIcon from "../assets/default-profile.png";
 import frogImg from "../assets/frog.png";
 import ghostImg from "../assets/ghost.png";
 import koalaImg from "../assets/koala.png";
@@ -118,7 +119,7 @@ export function toApiProjectType(projectType: ProjectType): ProjectApiType {
 }
 
 function getPresetImage(profilePreset: string | null) {
-  if (!profilePreset) return undefined;
+  if (!profilePreset) return defaultProfileIcon;
 
   const images = {
     OTTER: otterImg,

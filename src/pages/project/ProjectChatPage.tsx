@@ -5,6 +5,7 @@ import { AlertModal } from '../../components/Modal';
 import { useAuthStore } from '../../store/authStore';
 import { AVATAR_PRESETS } from '../../components/AvatarPicker';
 import { toAvatarId } from '../../lib/profilePreset';
+import defaultProfileIcon from '../../assets/default-profile.png';
 import { fetchChannels, fetchMessages, markRoomAsRead, type ChatAttachmentThumbnailResponse, type ChatChannelParticipantResponse, type ChatMessageAttachmentResponse, type ChatMessageResponse } from '../../api/chat';
 import { createChatStompClient, subscribeToDestination, publishToDestination, chatDestinations } from '../../api/chatSocket';
 import { ApiError, reissueAccessToken } from '../../api/client';
@@ -39,7 +40,7 @@ const isImageFile = (fileName: string) => /\.(png|jpe?g|gif|webp|svg)$/i.test(fi
 
 const avatarUrl = (preset: string | null) => {
   const id = toAvatarId(preset);
-  return id ? AVATAR_PRESETS.find((item) => item.id === id)?.src ?? '' : '';
+  return id ? AVATAR_PRESETS.find((item) => item.id === id)?.src ?? defaultProfileIcon : defaultProfileIcon;
 };
 
 // ── Inline SVG icons (lucide 금지) ──────────────────────────────────────────
