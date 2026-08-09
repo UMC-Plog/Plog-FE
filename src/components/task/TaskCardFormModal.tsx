@@ -522,6 +522,7 @@ export function TaskCardFormModal({
       variant="task"
       closeOnHandleClick
       handleCloseLabel="업무카드 바텀시트 닫기"
+      contentClassName="h-[min(740px,100dvh)] pb-[max(1.75rem,env(safe-area-inset-bottom))]"
     >
       <div className="flex h-full max-h-[calc(100dvh-4.75rem)] min-h-0 flex-col overflow-hidden">
         <h2 className="shrink-0 text-h3 text-gray-900">
