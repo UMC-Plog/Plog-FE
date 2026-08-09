@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ClipboardList, Plus } from 'lucide-react'
 import { useParams } from 'react-router-dom'
 import {
+  addTaskAttachment,
   deleteTask,
   fetchProjectTasks,
   fetchTaskDetail,
@@ -18,6 +19,7 @@ import { TaskCardFormModal } from '../../components/task/TaskCardFormModal'
 import { ProgressBar } from '../../components/ProgressBar'
 import { cn } from '../../lib/utils'
 import { useProjectStore } from '../../store/projectStore'
+import { MAX_ATTACHMENTS, type NewAttachmentRequest } from '../../types/attachment'
 import type {
   ServerTaskStatus,
   TaskDetailViewModel,
@@ -57,6 +59,7 @@ export default function ProjectTaskPage() {
   const activeFilterRef = useRef<TaskFilter>('all')
   const detailRequestIdRef = useRef(0)
   const statusUpdatingRef = useRef(false)
+  const attachmentAddingRef = useRef(false)
   const deletingRef = useRef(false)
   const [allTasks, setAllTasks] = useState<TaskListItemViewModel[]>([])
   const [myTasks, setMyTasks] = useState<TaskListItemViewModel[]>([])
@@ -64,7 +67,6 @@ export default function ProjectTaskPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [filter, setFilter] = useState<TaskFilter>('all')
-  const [notice, setNotice] = useState<'detailAction' | null>(null)
   const [selectedTaskId, setSelectedTaskId] = useState<number | null>(null)
   const [detail, setDetail] = useState<TaskDetailViewModel | null>(null)
   const [isDetailLoading, setIsDetailLoading] = useState(false)
@@ -402,6 +404,33 @@ export default function ProjectTaskPage() {
     selectedTaskId,
   ])
 
+  const addDetailAttachment = useCallback(async (
+    request: NewAttachmentRequest
+  ) => {
+    if (
+      projectId === null ||
+      selectedTaskId === null ||
+      !detail ||
+      attachmentAddingRef.current
+    ) {
+      throw new Error('업무 첨부를 추가할 수 없습니다.')
+    }
+    if (detail.attachments.length >= MAX_ATTACHMENTS) {
+      throw new Error(`첨부는 최대 ${MAX_ATTACHMENTS}개까지 추가할 수 있습니다.`)
+    }
+
+    attachmentAddingRef.current = true
+    try {
+      await addTaskAttachment(projectId, selectedTaskId, request)
+      await Promise.all([
+        loadTasks(),
+        loadTaskDetail(selectedTaskId),
+      ])
+    } finally {
+      attachmentAddingRef.current = false
+    }
+  }, [detail, loadTaskDetail, loadTasks, projectId, selectedTaskId])
+
   const openTaskEdit = useCallback(() => {
     if (!detail || isStatusUpdating || isDeleting) return
     setEditingTask(detail)
@@ -559,7 +588,7 @@ export default function ProjectTaskPage() {
         }}
         onEdit={openTaskEdit}
         onDelete={openTaskDelete}
-        onUnavailableAction={() => setNotice('detailAction')}
+        onAddAttachment={addDetailAttachment}
         isStatusUpdating={isStatusUpdating}
         isDeleting={isDeleting}
         onStatusChange={(status) => void changeTaskStatus(status)}
@@ -614,12 +643,6 @@ export default function ProjectTaskPage() {
         }}
       />
 
-      <AlertModal
-        open={notice !== null}
-        title="업무 변경 기능 준비 중이에요"
-        description="서버 API 연동 후 사용할 수 있어요."
-        onConfirm={() => setNotice(null)}
-      />
       <AlertModal
         open={statusError !== null}
         title="업무 상태를 변경하지 못했어요"
