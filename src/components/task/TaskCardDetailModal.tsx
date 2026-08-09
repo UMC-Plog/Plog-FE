@@ -227,9 +227,10 @@ export function TaskCardDetailModal({
       variant="task"
       closeOnHandleClick
       handleCloseLabel="업무카드 상세 바텀시트 닫기"
+      contentClassName="h-[min(740px,100dvh)] pb-[max(1.75rem,env(safe-area-inset-bottom))]"
     >
-      <div className="h-full max-h-[calc(100dvh-4.75rem)] overflow-y-auto overscroll-contain">
-        <div className="flex items-center justify-between gap-3">
+      <div className="flex h-full max-h-[calc(100dvh-4.75rem)] min-h-0 flex-col overflow-hidden">
+        <div className="flex shrink-0 items-center justify-between gap-3">
           <h2 className="text-[22px] font-semibold leading-8 text-gray-900">업무카드 상세</h2>
           {task && (
             <div className="flex gap-1">
@@ -244,11 +245,13 @@ export function TaskCardDetailModal({
         </div>
 
         {isLoading ? (
-          <p className="py-16 text-center text-body-sm text-gray-400">
-            업무 상세를 불러오는 중이에요.
-          </p>
+          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+            <p className="py-16 text-center text-body-sm text-gray-400">
+              업무 상세를 불러오는 중이에요.
+            </p>
+          </div>
         ) : error ? (
-          <div className="py-12 text-center">
+          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain py-12 text-center">
             <p className="text-body-sm text-error">{error}</p>
             <div className="mt-4 flex gap-3">
               <Button type="button" variant="ghost" fullWidth={false} onClick={onClose} className="flex-1 bg-gray-100 text-gray-500">
@@ -261,6 +264,7 @@ export function TaskCardDetailModal({
           </div>
         ) : task && category ? (
           <>
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
         {deadlineNotice === 'OVERDUE' ? (
           <div className="mt-4 flex items-center gap-2 rounded-md bg-error/10 px-3 py-2 text-caption text-error">
             <TriangleAlert className="h-4 w-4 shrink-0" aria-hidden />
@@ -360,9 +364,10 @@ export function TaskCardDetailModal({
             첨부 산출물과 업무 완료 여부가 기여도 분석 시 교차 검증됩니다. 파일 첨부만으로 기여도가 높아지지 않습니다.
           </span>
         </p>
+        </div>
 
         {task.status === 'TODO' ? (
-          <div className="mt-5 flex gap-3">
+          <div className="mt-5 flex shrink-0 gap-3 bg-white">
             <Button
               type="button"
               size="lg"
@@ -395,7 +400,7 @@ export function TaskCardDetailModal({
             </Button>
           </div>
         ) : task.status === 'IN_PROGRESS' ? (
-          <div className="mt-5 flex gap-3">
+          <div className="mt-5 flex shrink-0 gap-3 bg-white">
             {isAttachmentPickerOpen ? (
               <>
                 <Button
@@ -458,7 +463,7 @@ export function TaskCardDetailModal({
             )}
           </div>
         ) : (
-          <div className="mt-5">
+          <div className="mt-5 shrink-0 bg-white">
             <Button type="button" size="lg" disabled>
               이미 완료된 업무입니다
             </Button>
