@@ -47,7 +47,11 @@ export function SignupPage() {
           <Button
             variant="outline"
             size="md"
-            icon={<img src={emailIcon} alt="" className="h-6 w-6 object-contain" aria-hidden />}
+            icon={
+              <span className="flex h-6 w-6 shrink-0 items-center justify-center" aria-hidden>
+                <img src={emailIcon} alt="" className="h-[15px] w-[19px] object-contain" />
+              </span>
+            }
             onClick={handleEmailSignup}
           >
             이메일 회원가입
