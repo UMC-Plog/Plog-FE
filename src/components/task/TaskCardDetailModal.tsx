@@ -1,10 +1,20 @@
 import { CalendarDays, Info, TriangleAlert, UserRound } from 'lucide-react'
-import { useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { AVATAR_PRESETS } from '../AvatarPicker'
 import { AttachmentList } from '../attachment/AttachmentList'
+import { AttachmentPicker } from '../attachment/AttachmentPicker'
 import { BottomSheet } from '../Modal'
 import { Button } from '../Button'
+import {
+  getAttachmentDraftSummary,
+  toNewAttachmentRequests,
+} from '../../lib/attachment'
 import { cn } from '../../lib/utils'
+import {
+  MAX_ATTACHMENTS,
+  type AttachmentDraft,
+  type NewAttachmentRequest,
+} from '../../types/attachment'
 import type {
   ServerProfilePreset,
   ServerTaskStatus,
@@ -29,7 +39,7 @@ interface TaskCardDetailModalProps {
   onRetry: () => void
   onEdit: () => void
   onDelete: () => void
-  onUnavailableAction: () => void
+  onAddAttachment: (request: NewAttachmentRequest) => Promise<void>
   isStatusUpdating: boolean
   isDeleting: boolean
   onStatusChange: (status: ServerTaskStatus) => void
@@ -87,13 +97,20 @@ export function TaskCardDetailModal({
   onRetry,
   onEdit,
   onDelete,
-  onUnavailableAction,
+  onAddAttachment,
   isStatusUpdating,
   isDeleting,
   onStatusChange,
 }: TaskCardDetailModalProps) {
   const [pendingStatus, setPendingStatus] =
     useState<ServerTaskStatus | null>(null)
+  const attachmentDraftsRef = useRef<AttachmentDraft[]>([])
+  const isCommittingAttachmentRef = useRef(false)
+  const activeTaskIdRef = useRef<number | null>(null)
+  const [attachmentDrafts, setAttachmentDrafts] = useState<AttachmentDraft[]>([])
+  const [isAttachmentPickerOpen, setIsAttachmentPickerOpen] = useState(false)
+  const [isCommittingAttachment, setIsCommittingAttachment] = useState(false)
+  const [attachmentError, setAttachmentError] = useState<string>()
   const avatarId = task?.assignee.profilePreset
     ? PROFILE_PRESET_TO_AVATAR_ID[task.assignee.profilePreset]
     : undefined
@@ -117,10 +134,96 @@ export function TaskCardDetailModal({
           : null
   const showWarningNotice =
     deadlineNotice === 'TODAY' || deadlineNotice === 'UPCOMING'
+
+  const removeAttachmentDraft = useCallback((localId: string) => {
+    const nextDrafts = attachmentDraftsRef.current.filter(
+      (draft) => draft.localId !== localId
+    )
+    attachmentDraftsRef.current = nextDrafts
+    setAttachmentDrafts(nextDrafts)
+  }, [])
+
+  const commitReadyAttachments = useCallback(async () => {
+    if (isCommittingAttachmentRef.current) return
+
+    isCommittingAttachmentRef.current = true
+    setIsCommittingAttachment(true)
+    try {
+      while (true) {
+        const readyDraft = attachmentDraftsRef.current.find(
+          (draft) =>
+            draft.source === 'NEW' &&
+            (draft.attachmentType === 'LINK' || draft.status === 'SUCCESS')
+        )
+        if (!readyDraft) break
+
+        const [request] = toNewAttachmentRequests([readyDraft])
+        if (!request) break
+
+        try {
+          await onAddAttachment(request)
+          removeAttachmentDraft(readyDraft.localId)
+          setAttachmentError(undefined)
+        } catch (error: unknown) {
+          removeAttachmentDraft(readyDraft.localId)
+          setAttachmentError(
+            error instanceof Error
+              ? error.message
+              : '업무 첨부를 추가하지 못했습니다.'
+          )
+        }
+      }
+    } finally {
+      isCommittingAttachmentRef.current = false
+      setIsCommittingAttachment(false)
+    }
+  }, [onAddAttachment, removeAttachmentDraft])
+
+  const changeAttachmentDrafts = useCallback((nextDrafts: AttachmentDraft[]) => {
+    attachmentDraftsRef.current = nextDrafts
+    setAttachmentDrafts(nextDrafts)
+    setAttachmentError(undefined)
+    void commitReadyAttachments()
+  }, [commitReadyAttachments])
+
+  useEffect(() => {
+    if (!open) {
+      activeTaskIdRef.current = null
+      attachmentDraftsRef.current = []
+      setAttachmentDrafts([])
+      setIsAttachmentPickerOpen(false)
+      setAttachmentError(undefined)
+      return
+    }
+    if (task && activeTaskIdRef.current !== task.id) {
+      activeTaskIdRef.current = task.id
+      attachmentDraftsRef.current = []
+      setAttachmentDrafts([])
+      setIsAttachmentPickerOpen(false)
+      setAttachmentError(undefined)
+    }
+  }, [open, task])
+
+  useEffect(() => {
+    void commitReadyAttachments()
+  }, [attachmentDrafts, commitReadyAttachments])
+
+  const existingAttachmentCount = task?.attachments.length ?? 0
+  const remainingAttachmentCount = Math.max(
+    0,
+    MAX_ATTACHMENTS - existingAttachmentCount
+  )
+  const attachmentDraftSummary = getAttachmentDraftSummary(attachmentDrafts)
+  const isAttachmentProcessing =
+    isCommittingAttachment || attachmentDraftSummary.hasPendingUploads
   return (
     <BottomSheet
       open={open}
-      onClose={isStatusUpdating || isDeleting ? undefined : onClose}
+      onClose={
+        isStatusUpdating || isDeleting || isAttachmentProcessing
+          ? undefined
+          : onClose
+      }
       variant="task"
       closeOnHandleClick
       handleCloseLabel="업무카드 상세 바텀시트 닫기"
@@ -130,10 +233,10 @@ export function TaskCardDetailModal({
           <h2 className="text-[22px] font-semibold leading-8 text-gray-900">업무카드 상세</h2>
           {task && (
             <div className="flex gap-1">
-              <Button type="button" variant="ghost" size="sm" fullWidth={false} disabled={isStatusUpdating || isDeleting} onClick={onEdit} className="h-8 rounded-md bg-gray-100 px-4 text-caption leading-none text-gray-400">
+              <Button type="button" variant="ghost" size="sm" fullWidth={false} disabled={isStatusUpdating || isDeleting || isAttachmentProcessing} onClick={onEdit} className="h-8 rounded-md bg-gray-100 px-4 text-caption leading-none text-gray-400">
                 수정
               </Button>
-              <Button type="button" variant="ghost" size="sm" fullWidth={false} disabled={isStatusUpdating || isDeleting} onClick={onDelete} className="h-8 rounded-md bg-error/10 px-4 text-caption leading-none text-error hover:bg-error/20">
+              <Button type="button" variant="ghost" size="sm" fullWidth={false} disabled={isStatusUpdating || isDeleting || isAttachmentProcessing} onClick={onDelete} className="h-8 rounded-md bg-error/10 px-4 text-caption leading-none text-error hover:bg-error/20">
                 삭제
               </Button>
             </div>
@@ -233,6 +336,24 @@ export function TaskCardDetailModal({
           />
         </div>
 
+        {task.status === 'IN_PROGRESS' && isAttachmentPickerOpen && (
+          <div className="mt-4">
+            <AttachmentPicker
+              value={attachmentDrafts}
+              onChange={changeAttachmentDrafts}
+              usage="TASK"
+              maxAttachments={remainingAttachmentCount}
+              variant="task"
+              disabled={isCommittingAttachment || remainingAttachmentCount === 0}
+            />
+            {attachmentError && (
+              <p className="mt-2 text-caption font-normal text-error">
+                {attachmentError}
+              </p>
+            )}
+          </div>
+        )}
+
         <p className="mt-4 flex items-start gap-2 rounded-12 bg-primary-50 p-3 text-caption font-normal text-primary-700">
           <Info className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
           <span>
@@ -249,7 +370,7 @@ export function TaskCardDetailModal({
               loading={
                 isStatusUpdating && pendingStatus === 'IN_PROGRESS'
               }
-              disabled={isStatusUpdating}
+              disabled={isStatusUpdating || isCommittingAttachment}
               onClick={() => {
                 setPendingStatus('IN_PROGRESS')
                 onStatusChange('IN_PROGRESS')
@@ -263,7 +384,7 @@ export function TaskCardDetailModal({
               size="lg"
               fullWidth={false}
               loading={isStatusUpdating && pendingStatus === 'DONE'}
-              disabled={isStatusUpdating}
+              disabled={isStatusUpdating || isCommittingAttachment}
               onClick={() => {
                 setPendingStatus('DONE')
                 onStatusChange('DONE')
@@ -275,31 +396,66 @@ export function TaskCardDetailModal({
           </div>
         ) : task.status === 'IN_PROGRESS' ? (
           <div className="mt-5 flex gap-3">
-            <Button
-              type="button"
-              variant="outline"
-              size="lg"
-              fullWidth={false}
-              disabled={isStatusUpdating}
-              onClick={onUnavailableAction}
-              className="flex-1"
-            >
-              파일추가
-            </Button>
-            <Button
-              type="button"
-              size="lg"
-              fullWidth={false}
-              loading={isStatusUpdating && pendingStatus === 'DONE'}
-              disabled={isStatusUpdating}
-              onClick={() => {
-                setPendingStatus('DONE')
-                onStatusChange('DONE')
-              }}
-              className="flex-[2] text-white"
-            >
-              완료 처리
-            </Button>
+            {isAttachmentPickerOpen ? (
+              <>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="lg"
+                  fullWidth={false}
+                  disabled={isAttachmentProcessing}
+                  onClick={() => setIsAttachmentPickerOpen(false)}
+                  className="flex-1"
+                >
+                  취소
+                </Button>
+                <Button
+                  type="button"
+                  size="lg"
+                  fullWidth={false}
+                  disabled={isAttachmentProcessing}
+                  onClick={() => setIsAttachmentPickerOpen(false)}
+                  className="flex-[2] text-white"
+                >
+                  첨부완료
+                </Button>
+              </>
+            ) : (
+              <>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="lg"
+                  fullWidth={false}
+                  disabled={
+                    isStatusUpdating ||
+                    isCommittingAttachment ||
+                    remainingAttachmentCount === 0
+                  }
+                  onClick={() => {
+                    setAttachmentError(undefined)
+                    setIsAttachmentPickerOpen(true)
+                  }}
+                  className="flex-1"
+                >
+                  파일추가
+                </Button>
+                <Button
+                  type="button"
+                  size="lg"
+                  fullWidth={false}
+                  loading={isStatusUpdating && pendingStatus === 'DONE'}
+                  disabled={isStatusUpdating || isCommittingAttachment}
+                  onClick={() => {
+                    setPendingStatus('DONE')
+                    onStatusChange('DONE')
+                  }}
+                  className="flex-[2] text-white"
+                >
+                  완료 처리
+                </Button>
+              </>
+            )}
           </div>
         ) : (
           <div className="mt-5">
