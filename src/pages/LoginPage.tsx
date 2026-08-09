@@ -71,7 +71,11 @@ export function LoginPage() {
 
   return (
     <div className="app-shell">
-      <AuthHeader title="로그인" subtitle="계정에 로그인하세요" />
+      <AuthHeader
+        title="로그인"
+        subtitle="계정에 로그인하세요"
+        onBack={() => navigate("/", { replace: true })}
+      />
 
       <form onSubmit={handleSubmit} className="flex flex-1 flex-col px-5 pt-6">
         <div className="space-y-4">
