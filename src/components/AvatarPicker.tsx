@@ -1,5 +1,5 @@
-import { User } from "lucide-react";
 import { cn } from "../lib/utils";
+import defaultProfileIcon from "../assets/default-profile.png";
 import otterImg from "../assets/otter.png";
 import penguinImg from "../assets/penguin.png";
 import frogImg from "../assets/frog.png";
@@ -58,8 +58,7 @@ export function AvatarPicker({
                 ? "h-[116px] w-[116px]"
                 : size === "lg"
                   ? "h-28 w-28"
-                  : "h-24 w-24",
-              customImageUrl || selected ? "" : "bg-blue-100"
+                  : "h-24 w-24"
             )}
           >
             {customImageUrl ? (
@@ -75,7 +74,11 @@ export function AvatarPicker({
                 className="h-full w-full object-cover"
               />
             ) : (
-              <User className="h-1/2 w-1/2 text-gray-25" strokeWidth={1.5} fill="currentColor" aria-hidden />
+              <img
+                src={defaultProfileIcon}
+                alt="기본 프로필"
+                className="h-full w-full object-cover"
+              />
             )}
           </div>
         </div>
