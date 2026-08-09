@@ -832,7 +832,7 @@ export function TaskCardFormModal({
               >
                 마감일 <span className="text-error">*</span>
               </label>
-              <div className="relative w-full min-w-0">
+              <div className="relative box-border h-12 w-full min-w-0 max-w-full rounded-md border border-gray-200 bg-white px-3.5 transition-colors duration-150 hover:border-gray-300 focus-within:border-primary [&>div]:h-full [&>div>div]:h-full">
                 <Input
                   id="task-due-date"
                   type="date"
@@ -840,8 +840,7 @@ export function TaskCardFormModal({
                   onChange={(event) => setEndDate(event.target.value)}
                   aria-label="날짜 선택"
                   className={cn(
-                    TASK_META_FIELD_CLASS,
-                    'text-base sm:text-body',
+                    'box-border h-full min-h-0 w-full min-w-0 max-w-full rounded-none border-0 bg-transparent px-0 text-base leading-[1.5] hover:border-transparent focus:border-transparent sm:text-body',
                     endDate ? 'text-gray-900' : 'text-transparent'
                   )}
                 />
