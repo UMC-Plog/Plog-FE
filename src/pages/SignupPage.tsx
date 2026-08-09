@@ -2,7 +2,7 @@ import { useNavigate } from "react-router-dom";
 import { AuthHeader } from "../components/AuthHeader";
 import { Button } from "../components/Button";
 import { SocialLoginButton, type SocialProvider } from "../components/SocialLoginButton";
-import emailIcon from "../assets/auth/email.png";
+import emailIcon from "../assets/auth/email.svg";
 import plogWordmark from "../assets/auth/plog-wordmark.svg";
 import { useAuthStore } from "../store/authStore";
 import { startOAuth } from "../lib/oauth";
