@@ -79,7 +79,7 @@ const GENERAL_CATEGORIES: Array<{
 ]
 
 const TASK_META_FIELD_CLASS =
-  'box-border h-12 min-h-12 w-full min-w-0 rounded-md px-3.5 text-body leading-[1.5]'
+  'box-border h-12 min-h-12 w-full min-w-0 max-w-full rounded-md px-3.5 text-body leading-[1.5]'
 
 const PRESET_ID: Record<ServerProfilePreset, string> = {
   OTTER: 'otter',
@@ -832,7 +832,7 @@ export function TaskCardFormModal({
               >
                 마감일 <span className="text-error">*</span>
               </label>
-              <div className="relative">
+              <div className="relative w-full min-w-0">
                 <Input
                   id="task-due-date"
                   type="date"
