@@ -81,32 +81,22 @@ export default function HomePage() {
 
   return (
     <div className="min-h-full bg-gray-25 pb-6">
-      <header className="flex h-14 items-center justify-between border-b border-gray-100 bg-gray-25 px-6">
-        <div className="flex items-center gap-2">
+      <header className="flex h-14 items-center justify-between border-b border-gray-100 bg-gray-25 pl-[25px] pr-6 shadow-[0_4px_2px_rgba(204,204,204,0.25)]">
+        <div className="flex items-center gap-3">
           <PlogMark />
-          <h1 className="text-title text-gray-900">프로젝트</h1>
+          <h1 className="text-[18px] font-semibold leading-7 text-gray-900">프로젝트</h1>
         </div>
-        <div className="flex items-center gap-1">
-          <button
-            type="button"
-            aria-label="알림"
-            onClick={() => navigate("/notifications")}
-            className="flex h-10 w-10 items-center justify-center rounded-full text-gray-600 hover:bg-gray-100"
-          >
-            <span className="relative inline-flex">
-              <Bell size={22} strokeWidth={2} aria-hidden="true" />
-              <NotificationDot show={hasUnreadNotification} ring="gray-25" />
-            </span>
-          </button>
-          <button
-            type="button"
-            aria-label="프로젝트 생성"
-            onClick={() => navigate("/project/new")}
-            className="flex h-10 w-10 items-center justify-center rounded-full text-blue-500 hover:bg-blue-50"
-          >
-            <Plus size={24} strokeWidth={2} aria-hidden="true" />
-          </button>
-        </div>
+        <button
+          type="button"
+          aria-label="알림"
+          onClick={() => navigate("/notifications")}
+          className="-mr-[9px] flex h-10 w-10 items-center justify-center rounded-full text-gray-600 hover:bg-gray-100"
+        >
+          <span className="relative inline-flex">
+            <Bell size={22} strokeWidth={2} aria-hidden="true" />
+            <NotificationDot show={hasUnreadNotification} ring="gray-25" />
+          </span>
+        </button>
       </header>
 
       <div className="mt-[14px] flex items-center justify-between gap-3 px-5">
@@ -169,6 +159,18 @@ export default function HomePage() {
           }
         />
       )}
+
+      <div className="pointer-events-none fixed inset-x-0 bottom-[calc(86px+max(22px,env(safe-area-inset-bottom)))] z-30 mx-auto flex w-full max-w-mobile justify-end px-5">
+        <Button
+          type="button"
+          fullWidth={false}
+          aria-label="프로젝트 생성"
+          onClick={() => navigate("/project/new")}
+          className="pointer-events-auto h-[60px] w-[60px] rounded-full p-0 text-white shadow-md"
+        >
+          <Plus className="h-7 w-7 text-white" aria-hidden />
+        </Button>
+      </div>
 
     </div>
   );
