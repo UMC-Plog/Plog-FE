@@ -1051,7 +1051,7 @@ export default function IntegrationConnectionPage() {
                     disabled={isPickerOpening}
                     className="flex h-[60px] w-full items-center rounded-[16px] border border-gray-100 bg-white px-[18px] text-[15px] text-gray-900 shadow-card"
                   >
-                    {isPickerOpening ? "Google Picker 여는 중..." : "Google Picker 열기"}
+                    {isPickerOpening ? "파일 선택 창 여는 중..." : "파일 선택하기"}
                     <ChevronRight className="ml-auto h-5 w-5 text-gray-400" />
                   </button>
                   {saveError && (
