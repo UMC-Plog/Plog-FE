@@ -224,12 +224,32 @@ export function fetchReportDetail(reportId: number) {
 }
 
 /**
+ * 리포트 AI 텍스트 생성을 시작한다. 202로 즉시 응답하고 생성은 백그라운드에서 진행되므로,
+ * 호출한 쪽은 상세 조회를 폴링해 status가 COMPLETED로 바뀌는 것을 확인해야 한다.
+ * 프로젝트 OWNER만 호출할 수 있고(403), 이미 발행·실패한 리포트는 409다.
+ */
+export function generateReport(reportId: number) {
+  return apiRequest<void>(`/api/dashboard/reports/${reportId}/generate`, { method: 'POST' })
+}
+
+/** 한 번에 받을 수 있는 최대치. 서버가 size 상한으로 100을 강제한다. */
+const REPORT_SEARCH_PAGE_SIZE = 100
+/** 이 이상 넘어가면 검색 조건이 잘못된 것이므로 무한 조회를 막는다. */
+const REPORT_SEARCH_MAX_PAGES = 10
+
+/**
  * 리포트 화면은 projectId만 알고 들어오므로 reportId를 먼저 찾아야 한다.
  * 프로젝트와 리포트는 1:1이고, 이름이 겹치는 다른 프로젝트를 잘못 집지 않도록 projectId로 거른다.
+ * 참여한 프로젝트가 100개를 넘으면 첫 페이지에 없을 수 있어 hasNext를 따라간다.
  */
 export async function findProjectReport(projectId: number) {
-  const res = await searchReports({ size: 100 })
-  return res.content.find((item) => item.projectId === projectId) ?? null
+  for (let page = 0; page < REPORT_SEARCH_MAX_PAGES; page += 1) {
+    const res = await searchReports({ page, size: REPORT_SEARCH_PAGE_SIZE })
+    const found = res.content.find((item) => item.projectId === projectId)
+    if (found) return found
+    if (!res.hasNext) break
+  }
+  return null
 }
 
 export function fetchReportMemberResult(reportId: number, projectMemberId: number) {

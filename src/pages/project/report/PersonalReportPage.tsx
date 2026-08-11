@@ -22,13 +22,10 @@ import {
   findProjectReport,
 } from '../../../api/report';
 import { ApiError } from '../../../api/client';
-import { getProjectIntegrations } from '../../../api/projectApi';
+import { useProjectStore } from '../../../store/projectStore';
+import { personalReportCache } from '../../../lib/reportCache';
 import { toPersonalReportView } from '../../../lib/reportView';
-import type {
-  InsightIconKey,
-  PersonalReportView,
-  StrengthIconKey,
-} from '../../../lib/reportViewTypes';
+import type { InsightIconKey, StrengthIconKey } from '../../../lib/reportViewTypes';
 import insightGrowth from '../../../assets/report/insight-growth.svg';
 import insightStar from '../../../assets/report/insight-star.svg';
 import insightTarget from '../../../assets/report/insight-target.svg';
@@ -38,10 +35,6 @@ import strengthTeam from '../../../assets/report/strength-team.svg';
 import warningIcon from '../../../assets/report/warning.svg';
 
 const TABLE_GRID = 'grid grid-cols-[1.6fr_1fr_1fr_1fr_1.1fr]';
-const reportCache = new Map<
-  string,
-  { reportId: number; report: PersonalReportView; cautionText: string | null; pdfAvailable: boolean }
->();
 
 const STRENGTH_ICONS: Record<StrengthIconKey, string> = {
   team: strengthTeam,
@@ -67,8 +60,8 @@ function IconBox({ src, className }: { src: string; className: string }) {
 export default function PersonalReportPage() {
   const { id: projectId } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const cached = projectId ? reportCache.get(projectId) : undefined;
-  const [report, setReport] = useState<PersonalReportView | null>(cached?.report ?? null);
+  const cached = projectId ? personalReportCache.get(projectId) : undefined;
+  const [report, setReport] = useState(cached?.report ?? null);
   const [reportId, setReportId] = useState<number | null>(cached?.reportId ?? null);
   const [cautionText, setCautionText] = useState<string | null>(cached?.cautionText ?? null);
   const [pdfAvailable, setPdfAvailable] = useState(cached?.pdfAvailable ?? false);
@@ -76,25 +69,37 @@ export default function PersonalReportPage() {
   const [isDownloading, setIsDownloading] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
 
-  // 이 화면은 "내" 리포트인데 경로에 멤버 ID가 없다. 연동 상태 조회가 요청자의
-  // projectMemberId를 함께 내려주므로 그것으로 내 결과를 찾는다.
+  // 이 화면은 "내" 리포트인데 경로에 멤버 ID가 없다. 프로젝트 목록이 내 멤버 ID를 함께
+  // 내려주고 스토어가 이미 들고 있으므로 그것을 쓴다. 예전에는 연동 상태 조회로 얻었는데,
+  // 그 API가 실패하면 외부 툴과 무관한 개인 리포트까지 통째로 못 여는 문제가 있었다.
+  const myProjectMemberId = useProjectStore(
+    (state) => state.projects.find((item) => item.id === projectId)?.myProjectMemberId,
+  );
+  // 조회가 끝났는지(성공이든 실패든) 알아야 "아직 오는 중"과 "와도 없음"을 구분할 수 있다.
+  const projectsSettled = useProjectStore((state) => state.hasFetched || state.error !== null);
+
   useEffect(() => {
     const numericProjectId = Number(projectId);
     if (!Number.isFinite(numericProjectId) || !projectId) return;
+    // 목록이 아직 도착하지 않았으면 기다린다. 도착했는데도 없으면 이 프로젝트의 멤버가 아니다.
+    if (myProjectMemberId === undefined) {
+      if (projectsSettled) setLoadError(true);
+      return;
+    }
     let cancelled = false;
 
-    Promise.all([findProjectReport(numericProjectId), getProjectIntegrations(projectId)])
-      .then(([found, integrations]) => {
+    findProjectReport(numericProjectId)
+      .then((found) => {
         if (!found || found.reportStatus !== 'COMPLETED') throw new Error('리포트 없음');
         return Promise.all([
-          fetchReportMemberResult(found.reportId, integrations.projectMemberId),
+          fetchReportMemberResult(found.reportId, myProjectMemberId),
           fetchReportDetail(found.reportId),
         ]).then(([result, detail]) => ({ reportId: found.reportId, result, detail }));
       })
       .then(({ reportId: loadedReportId, result, detail }) => {
         if (cancelled) return;
         const view = toPersonalReportView(result);
-        reportCache.set(projectId, {
+        personalReportCache.set(projectId, {
           reportId: loadedReportId,
           report: view,
           cautionText: result.cautionText,
@@ -107,13 +112,19 @@ export default function PersonalReportPage() {
         setCautionText(result.cautionText);
       })
       .catch(() => {
-        if (!cancelled) setLoadError(true);
+        if (cancelled) return;
+        // 캐시로 이미 그리고 있다면 화면을 지우지 말고, 최신이 아닐 수 있다는 것만 알린다.
+        if (personalReportCache.has(projectId)) {
+          setNotice('최신 리포트를 불러오지 못했어요. 표시된 내용이 오래됐을 수 있어요.');
+        } else {
+          setLoadError(true);
+        }
       });
 
     return () => {
       cancelled = true;
     };
-  }, [projectId]);
+  }, [projectId, myProjectMemberId, projectsSettled]);
 
   const handleTabChange = (tab: ReportTab) => {
     if (tab === 'team') navigate(`/project/${projectId}/report/team`);
@@ -234,9 +245,10 @@ export default function PersonalReportPage() {
           description={`${report.ownerName}님의 강점을 AI가 분석했어요`}
         >
           <div className="grid grid-cols-3 items-stretch gap-2.5">
-            {report.strengths.map((strength) => (
+            {/* AI가 만든 문구라 제목이 겹칠 수 있다. 순서가 곧 정체성이므로 인덱스를 key로 쓴다 */}
+            {report.strengths.map((strength, index) => (
               <div
-                key={strength.title}
+                key={index}
                 className="flex min-h-[128px] min-w-0 flex-col items-center gap-2 rounded-16 border border-gray-200 px-[10px] py-[13px] shadow-chip"
               >
                 <IconBox src={STRENGTH_ICONS[strength.icon]} className="size-8" />
@@ -273,8 +285,8 @@ export default function PersonalReportPage() {
                 </span>
               </div>
               <ul className="list-disc pl-4 text-[11px] font-normal leading-[16px] text-gray-500">
-                {report.weakness.tips.map((tip) => (
-                  <li key={tip}>{tip}</li>
+                {report.weakness.tips.map((tip, index) => (
+                  <li key={index}>{tip}</li>
                 ))}
               </ul>
             </div>

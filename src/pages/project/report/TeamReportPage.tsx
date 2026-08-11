@@ -18,8 +18,8 @@ import {
 } from '../../../components/report/ReportChrome';
 import { downloadReportPdfZip, fetchReportDetail, findProjectReport } from '../../../api/report';
 import { ApiError } from '../../../api/client';
+import { teamReportCache } from '../../../lib/reportCache';
 import { toTeamReportView } from '../../../lib/reportView';
-import type { TeamReportView } from '../../../lib/reportViewTypes';
 import starIcon from '../../../assets/report/star.svg';
 import warningIcon from '../../../assets/report/warning.svg';
 
@@ -27,15 +27,14 @@ import warningIcon from '../../../assets/report/warning.svg';
 const TABLE_GRID = 'grid grid-cols-[1.6fr_1fr_1fr_1fr_1.1fr]';
 // 이 비율 미만이면 경고 색으로 표시하고 하단 경고 문구에 포함한다
 const RATE_WARNING_THRESHOLD = 80;
-const reportCache = new Map<string, { reportId: number; report: TeamReportView }>();
 
 const rateTone = (rate: number) => (rate >= RATE_WARNING_THRESHOLD ? 'text-success' : 'text-error');
 
 export default function TeamReportPage() {
   const { id: projectId } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const cached = projectId ? reportCache.get(projectId) : undefined;
-  const [report, setReport] = useState<TeamReportView | null>(cached?.report ?? null);
+  const cached = projectId ? teamReportCache.get(projectId) : undefined;
+  const [report, setReport] = useState(cached?.report ?? null);
   const [reportId, setReportId] = useState<number | null>(cached?.reportId ?? null);
   const [loadError, setLoadError] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
@@ -56,12 +55,18 @@ export default function TeamReportPage() {
       .then((detail) => {
         if (cancelled) return;
         const view = toTeamReportView(detail);
-        reportCache.set(projectId, { reportId: detail.reportId, report: view });
+        teamReportCache.set(projectId, { reportId: detail.reportId, report: view });
         setReportId(detail.reportId);
         setReport(view);
       })
       .catch(() => {
-        if (!cancelled) setLoadError(true);
+        if (cancelled) return;
+        // 캐시로 이미 그리고 있다면 화면을 지우지 말고, 최신이 아닐 수 있다는 것만 알린다.
+        if (teamReportCache.has(projectId)) {
+          setNotice('최신 리포트를 불러오지 못했어요. 표시된 내용이 오래됐을 수 있어요.');
+        } else {
+          setLoadError(true);
+        }
       });
 
     return () => {
@@ -167,7 +172,7 @@ export default function TeamReportPage() {
 
             {report.completionRows.map((row) => (
               <div
-                key={row.name}
+                key={row.id}
                 className={cn(TABLE_GRID, 'items-center border-t border-gray-50 px-3.5 pb-3 pt-[13px]')}
               >
                 <span className="flex items-center gap-[9px]">
@@ -216,7 +221,7 @@ export default function TeamReportPage() {
           <div className="flex h-[171px] items-center gap-4 rounded-18 border border-gray-100 py-[21px] pl-[13px] pr-[19px]">
             <ReportDonut
               segments={report.contributions.map((item) => ({
-                key: item.name,
+                key: String(item.id),
                 value: item.percent,
                 color: item.color,
               }))}
@@ -226,7 +231,7 @@ export default function TeamReportPage() {
             />
             <ul className="flex w-[138px] shrink-0 flex-col gap-3">
               {report.contributions.map((item) => (
-                <li key={item.name} className="flex items-center gap-[9px]">
+                <li key={item.id} className="flex items-center gap-[9px]">
                   <span
                     className="size-2.5 shrink-0 rounded-[3px]"
                     style={{ backgroundColor: item.color }}
@@ -255,7 +260,7 @@ export default function TeamReportPage() {
         >
           {report.members.map((member) => (
             <article
-              key={member.name}
+              key={member.id}
               className="flex flex-col gap-2 rounded-lg border border-gray-100 px-[15px] py-3.5"
             >
               <div className="flex items-center gap-3">

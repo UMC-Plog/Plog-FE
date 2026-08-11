@@ -5,7 +5,11 @@ import type { ProfilePreset } from './profilePreset';
 
 export const REPORT_SERIES_COLORS = ['#2186FB', '#06BCC4', '#173E8A', '#7DB2FC'] as const;
 
+// 팀원 목록의 key로는 이름을 쓸 수 없다 — 프로젝트 별명은 중복될 수 있다.
+// 서버가 주는 projectMemberId를 그대로 들고 다닌다.
+
 export interface TeamCompletionRow {
+  id: number;
   name: string;
   profilePreset: ProfilePreset;
   total: number;
@@ -15,6 +19,7 @@ export interface TeamCompletionRow {
 }
 
 export interface TeamContribution {
+  id: number;
   name: string;
   percent: number;
   color: string;
@@ -26,6 +31,7 @@ export interface MemberPeerScore {
 }
 
 export interface TeamMemberSummary {
+  id: number;
   name: string;
   profilePreset: ProfilePreset;
   keywords: string[];
