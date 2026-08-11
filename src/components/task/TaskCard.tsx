@@ -2,7 +2,7 @@ import { CalendarDays, Paperclip, UserRound } from 'lucide-react'
 import { AVATAR_PRESETS } from '../AvatarPicker'
 import { cn } from '../../lib/utils'
 import type { ServerProfilePreset, TaskListItemViewModel } from '../../types/task'
-import { parseTaskDate } from '../../utils/taskDate'
+import { getTaskDueDateInfo, parseTaskDate } from '../../utils/taskDate'
 import { SERVER_TASK_CATEGORY_CONFIG, TASK_BADGE_BASE_CLASS } from './taskCategoryConfig'
 
 interface TaskCardProps {
@@ -28,6 +28,12 @@ function formatDueDate(value: string) {
 
 export function TaskCard({ task, onClick }: TaskCardProps) {
   const category = SERVER_TASK_CATEGORY_CONFIG[task.category]
+  const dueDateInfo = getTaskDueDateInfo(task.dueDate)
+  const isDueSoon =
+    task.status !== 'DONE' &&
+    !task.isOverdue &&
+    (dueDateInfo.state === 'TODAY' ||
+      (dueDateInfo.state === 'UPCOMING' && dueDateInfo.daysUntilDue <= 3))
   const avatarId = task.assignee.profilePreset
     ? PROFILE_PRESET_TO_AVATAR_ID[task.assignee.profilePreset]
     : undefined
@@ -66,7 +72,8 @@ export function TaskCard({ task, onClick }: TaskCardProps) {
         <span
           className={cn(
             'flex items-center gap-1',
-            task.isOverdue && 'font-semibold text-error'
+            task.isOverdue && 'font-semibold text-error',
+            isDueSoon && 'font-semibold text-warning'
           )}
         >
           <CalendarDays className="h-[13px] w-[13px]" aria-hidden />
