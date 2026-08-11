@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 import { NavLink, Outlet, useLocation } from "react-router-dom";
 import { useNotificationBadgeStore } from "../store/notificationBadgeStore";
+import { cn } from "../lib/utils";
 import { NotificationDot } from "./NotificationDot";
 
 function FolderIcon() {
@@ -66,6 +67,7 @@ export default function BottomTabBar() {
   const location = useLocation();
   const hasUnreadChat = useNotificationBadgeStore((state) => state.hasUnreadChat);
   const refreshBadges = useNotificationBadgeStore((state) => state.refresh);
+  const usesFixedViewport = location.pathname === "/home" || location.pathname === "/my";
 
   const isFirstRender = useRef(true);
 
@@ -90,8 +92,20 @@ export default function BottomTabBar() {
   }, [refreshBadges]);
 
   return (
-    <div className="flex min-h-[calc(100dvh-env(safe-area-inset-top))] flex-col bg-gray-25">
-      <main className="flex-1 bg-gray-25 pb-[calc(66px+max(22px,env(safe-area-inset-bottom)))]">
+    <div
+      className={cn(
+        "flex flex-col bg-gray-25",
+        usesFixedViewport
+          ? "h-[calc(100dvh-env(safe-area-inset-top))] overflow-hidden"
+          : "min-h-[calc(100dvh-env(safe-area-inset-top))]"
+      )}
+    >
+      <main
+        className={cn(
+          "flex-1 bg-gray-25 pb-[calc(66px+max(22px,env(safe-area-inset-bottom)))]",
+          usesFixedViewport && "min-h-0 overflow-hidden"
+        )}
+      >
         <Outlet />
       </main>
 
