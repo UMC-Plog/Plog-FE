@@ -6,6 +6,7 @@ import { cn } from '../../lib/utils'
 import { getProjectDeadline, isFutureDate } from '../../lib/projectDate'
 import { useProjectStore } from '../../store/projectStore'
 import { syncProjectStatus } from '../../api/projectApi'
+import { fetchEvaluationTargets } from '../../api/evaluation'
 import { fetchReportDetail, searchReports, type ReportStatus } from '../../api/report'
 
 // 생성은 멤버 수만큼 LLM을 호출해 수십 초가 걸린다. 초반엔 자주 확인하고 길어지면 간격을 늘린다.
@@ -51,6 +52,9 @@ export default function ProjectReportPage() {
   const [isTimeoutApplied, setIsTimeoutApplied] = useState(false)
   const [loadedProjectId, setLoadedProjectId] = useState<string | null>(null)
   const [reportLoadFailed, setReportLoadFailed] = useState(false)
+  const [evaluationCompleted, setEvaluationCompleted] = useState(false)
+  const [evaluationLoadedProjectId, setEvaluationLoadedProjectId] = useState<string | null>(null)
+  const [evaluationLoadFailed, setEvaluationLoadFailed] = useState(false)
   const activeRef = useRef(true)
 
   useEffect(() => {
@@ -124,6 +128,33 @@ export default function ProjectReportPage() {
     }
   }, [projectId, applyReport])
 
+  // 리포트 생성 여부와 현재 사용자의 평가 제출 여부는 별개다. 다른 팀원이 아직 제출하지 않아
+  // 리포트가 없어도, 내 평가를 모두 마쳤다면 새로고침 후에도 완료 상태를 유지한다.
+  useEffect(() => {
+    const numericProjectId = Number(projectId)
+    if (!projectId || !Number.isFinite(numericProjectId)) return
+    let cancelled = false
+    setEvaluationLoadFailed(false)
+
+    void fetchEvaluationTargets(numericProjectId)
+      .then((res) => {
+        if (cancelled) return
+        setEvaluationCompleted(
+          res.targets.length > 0 && res.targets.every((target) => target.isEvaluated)
+        )
+      })
+      .catch(() => {
+        if (!cancelled) setEvaluationLoadFailed(true)
+      })
+      .finally(() => {
+        if (!cancelled) setEvaluationLoadedProjectId(projectId)
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [projectId])
+
   // 생성은 멤버 수만큼 LLM을 호출해 수십 초가 걸린다. 끝날 때까지 상세를 폴링한다.
   useEffect(() => {
     if (reportId === null || reportStatus !== 'GENERATING') return
@@ -154,7 +185,7 @@ export default function ProjectReportPage() {
   }, [reportId, reportStatus, applyReport])
 
   const status: EvaluationStatus =
-    reportStatus !== null
+    reportStatus !== null || evaluationCompleted
       ? 'submitted'
       : project && !isFutureDate(project.expectedEndDate)
       ? 'unlocked'
@@ -178,7 +209,9 @@ export default function ProjectReportPage() {
   }
 
   const submittedAt = formatReportDate(completedAt)
-  const isReportLoading = loadedProjectId !== projectId
+  const isReportLoading =
+    loadedProjectId !== projectId || evaluationLoadedProjectId !== projectId
+  const pageLoadFailed = reportLoadFailed || (reportStatus === null && evaluationLoadFailed)
   const reportGenerating = reportStatus === 'GENERATING'
   const reportFailed = reportStatus === 'FAILED'
   const reports: ReportItem[] =
@@ -199,7 +232,7 @@ export default function ProjectReportPage() {
           <span className="h-9 w-9 animate-spin rounded-full border-4 border-blue-100 border-t-blue-500" />
           <p className="text-body-sm font-medium text-gray-400">리포트를 불러오고 있어요</p>
         </div>
-      ) : reportLoadFailed ? (
+      ) : pageLoadFailed ? (
         <div className="mt-[72px] flex flex-col items-center gap-4" role="alert">
           <p className="text-title font-medium text-gray-500">리포트를 불러오지 못했어요</p>
           <p className="text-body-sm text-gray-400">잠시 후 다시 확인해 주세요</p>
@@ -226,7 +259,7 @@ export default function ProjectReportPage() {
         </div>
       ) : null}
 
-      {!isReportLoading && !reportLoadFailed && status === 'unlocked' && (
+      {!isReportLoading && !pageLoadFailed && status === 'unlocked' && (
         <button
           type="button"
           aria-label="Peer 평가 시작"
@@ -254,8 +287,19 @@ export default function ProjectReportPage() {
         </button>
       )}
 
+      {!isReportLoading && !pageLoadFailed && status === 'submitted' && (
+        <div className="flex w-full items-center gap-3.5 rounded-18 bg-gradient-to-r from-primary-500 to-aqua-500 px-5 py-[22px] shadow-cta">
+          <p className="flex-1 text-body-sm font-bold tracking-[-0.4px] text-gray-25">
+            Peer 평가 제출이 완료되었습니다
+          </p>
+          <span className="flex h-[46px] shrink-0 items-center rounded-12 bg-gray-25 px-[18px] text-title font-bold text-navy-700">
+            평가 완료
+          </span>
+        </div>
+      )}
+
       {/* 종료일 7일 경과로 일부 미제출 상태에서 발행된 경우, 데이터가 완전하지 않다는 것을 알려야 한다 */}
-      {!isReportLoading && !reportLoadFailed && hasReports && isTimeoutApplied && (
+      {!isReportLoading && !pageLoadFailed && hasReports && isTimeoutApplied && (
         <div className="mt-3 flex items-start gap-2 rounded-12 bg-primary-50 px-4 py-3">
           <Info className="mt-0.5 h-4 w-4 shrink-0 text-primary-500" aria-hidden />
           <p className="text-caption font-medium text-primary-500">
@@ -264,7 +308,7 @@ export default function ProjectReportPage() {
         </div>
       )}
 
-      {!isReportLoading && !reportLoadFailed && (hasReports ? (
+      {!isReportLoading && !pageLoadFailed && (hasReports ? (
         <div className="mt-3 flex flex-col gap-3">
           {reports.map((item) => (
             <div
@@ -316,6 +360,13 @@ export default function ProjectReportPage() {
           <p className="text-title font-medium text-gray-500">리포트를 생성하지 못했어요</p>
           <p className="whitespace-pre-line text-center text-body-sm text-gray-400">
             {'잠시 후 다시 확인해 주세요'}
+          </p>
+        </div>
+      ) : evaluationCompleted ? (
+        <div className="mt-[72px] flex flex-col items-center gap-4">
+          <p className="text-title font-medium text-gray-500">리포트 발행을 기다리고 있어요</p>
+          <p className="whitespace-pre-line text-center text-body-sm text-gray-400">
+            {'모든 팀원이 평가를 마치면\n기여도 리포트가 자동으로 생성됩니다'}
           </p>
         </div>
       ) : (
