@@ -11,6 +11,8 @@ import { useCallback, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   fetchNotifications,
+  markAllNotificationsAsRead,
+  markNotificationAsRead,
   resolveNotificationPath,
   type NotificationResponse,
   type NotificationType,
@@ -20,6 +22,7 @@ import { EmptyState } from '../components/EmptyState'
 import { Layout } from '../components/Layout'
 import { MySubpageHeader } from '../components/my/MySubpageHeader'
 import { cn } from '../lib/utils'
+import { useNotificationBadgeStore } from '../store/notificationBadgeStore'
 
 const PAGE_SIZE = 20
 
@@ -65,6 +68,10 @@ export default function NotificationPage() {
   const [loading, setLoading] = useState(true)
   const [loadingMore, setLoadingMore] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [markingAll, setMarkingAll] = useState(false)
+  // 읽음 처리 후 홈 벨 아이콘의 빨간 점도 같이 갱신해야, 목록은 읽음인데 벨만 남는 상황을 막는다.
+  const refreshBadge = useNotificationBadgeStore((state) => state.refresh)
+  const hasUnread = notifications.some((notification) => !notification.isRead)
 
   const loadPage = useCallback(async (nextPage: number, append: boolean) => {
     if (append) {
@@ -99,10 +106,47 @@ export default function NotificationPage() {
     return () => window.removeEventListener('plog:notification-received', refresh)
   }, [loadPage])
 
+  // 목록에 들어온 것만으로는 읽음 처리하지 않는다. 이 앱의 알림은 대부분 할 일에 가까워
+  // (멘션 확인, 평가하러 가기 등) 훑어보기만 해도 지워지면 무엇을 안 봤는지 알 수 없어진다.
+  // 여러 프로젝트 알림이 최신순으로 섞여 쌓이는 것도 이유다. 한꺼번에 지우려면 "모두 읽음"을 쓴다.
   const handleNotificationClick = (notification: NotificationResponse) => {
+    if (!notification.isRead) {
+      setNotifications((current) =>
+        current.map((item) =>
+          item.notificationId === notification.notificationId ? { ...item, isRead: true } : item,
+        ),
+      )
+      // 배지 갱신은 안 읽은 알림을 찾을 때까지 목록을 훑으므로 클릭마다 부르면 낭비다.
+      // 화면에 안 읽은 알림이 남아 있으면 배지는 어차피 그대로여서 갱신할 필요가 없고,
+      // 이번 클릭으로 다 읽음이 됐을 때만 확인한다.
+      const wasLastUnread = !notifications.some(
+        (item) => !item.isRead && item.notificationId !== notification.notificationId,
+      )
+      // 이동을 막지 않도록 응답을 기다리지 않는다. 실패해도 다음 조회에서 원래 상태로 돌아온다.
+      void markNotificationAsRead(notification.notificationId)
+        .then(() => {
+          if (wasLastUnread) void refreshBadge()
+        })
+        .catch(() => undefined)
+    }
+
     navigate(
       resolveNotificationPath(notification.type, notification.projectId, notification.resourceId)
     )
+  }
+
+  const handleMarkAllAsRead = async () => {
+    if (markingAll || !hasUnread) return
+    setMarkingAll(true)
+    try {
+      await markAllNotificationsAsRead()
+      setNotifications((current) => current.map((item) => ({ ...item, isRead: true })))
+      void refreshBadge()
+    } catch {
+      setError('읽음 처리에 실패했어요. 다시 시도해 주세요.')
+    } finally {
+      setMarkingAll(false)
+    }
   }
 
   return (
@@ -133,6 +177,20 @@ export default function NotificationPage() {
           />
         ) : (
           <>
+            {/* 관심 없는 알림을 계속 안 누르면 벨의 빨간 점이 사라지지 않으므로 한 번에 정리할 길을 둔다 */}
+            {hasUnread && (
+              <div className="mb-3 flex justify-end">
+                <button
+                  type="button"
+                  onClick={() => void handleMarkAllAsRead()}
+                  disabled={markingAll}
+                  className="text-[13px] leading-5 text-gray-500 underline underline-offset-2 transition-colors hover:text-gray-700 disabled:text-gray-300"
+                >
+                  {markingAll ? '처리 중...' : '모두 읽음'}
+                </button>
+              </div>
+            )}
+
             <ul className="space-y-3" aria-label="알림 목록">
               {notifications.map((notification) => {
                 const Icon = NOTIFICATION_ICON[notification.type] ?? MessageCircle
