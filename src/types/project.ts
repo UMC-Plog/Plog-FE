@@ -18,6 +18,14 @@ export interface Project {
   status: ProjectStatus;
   progress: number;
   expectedEndDate: string;
+  /**
+   * 지금 Peer 평가를 제출할 수 있는지. 종료일과 오늘을 프론트에서 비교하지 않고 이 값을 쓴다 —
+   * 서버가 별도 기준으로 판정하고 있어서, 같은 규칙을 양쪽에서 계산하면 어긋나는 순간
+   * 버튼은 열리는데 API는 거부하는 상태가 된다.
+   */
+  evaluationAvailable: boolean;
+  /** 평가 제출 마감일. 종료일 + 7일 */
+  evaluationDeadline: string;
   members: ProjectMember[];
   memberCount?: number;
   invitationLink?: string;
@@ -53,6 +61,10 @@ export interface ProjectListItemResponse {
   memberPreviews: ProjectMemberPreviewResponse[];
   extraMemberCount: number;
   progressPercent: number;
+  /** 서버가 판정한 평가 제출 가능 여부 */
+  evaluationAvailable: boolean;
+  /** 평가 제출 마감일. 종료일 + 7일 */
+  evaluationDeadline: string;
 }
 
 export interface ProjectListResponse {

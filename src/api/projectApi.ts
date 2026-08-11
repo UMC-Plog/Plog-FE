@@ -153,6 +153,11 @@ export function mapProjectResponseToProject(response: ProjectListItemResponse): 
     status: response.status,
     progress: response.progressPercent,
     expectedEndDate: response.endDay,
+    // 평가 개방 판정은 서버 값을 그대로 따른다. 형식 검증에는 넣지 않는다 —
+    // 이 두 필드가 빠졌다고 프로젝트 목록 전체를 못 쓰게 만들 이유는 없다.
+    evaluationAvailable: response.evaluationAvailable === true,
+    evaluationDeadline:
+      typeof response.evaluationDeadline === "string" ? response.evaluationDeadline : "",
     members: response.memberPreviews.map(mapMember),
     memberCount: response.memberCount,
   };
