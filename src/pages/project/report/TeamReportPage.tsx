@@ -204,7 +204,7 @@ export default function TeamReportPage() {
           {deadlineWarnings.length > 0 && (
             <div className="flex items-center gap-2 rounded-12 bg-[#FEF6E7] px-[13px] py-[11px]">
               <img src={warningIcon} alt="" className="size-4 shrink-0" aria-hidden />
-              <span className="text-[12px] font-normal leading-[16px] text-warning">
+              <span className="break-keep break-words text-[12px] font-normal leading-[16px] text-warning">
                 마감 준수율 경고:{' '}
                 {deadlineWarnings.map((row) => `${row.name}(${row.deadlineRate}%)`).join(', ')}
               </span>
@@ -267,10 +267,11 @@ export default function TeamReportPage() {
                 <PeerEvalAvatar profilePreset={member.profilePreset} size="md" />
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-1.5">
-                    <span className="shrink-0 text-[14px] font-normal leading-[20px] text-gray-900">
+                    {/* 닉네임 길이는 제한이 없다. 이름을 줄여서 키워드 칩이 짓눌리지 않게 한다 */}
+                    <span className="min-w-0 truncate text-[14px] font-normal leading-[20px] text-gray-900">
                       {member.name}
                     </span>
-                    <span className="flex gap-1">
+                    <span className="flex shrink-0 gap-1">
                       {member.keywords.map((keyword) => (
                         <span
                           key={keyword}

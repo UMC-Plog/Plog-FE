@@ -2,6 +2,14 @@ import type { ReactNode } from 'react';
 import { cn } from '../../lib/utils';
 import aiSparkle from '../../assets/report/ai-sparkle.svg';
 
+// 리포트 본문은 대부분 AI가 만든 한글 문장이다. word-break 기본값(normal)은 한글을
+// 아무 글자에서나 끊어 "리/더십", "긍정적으/로"처럼 읽기 어렵게 쪼갠다.
+//
+// break-keep만 쓰면 반대로 한 줄에 안 들어가는 긴 단어가 상자 밖으로 삐져나온다
+// (강점 카드처럼 폭이 85px밖에 안 되는 곳에서 실제로 50px 넘쳤다).
+// break-words를 함께 걸어 평소에는 단어를 지키고, 정말 안 들어갈 때만 끊게 한다.
+const BODY_TEXT = 'break-keep break-words';
+
 // ── 번호가 붙은 섹션 ─────────────────────────────────────────────────────────
 
 export function ReportSection({
@@ -23,7 +31,9 @@ export function ReportSection({
         </span>
         <h2 className="text-[18px] font-normal leading-[28px] text-gray-900">{title}</h2>
       </div>
-      <p className="text-[12px] font-normal leading-[16px] text-gray-400">{description}</p>
+      <p className={cn(BODY_TEXT, 'text-[12px] font-normal leading-[16px] text-gray-400')}>
+        {description}
+      </p>
       {children}
     </section>
   );
@@ -94,7 +104,9 @@ export function ReportAiNote({
           <img src={aiSparkle} alt="" className="size-4 shrink-0" aria-hidden />
           <span className="text-[12px] font-normal leading-[16px] text-navy-700">{label}</span>
         </div>
-        <p className="text-[12px] font-normal leading-[16px] text-gray-500">{children}</p>
+        <p className={cn(BODY_TEXT, 'text-[12px] font-normal leading-[16px] text-gray-500')}>
+          {children}
+        </p>
       </div>
     </div>
   );
