@@ -108,14 +108,14 @@ export default function ProjectTabBar() {
           }}
         />
 
-        <nav className="shrink-0 border-b border-gray-200 bg-white">
-          <ul className="flex">
+        <nav className="h-12 shrink-0 border-b border-gray-200 bg-gray-25">
+          <ul className="flex justify-center px-2">
             {tabs.map((tab) => (
-              <li key={tab.to} className="flex-1">
+              <li key={tab.to} className="w-1/4 max-w-[94px]">
                 <NavLink
                   to={tab.to}
                   className={({ isActive }) =>
-                    `relative flex h-10 items-center justify-center text-caption ${
+                    `relative flex h-12 items-center justify-center py-[14px] text-body font-normal leading-6 ${
                       isActive ? 'text-primary' : 'text-gray-400'
                     }`
                   }
