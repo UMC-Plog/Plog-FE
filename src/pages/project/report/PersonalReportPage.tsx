@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { cn } from '../../../lib/utils';
 import {
@@ -14,16 +15,23 @@ import {
   type ReportTab,
 } from '../../../components/report/ReportChrome';
 import {
-  PERSONAL_REPORT_MOCK,
-  type InsightIconKey,
-  type StrengthIconKey,
-} from '../../../lib/reportMock';
+  fetchReportMemberResult,
+  findProjectReport,
+} from '../../../api/report';
+import { getProjectIntegrations } from '../../../api/projectApi';
+import { toPersonalReportView } from '../../../lib/reportView';
+import type {
+  InsightIconKey,
+  PersonalReportView,
+  StrengthIconKey,
+} from '../../../lib/reportViewTypes';
 import insightGrowth from '../../../assets/report/insight-growth.svg';
 import insightStar from '../../../assets/report/insight-star.svg';
 import insightTarget from '../../../assets/report/insight-target.svg';
 import strengthChat from '../../../assets/report/strength-chat.svg';
 import strengthPen from '../../../assets/report/strength-pen.svg';
 import strengthTeam from '../../../assets/report/strength-team.svg';
+import warningIcon from '../../../assets/report/warning.svg';
 
 const TABLE_GRID = 'grid grid-cols-[1.6fr_1fr_1fr_1fr_1.1fr]';
 
@@ -51,11 +59,59 @@ function IconBox({ src, className }: { src: string; className: string }) {
 export default function PersonalReportPage() {
   const { id: projectId } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const report = PERSONAL_REPORT_MOCK;
+  const [report, setReport] = useState<PersonalReportView | null>(null);
+  const [cautionText, setCautionText] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState(false);
+
+  // 이 화면은 "내" 리포트인데 경로에 멤버 ID가 없다. 연동 상태 조회가 요청자의
+  // projectMemberId를 함께 내려주므로 그것으로 내 결과를 찾는다.
+  useEffect(() => {
+    const numericProjectId = Number(projectId);
+    if (!Number.isFinite(numericProjectId) || !projectId) return;
+    let cancelled = false;
+
+    Promise.all([findProjectReport(numericProjectId), getProjectIntegrations(projectId)])
+      .then(([found, integrations]) => {
+        if (!found || found.reportStatus !== 'COMPLETED') throw new Error('리포트 없음');
+        return fetchReportMemberResult(found.reportId, integrations.projectMemberId);
+      })
+      .then((result) => {
+        if (cancelled) return;
+        setReport(toPersonalReportView(result));
+        // 분석 근거가 부족한 경우 서버가 한계를 알려준다(기능명세서의 '분석 제한' 표시).
+        setCautionText(result.cautionText);
+      })
+      .catch(() => {
+        if (!cancelled) setLoadError(true);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [projectId]);
 
   const handleTabChange = (tab: ReportTab) => {
     if (tab === 'team') navigate(`/project/${projectId}/report/team`);
   };
+
+  if (!report) {
+    return (
+      <div className="flex min-h-svh flex-col bg-gray-25">
+        <ReportHeader />
+        <div className="flex flex-1 flex-col items-center justify-center gap-3 px-5">
+          <p className="text-title font-medium text-gray-500">
+            {loadError ? '리포트를 불러오지 못했어요' : '리포트를 불러오는 중...'}
+          </p>
+          {loadError && (
+            <p className="text-center text-body-sm text-gray-400">
+              아직 발행되지 않았거나 일시적인 오류일 수 있어요
+            </p>
+          )}
+        </div>
+        <ReportTabBar active="personal" onChange={handleTabChange} />
+      </div>
+    );
+  }
 
   return (
     <div className="flex min-h-svh flex-col bg-gray-25">
@@ -85,6 +141,14 @@ export default function PersonalReportPage() {
         </div>
 
         <ReportAiNote label="AI 한줄 평가">{report.aiComment}</ReportAiNote>
+
+        {/* 미제출·활동 부족 등으로 분석 근거가 모자란 경우, 점수를 그대로 신뢰하지 않도록 알린다 */}
+        {cautionText && (
+          <div className="flex items-start gap-2 rounded-12 bg-[#FEF6E7] px-[13px] py-[11px]">
+            <img src={warningIcon} alt="" className="mt-0.5 size-4 shrink-0" aria-hidden />
+            <span className="text-[12px] font-normal leading-[16px] text-warning">{cautionText}</span>
+          </div>
+        )}
 
         {/* ① 기여도 상세 분석 */}
         <ReportSection

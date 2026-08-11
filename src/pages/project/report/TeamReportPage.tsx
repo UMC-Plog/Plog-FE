@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { cn } from '../../../lib/utils';
 import { PeerEvalAvatar } from '../../../components/PeerEvalAvatar';
@@ -14,7 +15,9 @@ import {
   ReportTabBar,
   type ReportTab,
 } from '../../../components/report/ReportChrome';
-import { TEAM_REPORT_MOCK } from '../../../lib/reportMock';
+import { fetchReportDetail, findProjectReport } from '../../../api/report';
+import { toTeamReportView } from '../../../lib/reportView';
+import type { TeamReportView } from '../../../lib/reportViewTypes';
 import starIcon from '../../../assets/report/star.svg';
 import warningIcon from '../../../assets/report/warning.svg';
 
@@ -28,15 +31,58 @@ const rateTone = (rate: number) => (rate >= RATE_WARNING_THRESHOLD ? 'text-succe
 export default function TeamReportPage() {
   const { id: projectId } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const report = TEAM_REPORT_MOCK;
+  const [report, setReport] = useState<TeamReportView | null>(null);
+  const [loadError, setLoadError] = useState(false);
 
-  const deadlineWarnings = report.completionRows.filter(
-    (row) => row.deadlineRate < RATE_WARNING_THRESHOLD,
-  );
+  // 화면은 projectId만 알고 들어오므로 리포트를 먼저 찾고 상세를 받아온다.
+  useEffect(() => {
+    const numericProjectId = Number(projectId);
+    if (!Number.isFinite(numericProjectId)) return;
+    let cancelled = false;
+
+    findProjectReport(numericProjectId)
+      .then(async (found) => {
+        // 발행 전이면 members가 빈 배열로 와서 표가 비어 보이므로 완료된 리포트만 그린다.
+        if (!found || found.reportStatus !== 'COMPLETED') throw new Error('리포트 없음');
+        return fetchReportDetail(found.reportId);
+      })
+      .then((detail) => {
+        if (!cancelled) setReport(toTeamReportView(detail));
+      })
+      .catch(() => {
+        if (!cancelled) setLoadError(true);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [projectId]);
+
+  const deadlineWarnings =
+    report?.completionRows.filter((row) => row.deadlineRate < RATE_WARNING_THRESHOLD) ?? [];
 
   const handleTabChange = (tab: ReportTab) => {
     if (tab === 'personal') navigate(`/project/${projectId}/report/personal`);
   };
+
+  if (!report) {
+    return (
+      <div className="flex min-h-svh flex-col bg-gray-25">
+        <ReportHeader />
+        <div className="flex flex-1 flex-col items-center justify-center gap-3 px-5">
+          <p className="text-title font-medium text-gray-500">
+            {loadError ? '리포트를 불러오지 못했어요' : '리포트를 불러오는 중...'}
+          </p>
+          {loadError && (
+            <p className="text-center text-body-sm text-gray-400">
+              아직 발행되지 않았거나 일시적인 오류일 수 있어요
+            </p>
+          )}
+        </div>
+        <ReportTabBar active="team" onChange={handleTabChange} />
+      </div>
+    );
+  }
 
   return (
     <div className="flex min-h-svh flex-col bg-gray-25">

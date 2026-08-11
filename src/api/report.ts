@@ -179,6 +179,15 @@ export function fetchReportDetail(reportId: number) {
   return apiRequest<ReportDetailResponse>(`/api/dashboard/reports/${reportId}`)
 }
 
+/**
+ * 리포트 화면은 projectId만 알고 들어오므로 reportId를 먼저 찾아야 한다.
+ * 프로젝트와 리포트는 1:1이고, 이름이 겹치는 다른 프로젝트를 잘못 집지 않도록 projectId로 거른다.
+ */
+export async function findProjectReport(projectId: number) {
+  const res = await searchReports({ size: 100 })
+  return res.content.find((item) => item.projectId === projectId) ?? null
+}
+
 export function fetchReportMemberResult(reportId: number, projectMemberId: number) {
   return apiRequest<ReportMemberResultResponse>(
     `/api/dashboard/reports/${reportId}/members/${projectMemberId}/result`
