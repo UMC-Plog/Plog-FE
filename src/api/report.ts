@@ -1,4 +1,4 @@
-import { apiRequest } from './client'
+import { ApiError, apiRequest } from './client'
 import type { ProfilePreset } from '../types/project'
 
 export type ReportStatus = 'GENERATING' | 'COMPLETED' | 'FAILED'
@@ -169,6 +169,50 @@ export function searchReports(params: { keyword?: string; startDate?: string; en
 
 export function fetchReportPdfDownloadUrl(reportId: number) {
   return apiRequest<ReportPdfDownloadResponse>(`/api/dashboard/reports/${reportId}/pdf`)
+}
+
+function validateReportDownloadResponse(value: ReportPdfDownloadResponse) {
+  let downloadUrl: URL
+  try {
+    downloadUrl = new URL(value.downloadUrl)
+  } catch {
+    throw new ApiError('INVALID_REPORT_DOWNLOAD_RESPONSE', '다운로드 주소가 올바르지 않습니다.')
+  }
+
+  if (
+    !Number.isSafeInteger(value.reportId) ||
+    value.reportId <= 0 ||
+    typeof value.fileName !== 'string' ||
+    !value.fileName.trim() ||
+    (downloadUrl.protocol !== 'https:' && downloadUrl.protocol !== 'http:') ||
+    !Number.isSafeInteger(value.expiresInSeconds) ||
+    value.expiresInSeconds <= 0
+  ) {
+    throw new ApiError('INVALID_REPORT_DOWNLOAD_RESPONSE', '다운로드 응답 형식이 올바르지 않습니다.')
+  }
+
+  return { ...value, downloadUrl: downloadUrl.toString() }
+}
+
+/**
+ * iOS Safari/PWA는 비동기 작업이 끝난 뒤 새 창을 열면 팝업으로 차단할 수 있다.
+ * 사용자 클릭 스택 안에서 빈 창을 먼저 확보하고, URL 발급이 끝난 뒤 그 창을 이동시킨다.
+ */
+export async function downloadReportPdfZip(reportId: number) {
+  const popup = window.open('about:blank', '_blank')
+  if (!popup) {
+    throw new ApiError('POPUP_BLOCKED', '팝업이 차단되었습니다. 브라우저 설정을 확인해 주세요.')
+  }
+  popup.opener = null
+
+  try {
+    const response = validateReportDownloadResponse(await fetchReportPdfDownloadUrl(reportId))
+    popup.location.replace(response.downloadUrl)
+    return response
+  } catch (error) {
+    popup.close()
+    throw error
+  }
 }
 
 /**

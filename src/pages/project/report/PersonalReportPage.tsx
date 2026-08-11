@@ -16,8 +16,9 @@ import {
   type ReportTab,
 } from '../../../components/report/ReportChrome';
 import {
+  downloadReportPdfZip,
+  fetchReportDetail,
   fetchReportMemberResult,
-  fetchReportPdfDownloadUrl,
   findProjectReport,
 } from '../../../api/report';
 import { ApiError } from '../../../api/client';
@@ -39,7 +40,7 @@ import warningIcon from '../../../assets/report/warning.svg';
 const TABLE_GRID = 'grid grid-cols-[1.6fr_1fr_1fr_1fr_1.1fr]';
 const reportCache = new Map<
   string,
-  { reportId: number; report: PersonalReportView; cautionText: string | null }
+  { reportId: number; report: PersonalReportView; cautionText: string | null; pdfAvailable: boolean }
 >();
 
 const STRENGTH_ICONS: Record<StrengthIconKey, string> = {
@@ -70,6 +71,7 @@ export default function PersonalReportPage() {
   const [report, setReport] = useState<PersonalReportView | null>(cached?.report ?? null);
   const [reportId, setReportId] = useState<number | null>(cached?.reportId ?? null);
   const [cautionText, setCautionText] = useState<string | null>(cached?.cautionText ?? null);
+  const [pdfAvailable, setPdfAvailable] = useState(cached?.pdfAvailable ?? false);
   const [loadError, setLoadError] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
@@ -84,21 +86,23 @@ export default function PersonalReportPage() {
     Promise.all([findProjectReport(numericProjectId), getProjectIntegrations(projectId)])
       .then(([found, integrations]) => {
         if (!found || found.reportStatus !== 'COMPLETED') throw new Error('리포트 없음');
-        return fetchReportMemberResult(found.reportId, integrations.projectMemberId).then((result) => ({
-          reportId: found.reportId,
-          result,
-        }));
+        return Promise.all([
+          fetchReportMemberResult(found.reportId, integrations.projectMemberId),
+          fetchReportDetail(found.reportId),
+        ]).then(([result, detail]) => ({ reportId: found.reportId, result, detail }));
       })
-      .then(({ reportId: loadedReportId, result }) => {
+      .then(({ reportId: loadedReportId, result, detail }) => {
         if (cancelled) return;
         const view = toPersonalReportView(result);
         reportCache.set(projectId, {
           reportId: loadedReportId,
           report: view,
           cautionText: result.cautionText,
+          pdfAvailable: detail.pdfAvailable,
         });
         setReportId(loadedReportId);
         setReport(view);
+        setPdfAvailable(detail.pdfAvailable);
         // 분석 근거가 부족한 경우 서버가 한계를 알려준다(기능명세서의 '분석 제한' 표시).
         setCautionText(result.cautionText);
       })
@@ -121,8 +125,7 @@ export default function PersonalReportPage() {
     if (!reportId || isDownloading) return;
     setIsDownloading(true);
     try {
-      const { downloadUrl } = await fetchReportPdfDownloadUrl(reportId);
-      window.location.assign(downloadUrl);
+      await downloadReportPdfZip(reportId);
     } catch (error) {
       setNotice(error instanceof ApiError ? error.message : '리포트 다운로드에 실패했어요. 다시 시도해 주세요.');
     } finally {
@@ -155,7 +158,7 @@ export default function PersonalReportPage() {
         title="개인 리포트"
         onBack={handleBack}
         onDownload={handleDownload}
-        downloadDisabled={!reportId || isDownloading}
+        downloadDisabled={!reportId || !pdfAvailable || isDownloading}
       />
 
       <ReportHero
