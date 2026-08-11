@@ -114,11 +114,11 @@ export default function MyPage() {
               <img
                 src={avatarSrc}
                 alt={`${displayNickname} 프로필`}
-                className="h-[65px] w-[65px] shrink-0 rounded-full object-cover"
+                className="h-[56px] w-[56px] shrink-0 rounded-full object-cover"
                 onError={() => setAvatarImageFailed(true)}
               />
             ) : (
-              <DefaultAvatar className="h-[65px] w-[65px]" />
+              <DefaultAvatar className="h-[56px] w-[56px]" />
             )}
             <span className="ml-4 min-w-0 flex-1">
               <strong className="block truncate text-[16px] font-normal leading-[22px] text-gray-900">
