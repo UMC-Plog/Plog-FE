@@ -249,7 +249,7 @@ export default function PostFormPage() {
   if (isEditMode && (isEditLoading || editLoadError || !existingPost)) {
     return (
       <Layout>
-        <header className="relative z-10 flex h-14 shrink-0 items-center border-b border-gray-100 bg-gray-25 px-5 shadow-project-header">
+        <header className="sticky top-[env(safe-area-inset-top)] z-10 flex h-14 shrink-0 items-center border-b border-gray-100 bg-gray-25 px-5 shadow-project-header">
           <Button type="button" variant="ghost" size="sm" fullWidth={false} onClick={handleCancel} className="rounded-11 px-[18px] text-[14px] font-bold leading-5 text-gray-400">
             취소
           </Button>
@@ -274,7 +274,7 @@ export default function PostFormPage() {
 
   return (
     <Layout>
-      <header className="relative z-10 flex h-14 shrink-0 items-center border-b border-gray-100 bg-gray-25 px-5 shadow-project-header">
+      <header className="sticky top-[env(safe-area-inset-top)] z-10 flex h-14 shrink-0 items-center border-b border-gray-100 bg-gray-25 px-5 shadow-project-header">
         <Button type="button" variant="ghost" size="sm" fullWidth={false} onClick={handleCancel} className="rounded-11 px-[18px] text-[14px] font-bold leading-5 text-gray-400">
           취소
         </Button>

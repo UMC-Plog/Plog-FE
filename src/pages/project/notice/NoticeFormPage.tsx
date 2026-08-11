@@ -179,7 +179,7 @@ export default function NoticeFormPage() {
   if (isEditMode && (isEditLoading || editLoadError || !existingNotice)) {
     return (
       <Layout>
-        <header className="relative z-10 flex h-14 shrink-0 items-center border-b border-gray-100 bg-gray-25 px-5 shadow-project-header">
+        <header className="sticky top-[env(safe-area-inset-top)] z-10 flex h-14 shrink-0 items-center border-b border-gray-100 bg-gray-25 px-5 shadow-project-header">
           <Button
             type="button"
             variant="ghost"
@@ -211,7 +211,7 @@ export default function NoticeFormPage() {
 
   return (
     <Layout>
-      <header className="relative z-10 flex h-14 shrink-0 items-center border-b border-gray-100 bg-gray-25 px-5 shadow-project-header">
+      <header className="sticky top-[env(safe-area-inset-top)] z-10 flex h-14 shrink-0 items-center border-b border-gray-100 bg-gray-25 px-5 shadow-project-header">
         <Button
           type="button"
           variant="ghost"

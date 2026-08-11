@@ -154,7 +154,9 @@ export default function NoticeHistoryPage() {
 
   return (
     <Layout>
-      <TopNavBar title="공지" onBack={goToFeed} variant="projectContent" />
+      <div className="sticky top-[env(safe-area-inset-top)] z-10 shrink-0 bg-gray-25">
+        <TopNavBar title="공지" onBack={goToFeed} variant="projectContent" />
+      </div>
 
       <main className="flex flex-1 flex-col bg-gray-25">
         {isLoading ? (
