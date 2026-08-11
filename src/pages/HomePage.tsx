@@ -80,8 +80,8 @@ export default function HomePage() {
   );
 
   return (
-    <div className="min-h-full bg-gray-25 pb-6">
-      <header className="flex h-14 items-center justify-between border-b border-gray-100 bg-gray-25 pl-[25px] pr-6 shadow-[0_4px_2px_rgba(204,204,204,0.25)]">
+    <div className="flex h-full min-h-0 flex-col bg-gray-25">
+      <header className="flex h-14 shrink-0 items-center justify-between border-b border-gray-100 bg-gray-25 pl-[25px] pr-6 shadow-[0_4px_2px_rgba(204,204,204,0.25)]">
         <div className="flex items-center gap-3">
           <PlogMark />
           <h1 className="text-[18px] font-semibold leading-7 text-gray-900">프로젝트</h1>
@@ -99,66 +99,68 @@ export default function HomePage() {
         </button>
       </header>
 
-      <div className="mt-[14px] flex items-center justify-between gap-3 px-5">
-        <ProjectStatusFilter value={statusFilter} onChange={setStatusFilter} />
-        <ProjectViewToggle value={viewMode} onChange={setViewMode} />
-      </div>
+      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain pb-6">
+        <div className="mt-[14px] flex items-center justify-between gap-3 px-5">
+          <ProjectStatusFilter value={statusFilter} onChange={setStatusFilter} />
+          <ProjectViewToggle value={viewMode} onChange={setViewMode} />
+        </div>
 
-      {isLoading && projects.length === 0 ? (
-        <div className="flex min-h-[320px] items-center justify-center" role="status" aria-label="프로젝트 목록 불러오는 중">
-          <span className="h-9 w-9 animate-spin rounded-full border-4 border-blue-100 border-t-blue-500" />
-        </div>
-      ) : error && projects.length === 0 ? (
-        <EmptyState
-          icon={<FolderOpen size={48} aria-hidden="true" />}
-          title="프로젝트를 불러오지 못했어요"
-          description="네트워크 상태를 확인한 뒤 다시 시도해 주세요"
-          action={
-            <Button
-              type="button"
-              fullWidth={false}
-              onClick={() => void fetchProjects(true).catch(() => undefined)}
-            >
-              다시 시도
-            </Button>
-          }
-        />
-      ) : filteredProjects.length > 0 ? (
-        <div
-          className={cn(
-            "px-5",
-            viewMode === "grid"
-              ? "mt-4 grid grid-cols-2 gap-x-4 gap-y-4"
-              : "mt-[18px] space-y-[18px]"
-          )}
-        >
-          {filteredProjects.map((project) => (
-            <ProjectCard key={project.id} project={project} viewMode={viewMode} />
-          ))}
-        </div>
-      ) : (
-        <EmptyState
-          icon={<FolderOpen size={48} aria-hidden="true" />}
-          title={projects.length === 0 ? "아직 프로젝트가 없어요" : "조건에 맞는 프로젝트가 없어요"}
-          description={
-            projects.length === 0
-              ? "첫 프로젝트를 만들고 팀의 과정을 기록해 보세요"
-              : "다른 상태 필터를 선택해 보세요"
-          }
-          action={
-            projects.length === 0 ? (
+        {isLoading && projects.length === 0 ? (
+          <div className="flex min-h-[320px] items-center justify-center" role="status" aria-label="프로젝트 목록 불러오는 중">
+            <span className="h-9 w-9 animate-spin rounded-full border-4 border-blue-100 border-t-blue-500" />
+          </div>
+        ) : error && projects.length === 0 ? (
+          <EmptyState
+            icon={<FolderOpen size={48} aria-hidden="true" />}
+            title="프로젝트를 불러오지 못했어요"
+            description="네트워크 상태를 확인한 뒤 다시 시도해 주세요"
+            action={
               <Button
                 type="button"
                 fullWidth={false}
-                icon={<Plus size={17} aria-hidden="true" />}
-                onClick={() => navigate("/project/new")}
+                onClick={() => void fetchProjects(true).catch(() => undefined)}
               >
-                프로젝트 생성
+                다시 시도
               </Button>
-            ) : undefined
-          }
-        />
-      )}
+            }
+          />
+        ) : filteredProjects.length > 0 ? (
+          <div
+            className={cn(
+              "px-5",
+              viewMode === "grid"
+                ? "mt-4 grid grid-cols-2 gap-x-4 gap-y-4"
+                : "mt-[18px] space-y-[18px]"
+            )}
+          >
+            {filteredProjects.map((project) => (
+              <ProjectCard key={project.id} project={project} viewMode={viewMode} />
+            ))}
+          </div>
+        ) : (
+          <EmptyState
+            icon={<FolderOpen size={48} aria-hidden="true" />}
+            title={projects.length === 0 ? "아직 프로젝트가 없어요" : "조건에 맞는 프로젝트가 없어요"}
+            description={
+              projects.length === 0
+                ? "첫 프로젝트를 만들고 팀의 과정을 기록해 보세요"
+                : "다른 상태 필터를 선택해 보세요"
+            }
+            action={
+              projects.length === 0 ? (
+                <Button
+                  type="button"
+                  fullWidth={false}
+                  icon={<Plus size={17} aria-hidden="true" />}
+                  onClick={() => navigate("/project/new")}
+                >
+                  프로젝트 생성
+                </Button>
+              ) : undefined
+            }
+          />
+        )}
+      </div>
 
       <div className="pointer-events-none fixed inset-x-0 bottom-[calc(86px+max(22px,env(safe-area-inset-bottom)))] z-30 mx-auto flex w-full max-w-mobile justify-end px-5">
         <Button
@@ -171,7 +173,6 @@ export default function HomePage() {
           <Plus className="h-7 w-7 text-white" aria-hidden />
         </Button>
       </div>
-
     </div>
   );
 }
