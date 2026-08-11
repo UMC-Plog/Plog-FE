@@ -120,7 +120,7 @@ export default function TeamReportPage() {
       />
 
       <ReportHero
-        label="PROJECT REPORT"
+        label={report.reportCode}
         title={report.projectName}
         badges={[
           { icon: 'calendar', text: `발행 ${report.publishedAt}` },
