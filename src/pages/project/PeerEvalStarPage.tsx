@@ -228,7 +228,7 @@ export default function PeerEvalStarPage() {
           <div className="mb-3 bg-primary-50 rounded-xl px-4 py-3 flex items-start gap-3">
             <InfoIcon />
             <p className="text-caption text-primary leading-5">
-              팀원마다 강점이 다를 수 있어요. 신중하게 평가해 주세요.
+              항목별로 강점이 다를 수 있으니, 한 번 더 점검해 주세요.
             </p>
           </div>
         )}
