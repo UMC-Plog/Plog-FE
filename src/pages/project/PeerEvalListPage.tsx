@@ -256,13 +256,28 @@ export default function PeerEvalListPage() {
           }
         }
       })
-      .catch((err) => {
-        if (!cancelled) {
-          // 팀원 목록을 못 받으면 이 화면에서 할 수 있는 게 없다. 예전에는 서버 문구만
-          // 모달로 띄우고 나머지는 그대로 둬서, 목록은 비었는데 자기 피드백 카드는
-          // 눌리는 반쪽짜리 화면이 남았다.
-          setLoadError({ reason: err instanceof ApiError ? err.message : '' });
+      .catch(async (err) => {
+        if (cancelled) return;
+
+        // 마지막 팀원이 제출을 마치면 그 자리에서 프로젝트가 완료로 바뀌고 평가 API가 닫힌다.
+        // 이때 스토어의 상태는 아직 진행 중이라 가드가 걸러주지 못하고 여기까지 온다.
+        // 제출을 끝낸 사람에게 "아직 시작할 수 없다"고 하는 건 사실과 반대이므로,
+        // 상태를 다시 확인해 완료됐으면 리포트 화면으로 보낸다.
+        await useProjectStore.getState().fetchProjects(true).catch(() => undefined);
+        if (cancelled) return;
+
+        const completed =
+          useProjectStore.getState().projects.find((project) => project.id === id)?.status ===
+          'COMPLETED';
+        if (completed) {
+          navigate(`/project/${id}/report`, { replace: true });
+          return;
         }
+
+        // 팀원 목록을 못 받으면 이 화면에서 할 수 있는 게 없다. 예전에는 서버 문구만
+        // 모달로 띄우고 나머지는 그대로 둬서, 목록은 비었는데 자기 피드백 카드는
+        // 눌리는 반쪽짜리 화면이 남았다.
+        setLoadError({ reason: err instanceof ApiError ? err.message : '' });
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -270,7 +285,7 @@ export default function PeerEvalListPage() {
     return () => {
       cancelled = true;
     };
-  }, [id, integrationsRetryToken, runCollection]);
+  }, [id, integrationsRetryToken, runCollection, navigate]);
 
   // 자기 피드백은 선택 사항이다. 외부 툴이 연동된 경우에는 실제 계정을 선택하거나
   // 계정 선택 단계를 끝까지 확인해야 최종 제출할 수 있다.
