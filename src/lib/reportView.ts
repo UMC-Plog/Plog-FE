@@ -31,6 +31,14 @@ const COMPETENCY_LABELS: { key: CompetencyKey; label: string }[] = [
   { key: 'OUTPUT', label: '산출물 기여' },
 ]
 
+/**
+ * 팀원 카드에 보여줄 Peer 키워드 수.
+ * 서버는 그 팀원이 받은 키워드를 전부 합쳐서 준다 — 평가자 1명이 3개씩 고르므로
+ * 인원이 늘수록 계속 늘어난다. 이름 옆 한 줄에 들어가는 수만 남긴다.
+ * 어느 2개가 남는지는 서버 정렬(선택 횟수 내림차순)을 따른다.
+ */
+const TEAM_KEYWORD_LIMIT = 2
+
 const round = (value: number | null | undefined) => Math.round(value ?? 0)
 
 export const formatReportDate = (iso: string | null) => {
@@ -121,7 +129,7 @@ export function toTeamReportView(detail: ReportDetailResponse): TeamReportView {
       id: m.projectMemberId,
       name: m.memberName,
       profilePreset: (m.profilePreset ?? 'OTTER') as ProfilePreset,
-      keywords: m.peerKeywords,
+      keywords: m.peerKeywords.slice(0, TEAM_KEYWORD_LIMIT),
       activity: toActivityText(m),
       aiComment: m.headline ?? '평가 근거가 부족해 한줄 평가를 생성하지 못했어요',
       scores: toCompetencyScores(m.peerCompetencyScores),

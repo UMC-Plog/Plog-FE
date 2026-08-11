@@ -201,7 +201,7 @@ export default function PersonalReportPage() {
         {cautionText && (
           <div className="flex items-start gap-2 rounded-12 bg-[#FEF6E7] px-[13px] py-[11px]">
             <img src={warningIcon} alt="" className="mt-0.5 size-4 shrink-0" aria-hidden />
-            <span className="text-[12px] font-normal leading-[16px] text-warning">{cautionText}</span>
+            <span className="break-keep break-words text-[12px] font-normal leading-[16px] text-warning">{cautionText}</span>
           </div>
         )}
 
@@ -255,7 +255,7 @@ export default function PersonalReportPage() {
                 <span className="text-[14px] font-bold leading-[20px] text-gray-700">
                   {strength.title}
                 </span>
-                <p className="text-center text-[12px] font-normal leading-[16px] text-gray-500">
+                <p className="break-keep break-words text-center text-[12px] font-normal leading-[16px] text-gray-500">
                   {strength.description}
                 </p>
               </div>
@@ -269,7 +269,9 @@ export default function PersonalReportPage() {
           title="취약점 진단"
           description={`${report.ownerName}님의 약점을 AI가 분석했어요`}
         >
-          <div className="flex h-[171px] items-center rounded-18 border border-gray-100 py-[21px] pl-px">
+          {/* 오른쪽 팁 목록은 AI가 쓰는 문장이라 길이가 정해져 있지 않다. 도넛 기준으로 잡은
+              171px를 고정하면 팁이 3개만 돼도 카드 밖으로 넘치므로 최소 높이로 둔다. */}
+          <div className="flex min-h-[171px] items-center rounded-18 border border-gray-100 py-[21px] pl-px">
             <ReportDonut
               gaugePercent={report.weakness.percent}
               caption="취약도"
@@ -280,11 +282,11 @@ export default function PersonalReportPage() {
             <div className="flex min-w-0 flex-1 flex-col gap-3">
               <div className="flex flex-col gap-[3px]">
                 <span className="text-[11px] font-normal leading-[16px] text-gray-500">주요 취약점</span>
-                <span className="break-keep text-[14px] font-bold leading-[20px] text-gray-900">
+                <span className="break-keep break-words text-[14px] font-bold leading-[20px] text-gray-900">
                   {report.weakness.title}
                 </span>
               </div>
-              <ul className="list-disc pl-4 text-[11px] font-normal leading-[16px] text-gray-500">
+              <ul className="list-disc break-keep break-words pl-4 text-[11px] font-normal leading-[16px] text-gray-500">
                 {report.weakness.tips.map((tip, index) => (
                   <li key={index}>{tip}</li>
                 ))}
@@ -312,7 +314,7 @@ export default function PersonalReportPage() {
                 <span className="w-[79px] shrink-0 text-[15px] font-normal leading-[24px] text-gray-900">
                   {insight.label}
                 </span>
-                <span className="min-w-0 flex-1 text-[12px] font-normal leading-[16px] text-gray-500">
+                <span className="min-w-0 flex-1 break-keep break-words text-[12px] font-normal leading-[16px] text-gray-500">
                   {insight.text}
                 </span>
               </div>
