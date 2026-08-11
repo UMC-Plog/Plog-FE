@@ -129,16 +129,16 @@ export default function SelfFeedbackPage() {
   };
 
   return (
-    <div className="flex flex-col min-h-full bg-gray-25">
+    <div className="flex h-[calc(100dvh-env(safe-area-inset-top))] flex-col overflow-hidden bg-gray-25">
       {/* 헤더 */}
-      <header className="sticky top-0 z-10 bg-gray-25 border-b border-gray-100 h-14 px-6 flex items-center gap-6">
+      <header className="relative z-10 flex h-14 shrink-0 items-center gap-6 border-b border-gray-100 bg-gray-25 px-6">
         <button type="button" onClick={() => navigate(-1)} aria-label="뒤로" className="shrink-0">
           <ChevronLeft />
         </button>
         <span className="text-title text-gray-900">Peer 평가</span>
       </header>
 
-      <div className="flex-1 px-5 pt-6 pb-28 flex flex-col gap-5">
+      <div className="min-h-0 flex-1 overflow-y-auto px-5 pb-6 pt-6 flex flex-col gap-5">
         {/* 제목 */}
         <div className="flex flex-col gap-1">
           <h1 className="text-h3 font-semibold text-gray-900">자기 피드백이란?</h1>
@@ -181,7 +181,7 @@ export default function SelfFeedbackPage() {
       </div>
 
       {/* 하단 CTA */}
-      <div className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-mobile bg-white px-5 pt-3 pb-8">
+      <div className="w-full shrink-0 bg-white px-5 pb-8 pt-3">
         <button
           type="button"
           disabled={!canComplete}
