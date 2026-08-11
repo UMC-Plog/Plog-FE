@@ -16,7 +16,7 @@ import {
   ReportTabBar,
   type ReportTab,
 } from '../../../components/report/ReportChrome';
-import { fetchReportDetail, fetchReportPdfDownloadUrl, findProjectReport } from '../../../api/report';
+import { downloadReportPdfZip, fetchReportDetail, findProjectReport } from '../../../api/report';
 import { ApiError } from '../../../api/client';
 import { toTeamReportView } from '../../../lib/reportView';
 import type { TeamReportView } from '../../../lib/reportViewTypes';
@@ -82,8 +82,7 @@ export default function TeamReportPage() {
     if (!reportId || isDownloading) return;
     setIsDownloading(true);
     try {
-      const { downloadUrl } = await fetchReportPdfDownloadUrl(reportId);
-      window.location.assign(downloadUrl);
+      await downloadReportPdfZip(reportId);
     } catch (error) {
       setNotice(error instanceof ApiError ? error.message : '리포트 다운로드에 실패했어요. 다시 시도해 주세요.');
     } finally {
@@ -116,7 +115,7 @@ export default function TeamReportPage() {
         title="팀 리포트"
         onBack={handleBack}
         onDownload={handleDownload}
-        downloadDisabled={!reportId || isDownloading}
+        downloadDisabled={!reportId || !report.pdfAvailable || isDownloading}
       />
 
       <ReportHero

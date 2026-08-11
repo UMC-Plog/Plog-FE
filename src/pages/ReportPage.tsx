@@ -3,7 +3,7 @@ import { Search, Download } from 'lucide-react';
 import { PlogIcon } from '../components/PlogIcon';
 import { AlertModal } from '../components/Modal';
 import { cn } from '../lib/utils';
-import { fetchReports, fetchReportPdfDownloadUrl, type ReportSearchResponse } from '../api/report';
+import { downloadReportPdfZip, fetchReports, type ReportSearchResponse } from '../api/report';
 import { ApiError } from '../api/client';
 
 const formatReportDate = (iso: string | null) => {
@@ -28,6 +28,7 @@ export default function ReportPage() {
   const [notice, setNotice] = useState<string | null>(null);
   const [reports, setReports] = useState<ReportSearchResponse[]>([]);
   const [loading, setLoading] = useState(true);
+  const [downloadingReportId, setDownloadingReportId] = useState<number | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -47,11 +48,14 @@ export default function ReportPage() {
   }, []);
 
   const handleDownload = async (report: ReportSearchResponse) => {
+    if (downloadingReportId !== null) return;
+    setDownloadingReportId(report.reportId);
     try {
-      const { downloadUrl } = await fetchReportPdfDownloadUrl(report.reportId);
-      window.location.assign(downloadUrl);
+      await downloadReportPdfZip(report.reportId);
     } catch (err) {
       setNotice(err instanceof ApiError ? err.message : 'PDF 다운로드에 실패했어요. 다시 시도해 주세요.');
+    } finally {
+      setDownloadingReportId(null);
     }
   };
 
@@ -131,11 +135,11 @@ export default function ReportPage() {
                 <StatusBadge status={item.reportStatus} />
               </div>
 
-              {/* PDF 버튼 - Figma: h-40px, px-16px, rounded-11px≈rounded-md */}
+              {/* ZIP 버튼 - Figma: h-40px, px-16px, rounded-11px≈rounded-md */}
               {/* done: bg-primary #2186FB / pending: bg-gray-100 text-gray-400 */}
               <button
                 type="button"
-                disabled={item.reportStatus !== 'COMPLETED'}
+                disabled={item.reportStatus !== 'COMPLETED' || downloadingReportId !== null}
                 onClick={() => handleDownload(item)}
                 className={cn(
                   'shrink-0 flex items-center gap-1.5 h-10 px-4 rounded-md text-body-sm transition-colors',
@@ -144,7 +148,7 @@ export default function ReportPage() {
                     : 'bg-gray-100 text-gray-400 cursor-not-allowed',
                 )}
               >
-                PDF
+                ZIP
                 <Download className="size-3" />
               </button>
             </div>

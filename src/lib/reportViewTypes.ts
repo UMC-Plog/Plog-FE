@@ -37,6 +37,7 @@ export interface TeamMemberSummary {
 
 export interface TeamReportView {
   reportCode: string;
+  pdfAvailable: boolean;
   projectName: string;
   publishedAt: string;
   memberCount: number;
