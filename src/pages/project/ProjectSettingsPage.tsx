@@ -468,14 +468,14 @@ export function ProjectSettingsPage() {
 
   if (!settings) {
     return (
-      <div className="app-shell min-h-svh bg-gray-25 pb-[116px]">
-        <header className="flex h-[52px] items-center border-b border-gray-100 px-5 shadow-sm">
+      <div className="app-shell h-[calc(100dvh-env(safe-area-inset-top))] !min-h-0 overflow-hidden bg-gray-25 pb-[116px]">
+        <header className="flex h-[52px] shrink-0 items-center border-b border-gray-100 px-5 shadow-sm">
           <button type="button" aria-label="홈으로 가기" onClick={() => navigate("/home")} className="mr-3">
             <ChevronLeft className="h-6 w-6 text-gray-700" />
           </button>
           <h1 className="text-[18px] font-semibold text-gray-900">프로젝트 설정</h1>
         </header>
-        <main className="flex min-h-[420px] flex-col items-center justify-center px-5 text-center">
+        <main className="flex min-h-0 flex-1 flex-col items-center justify-center overflow-y-auto overscroll-contain px-5 text-center">
           <p className="text-[15px] text-gray-600">{error}</p>
           <button type="button" onClick={() => void loadSettings()} className="mt-4 rounded-[14px] bg-blue-500 px-5 py-3 text-white">
             다시 시도
@@ -512,15 +512,15 @@ export function ProjectSettingsPage() {
   }
 
   return (
-    <div className="app-shell min-h-svh bg-gray-25 pb-[116px]">
-      <header className="flex h-[52px] items-center border-b border-gray-100 bg-gray-25 px-5 shadow-sm">
+    <div className="app-shell h-[calc(100dvh-env(safe-area-inset-top))] !min-h-0 overflow-hidden bg-gray-25 pb-[116px]">
+      <header className="flex h-[52px] shrink-0 items-center border-b border-gray-100 bg-gray-25 px-5 shadow-sm">
         <button type="button" aria-label="뒤로 가기" onClick={() => navigate(`/project/${id}/feed`)} className="mr-3 flex h-6 w-6 items-center justify-center">
           <ChevronLeft className="h-6 w-6 text-gray-700" />
         </button>
         <h1 className="text-[18px] font-semibold text-gray-900">프로젝트 설정</h1>
       </header>
 
-      <main className="px-5 pt-6">
+      <main className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 pb-6 pt-6">
         {isCompleted && (
           <p className="mb-4 rounded-[12px] bg-gray-100 px-4 py-3 text-[13px] text-gray-600">
             완료된 프로젝트의 설정은 변경할 수 없어요.
