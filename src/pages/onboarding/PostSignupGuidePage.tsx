@@ -24,8 +24,14 @@ const STEPS = [
 export default function PostSignupGuidePage() {
   const navigate = useNavigate();
   const [stepIndex, setStepIndex] = useState(0);
+  const isFirstStep = stepIndex === 0;
   const isLastStep = stepIndex === STEPS.length - 1;
   const step = STEPS[stepIndex];
+
+  const goPrev = () => {
+    if (isFirstStep) return;
+    setStepIndex((current) => current - 1);
+  };
 
   const goNext = () => {
     if (isLastStep) {
@@ -39,7 +45,8 @@ export default function PostSignupGuidePage() {
     <GuideImageStep
       src={step.src}
       alt={step.alt}
-      ariaLabel={isLastStep ? "온보딩 안내 마치기" : "다음 안내로 이동"}
+      nextLabel={isLastStep ? "온보딩 안내 마치기" : "다음 안내로 이동"}
+      onPrev={goPrev}
       onNext={goNext}
     />
   );
@@ -49,27 +56,29 @@ export default function PostSignupGuidePage() {
  * 온보딩 코치마크 한 장(804x1748, 2x Figma 목업 이미지)을 그대로 보여준다. object-contain +
  * object-top으로 비율을 유지한 채 화면 상단에 붙이고, 화면이 이미지보다 길 때 아래쪽에
  * 남는 여백은 이미지와 같은 톤(흰 배경 + 어두운 반투명 오버레이)으로 채워 이어져 보이게 한다.
+ * 화면 좌측 절반을 탭하면 이전 안내로, 우측 절반을 탭하면 다음 안내로 이동한다.
  */
 function GuideImageStep({
   src,
   alt,
-  ariaLabel,
+  nextLabel,
+  onPrev,
   onNext,
 }: {
   src: string;
   alt: string;
-  ariaLabel: string;
+  nextLabel: string;
+  onPrev: () => void;
   onNext: () => void;
 }) {
   return (
-    <button
-      type="button"
-      onClick={onNext}
-      aria-label={ariaLabel}
-      className="relative flex min-h-svh w-full items-start justify-center bg-gray-25 p-0"
-    >
+    <div className="relative flex min-h-svh w-full items-start justify-center bg-gray-25 p-0">
       <div className="absolute inset-0 bg-[rgba(20,22,26,0.9)]" aria-hidden />
       <img src={src} alt={alt} className="relative z-10 h-svh w-full max-w-[402px] object-contain object-top" />
-    </button>
+      <div className="absolute inset-0 z-20 mx-auto flex h-svh w-full max-w-[402px]">
+        <button type="button" onClick={onPrev} aria-label="이전 안내로 이동" className="h-full flex-1" />
+        <button type="button" onClick={onNext} aria-label={nextLabel} className="h-full flex-1" />
+      </div>
+    </div>
   );
 }
