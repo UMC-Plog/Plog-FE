@@ -143,6 +143,18 @@ export interface ProjectLeaveResponse {
   success: boolean;
 }
 
+/** PATCH /api/projects/{projectId}/status 응답 */
+export interface ProjectStatusSyncResponse {
+  projectId: number;
+  currentStatus: ProjectStatus;
+  /** 종료일 7일 경과로 일부 미제출 상태에서 발행됐는지. 리포트에 "Timeout 기준 발행"을 표시한다 */
+  isTimeoutApplied: boolean;
+  isPublished: boolean;
+  /** 완료로 전환되기 전에는 null */
+  reportId: number | null;
+  reportStatus: "GENERATING" | "COMPLETED" | "FAILED" | null;
+}
+
 export interface ProjectIntegrationDisconnectResponse {
   projectId: number;
   linkType: ProjectIntegrationType;
