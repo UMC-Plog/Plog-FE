@@ -833,7 +833,7 @@ export default function IntegrationConnectionPage() {
   }
 
   return (
-    <div className="app-shell min-h-svh bg-gray-25 pb-[116px]">
+    <div className="app-shell h-[calc(100dvh-env(safe-area-inset-top))] !min-h-0 overflow-hidden bg-gray-25 pb-[116px]">
       <Modal
         open={isDisconnectOpen}
         onClose={isDisconnecting ? undefined : handleKeepConnection}
@@ -875,15 +875,17 @@ export default function IntegrationConnectionPage() {
           </div>
         </div>
       </Modal>
-      <header className="flex h-[52px] items-center border-b border-gray-100 px-5 shadow-sm">
+      <header className="z-10 flex h-[52px] shrink-0 items-center border-b border-gray-100 bg-gray-25 px-5 shadow-sm">
         <button type="button" aria-label="뒤로가기" onClick={() => navigate(`/project/${id}/settings`)} className="mr-3 flex h-6 w-6 items-center justify-center">
           <ChevronLeft className="h-6 w-6 text-gray-700" />
         </button>
         <h1 className="text-[18px] font-semibold text-gray-900">{config.name} 연결</h1>
       </header>
-      <IntegrationStepper step={currentStep} />
 
-      <main className="px-5">
+      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+        <IntegrationStepper step={currentStep} />
+
+        <main className="px-5 pb-6">
         <section className={`rounded-[16px] border border-gray-100 bg-white/[0.01] px-[21px] shadow-card ${connectionCardHeightClass} ${connectionCardPaddingClass}`}>
           {currentStep === 4 ? (
             <IntegrationCompleteStep
@@ -1123,7 +1125,8 @@ export default function IntegrationConnectionPage() {
           heightClass={infoHeightClass}
           textSizeClass={providerId === "slides" && currentStep === 2 ? "text-[11px]" : undefined}
         />
-      </main>
+        </main>
+      </div>
 
       <footer className="fixed bottom-0 left-1/2 z-20 grid h-[92px] w-full max-w-mobile -translate-x-1/2 grid-cols-[123px_1fr] gap-[21px] border-t border-gray-100 bg-white px-5 pt-3">
         <button type="button" onClick={() => navigate(`/project/${id}/settings`)} className="h-14 rounded-[14px] border border-blue-500 text-[16px] font-semibold text-blue-500">취소</button>
