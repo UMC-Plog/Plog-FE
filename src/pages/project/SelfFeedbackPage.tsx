@@ -105,7 +105,7 @@ export default function SelfFeedbackPage() {
     };
   }, [id]);
 
-  const canComplete = FIELDS.every((field) => values[field.id]?.trim().length > 0) && !submitting;
+  const canComplete = FIELDS.some((field) => values[field.id]?.trim().length > 0) && !submitting;
 
   const setValue = (fieldId: string, value: string) =>
     setValues((prev) => ({ ...prev, [fieldId]: value }));
