@@ -25,19 +25,22 @@ import warningIcon from '../../../assets/report/warning.svg';
 const TABLE_GRID = 'grid grid-cols-[1.6fr_1fr_1fr_1fr_1.1fr]';
 // 이 비율 미만이면 경고 색으로 표시하고 하단 경고 문구에 포함한다
 const RATE_WARNING_THRESHOLD = 80;
+const reportCache = new Map<string, TeamReportView>();
 
 const rateTone = (rate: number) => (rate >= RATE_WARNING_THRESHOLD ? 'text-success' : 'text-error');
 
 export default function TeamReportPage() {
   const { id: projectId } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const [report, setReport] = useState<TeamReportView | null>(null);
+  const [report, setReport] = useState<TeamReportView | null>(() =>
+    projectId ? (reportCache.get(projectId) ?? null) : null,
+  );
   const [loadError, setLoadError] = useState(false);
 
   // 화면은 projectId만 알고 들어오므로 리포트를 먼저 찾고 상세를 받아온다.
   useEffect(() => {
     const numericProjectId = Number(projectId);
-    if (!Number.isFinite(numericProjectId)) return;
+    if (!projectId || !Number.isFinite(numericProjectId)) return;
     let cancelled = false;
 
     findProjectReport(numericProjectId)
@@ -47,7 +50,10 @@ export default function TeamReportPage() {
         return fetchReportDetail(found.reportId);
       })
       .then((detail) => {
-        if (!cancelled) setReport(toTeamReportView(detail));
+        if (cancelled) return;
+        const view = toTeamReportView(detail);
+        reportCache.set(projectId, view);
+        setReport(view);
       })
       .catch(() => {
         if (!cancelled) setLoadError(true);
@@ -65,10 +71,12 @@ export default function TeamReportPage() {
     if (tab === 'personal') navigate(`/project/${projectId}/report/personal`);
   };
 
+  const handleBack = () => navigate(`/project/${projectId}/report`, { replace: true });
+
   if (!report) {
     return (
-      <div className="flex min-h-svh flex-col bg-gray-25">
-        <ReportHeader />
+      <div className="flex h-dvh min-h-0 flex-col overflow-hidden bg-gray-25">
+        <ReportHeader title="팀 리포트" onBack={handleBack} />
         <div className="flex flex-1 flex-col items-center justify-center gap-3 px-5">
           <p className="text-title font-medium text-gray-500">
             {loadError ? '리포트를 불러오지 못했어요' : '리포트를 불러오는 중...'}
@@ -86,7 +94,7 @@ export default function TeamReportPage() {
 
   return (
     <div className="flex min-h-svh flex-col bg-gray-25">
-      <ReportHeader />
+      <ReportHeader title="팀 리포트" onBack={handleBack} />
 
       <ReportHero
         label="PROJECT REPORT"

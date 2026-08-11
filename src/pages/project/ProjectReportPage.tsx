@@ -13,6 +13,9 @@ const POLL_START_MS = 3000
 const POLL_MAX_MS = 15000
 // 상한은 끝나지 않은 생성이 방치되는 것을 막는 안전장치다. 화면을 벗어나면 어차피 멈춘다.
 const POLL_TIMEOUT_MS = 10 * 60 * 1000
+// 개인 리포트는 상세 화면 안에서 함께 제공하므로 프로젝트 리포트 목록에서는 숨긴다.
+// 정책이 바뀌면 카드 구현을 복구할 수 있도록 UI 코드는 유지한다.
+const SHOW_PERSONAL_REPORT_CARD = false
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
 
@@ -73,10 +76,22 @@ export default function ProjectReportPage() {
     let cancelled = false
 
     syncProjectStatus(projectId)
-      .then((res) => {
+      .then(async (res) => {
         if (cancelled) return
         setIsTimeoutApplied(res.isTimeoutApplied)
         applyReport({ reportId: res.reportId, status: res.reportStatus })
+
+        // 상태 동기화 응답에는 완료 시각이 없으므로 완료된 리포트의 상세를 한 번 더 조회한다.
+        // 생성 중인 리포트는 아래 폴링 effect에서 완료 시각까지 반영한다.
+        if (res.reportStatus === 'COMPLETED' && res.reportId !== null) {
+          const detail = await fetchReportDetail(res.reportId).catch(() => null)
+          if (cancelled || !detail) return
+          applyReport({
+            reportId: res.reportId,
+            status: detail.status,
+            completedAt: detail.completedAt,
+          })
+        }
       })
       .catch(() => {
         // 상태 전환에 실패해도 이미 발행된 리포트는 보여줄 수 있어야 한다.
@@ -160,7 +175,9 @@ export default function ProjectReportPage() {
     reportStatus === 'COMPLETED' && reportId !== null
       ? [
           { id: String(reportId), tier: 'basic', title: `${project?.name ?? '프로젝트'} 기여도 분석 리포트`, createdAt: submittedAt },
-          { id: 'premium', tier: 'premium', title: '개인 기여도 리포트', createdAt: submittedAt, locked: true },
+          ...(SHOW_PERSONAL_REPORT_CARD
+            ? [{ id: 'premium', tier: 'premium' as const, title: '개인 기여도 리포트', createdAt: submittedAt, locked: true }]
+            : []),
         ]
       : []
   const hasReports = reports.length > 0

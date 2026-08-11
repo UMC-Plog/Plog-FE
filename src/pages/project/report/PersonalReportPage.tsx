@@ -34,6 +34,10 @@ import strengthTeam from '../../../assets/report/strength-team.svg';
 import warningIcon from '../../../assets/report/warning.svg';
 
 const TABLE_GRID = 'grid grid-cols-[1.6fr_1fr_1fr_1fr_1.1fr]';
+const reportCache = new Map<
+  string,
+  { report: PersonalReportView; cautionText: string | null }
+>();
 
 const STRENGTH_ICONS: Record<StrengthIconKey, string> = {
   team: strengthTeam,
@@ -59,8 +63,9 @@ function IconBox({ src, className }: { src: string; className: string }) {
 export default function PersonalReportPage() {
   const { id: projectId } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const [report, setReport] = useState<PersonalReportView | null>(null);
-  const [cautionText, setCautionText] = useState<string | null>(null);
+  const cached = projectId ? reportCache.get(projectId) : undefined;
+  const [report, setReport] = useState<PersonalReportView | null>(cached?.report ?? null);
+  const [cautionText, setCautionText] = useState<string | null>(cached?.cautionText ?? null);
   const [loadError, setLoadError] = useState(false);
 
   // 이 화면은 "내" 리포트인데 경로에 멤버 ID가 없다. 연동 상태 조회가 요청자의
@@ -77,7 +82,9 @@ export default function PersonalReportPage() {
       })
       .then((result) => {
         if (cancelled) return;
-        setReport(toPersonalReportView(result));
+        const view = toPersonalReportView(result);
+        reportCache.set(projectId, { report: view, cautionText: result.cautionText });
+        setReport(view);
         // 분석 근거가 부족한 경우 서버가 한계를 알려준다(기능명세서의 '분석 제한' 표시).
         setCautionText(result.cautionText);
       })
@@ -94,10 +101,12 @@ export default function PersonalReportPage() {
     if (tab === 'team') navigate(`/project/${projectId}/report/team`);
   };
 
+  const handleBack = () => navigate(`/project/${projectId}/report`, { replace: true });
+
   if (!report) {
     return (
-      <div className="flex min-h-svh flex-col bg-gray-25">
-        <ReportHeader />
+      <div className="flex h-dvh min-h-0 flex-col overflow-hidden bg-gray-25">
+        <ReportHeader title="개인 리포트" onBack={handleBack} />
         <div className="flex flex-1 flex-col items-center justify-center gap-3 px-5">
           <p className="text-title font-medium text-gray-500">
             {loadError ? '리포트를 불러오지 못했어요' : '리포트를 불러오는 중...'}
@@ -115,7 +124,7 @@ export default function PersonalReportPage() {
 
   return (
     <div className="flex min-h-svh flex-col bg-gray-25">
-      <ReportHeader />
+      <ReportHeader title="개인 리포트" onBack={handleBack} />
 
       <ReportHero
         label={report.reportCode}

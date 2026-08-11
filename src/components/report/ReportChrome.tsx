@@ -50,16 +50,29 @@ function MaskIcon({ src, size, className }: { src: string; size: string; classNa
 
 // ── 상단 헤더 ────────────────────────────────────────────────────────────────
 
-export function ReportHeader({ onShare }: { onShare?: () => void }) {
+export function ReportHeader({
+  title,
+  onBack,
+  onShare,
+}: {
+  title: string;
+  onBack?: () => void;
+  onShare?: () => void;
+}) {
   const navigate = useNavigate();
 
   return (
     <header className="sticky top-0 z-20 flex h-14 shrink-0 items-center justify-between border-b border-gray-100 bg-gray-25 pl-[25px] pr-6 shadow-[0px_4px_2px_rgba(204,204,204,0.25)]">
       <div className="flex items-center gap-6">
-        <button type="button" onClick={() => navigate(-1)} aria-label="뒤로" className="shrink-0">
+        <button
+          type="button"
+          onClick={onBack ?? (() => navigate(-1))}
+          aria-label="뒤로"
+          className="shrink-0"
+        >
           <ChevronLeft />
         </button>
-        <span className="text-[18px] font-semibold leading-[28px] text-gray-900">리포트</span>
+        <span className="text-[18px] font-semibold leading-[28px] text-gray-900">{title}</span>
       </div>
       <button type="button" onClick={onShare} aria-label="리포트 공유" className="shrink-0">
         <img src={shareIcon} alt="" className="size-5" aria-hidden />
@@ -95,14 +108,17 @@ export function ReportHero({
       <div className="flex flex-col gap-3.5">
         <span className="text-[12px] font-normal leading-[16px] text-gray-25">{label}</span>
         <h1 className="text-[22px] font-semibold leading-[32px] text-gray-25">{title}</h1>
-        <div className="flex flex-wrap gap-x-6 pt-0.5">
+        <div
+          className="grid gap-2 pt-0.5"
+          style={{ gridTemplateColumns: `repeat(${badges.length}, minmax(0, 1fr))` }}
+        >
           {badges.map((badge) => (
             <span
               key={badge.text}
-              className="flex h-7 items-center gap-1.5 rounded-full bg-white/[0.16] px-[11px]"
+              className="flex h-7 min-w-0 items-center justify-center gap-1 rounded-full bg-white/[0.16] px-1.5"
             >
               <img src={BADGE_ICONS[badge.icon]} alt="" className="size-[13px] shrink-0" aria-hidden />
-              <span className="whitespace-nowrap text-[12px] font-normal leading-[16px] text-gray-25">
+              <span className="whitespace-nowrap text-[clamp(9px,2.8vw,12px)] font-normal leading-[16px] text-gray-25">
                 {badge.text}
               </span>
             </span>

@@ -65,8 +65,15 @@ const toActivityText = (member: ReportMemberSummaryResponse) =>
 export function toTeamReportView(detail: ReportDetailResponse): TeamReportView {
   const members = detail.members
 
-  // 기여율은 계산 불가하면 null이라 합계가 100이 안 될 수 있다. 도넛 캡션에는 실제 합계를 쓴다.
-  const contributionTotal = members.reduce((sum, m) => sum + (m.contributionRate ?? 0), 0)
+  // 계산 가능한 팀원만 분모에 포함한다. 0%는 유효한 기여율이므로 제외하지 않는다.
+  const measurableContributions = members
+    .map((member) => member.contributionRate)
+    .filter((rate): rate is number => rate !== null)
+  const averageContribution =
+    measurableContributions.length > 0
+      ? measurableContributions.reduce((sum, rate) => sum + rate, 0) /
+        measurableContributions.length
+      : 0
 
   return {
     projectName: detail.projectName,
@@ -104,7 +111,7 @@ export function toTeamReportView(detail: ReportDetailResponse): TeamReportView {
       percent: round(m.contributionRate),
       color: REPORT_SERIES_COLORS[index % REPORT_SERIES_COLORS.length],
     })),
-    averageContribution: round(contributionTotal),
+    averageContribution: round(averageContribution),
 
     members: members.map((m) => ({
       name: m.memberName,
