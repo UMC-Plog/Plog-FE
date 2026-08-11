@@ -287,16 +287,19 @@ export default function ProjectReportPage() {
         </button>
       )}
 
-      {!isReportLoading && !pageLoadFailed && status === 'submitted' && (
-        <div className="flex w-full items-center gap-3.5 rounded-18 bg-gradient-to-r from-primary-500 to-aqua-500 px-5 py-[22px] shadow-cta">
-          <p className="flex-1 text-body-sm font-bold tracking-[-0.4px] text-gray-25">
-            Peer 평가 제출이 완료되었습니다
-          </p>
-          <span className="flex h-[46px] shrink-0 items-center rounded-12 bg-gray-25 px-[18px] text-title font-bold text-navy-700">
-            평가 완료
-          </span>
-        </div>
-      )}
+      {!isReportLoading &&
+        !pageLoadFailed &&
+        status === 'submitted' &&
+        (!hasReports || showSubmittedModal) && (
+          <div className="flex w-full items-center gap-3.5 rounded-18 bg-gradient-to-r from-primary-500 to-aqua-500 px-5 py-[22px] shadow-cta">
+            <p className="flex-1 text-body-sm font-bold tracking-[-0.4px] text-gray-25">
+              Peer 평가 제출이 완료되었습니다
+            </p>
+            <span className="flex h-[46px] shrink-0 items-center rounded-12 bg-gray-25 px-[18px] text-title font-bold text-navy-700">
+              평가 완료
+            </span>
+          </div>
+        )}
 
       {/* 종료일 7일 경과로 일부 미제출 상태에서 발행된 경우, 데이터가 완전하지 않다는 것을 알려야 한다 */}
       {!isReportLoading && !pageLoadFailed && hasReports && isTimeoutApplied && (
