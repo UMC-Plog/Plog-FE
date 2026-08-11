@@ -53,11 +53,13 @@ function MaskIcon({ src, size, className }: { src: string; size: string; classNa
 export function ReportHeader({
   title,
   onBack,
-  onShare,
+  onDownload,
+  downloadDisabled = false,
 }: {
   title: string;
   onBack?: () => void;
-  onShare?: () => void;
+  onDownload?: () => void;
+  downloadDisabled?: boolean;
 }) {
   const navigate = useNavigate();
 
@@ -74,7 +76,13 @@ export function ReportHeader({
         </button>
         <span className="text-[18px] font-semibold leading-[28px] text-gray-900">{title}</span>
       </div>
-      <button type="button" onClick={onShare} aria-label="리포트 공유" className="shrink-0">
+      <button
+        type="button"
+        onClick={onDownload}
+        disabled={!onDownload || downloadDisabled}
+        aria-label="리포트 다운로드"
+        className="shrink-0 disabled:cursor-not-allowed disabled:opacity-40"
+      >
         <img src={shareIcon} alt="" className="size-5" aria-hidden />
       </button>
     </header>

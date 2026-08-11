@@ -49,7 +49,7 @@ export default function ReportPage() {
   const handleDownload = async (report: ReportSearchResponse) => {
     try {
       const { downloadUrl } = await fetchReportPdfDownloadUrl(report.reportId);
-      window.open(downloadUrl, '_blank', 'noopener,noreferrer');
+      window.location.assign(downloadUrl);
     } catch (err) {
       setNotice(err instanceof ApiError ? err.message : 'PDF 다운로드에 실패했어요. 다시 시도해 주세요.');
     }

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { cn } from '../../../lib/utils';
+import { AlertModal } from '../../../components/Modal';
 import {
   ReportAiNote,
   ReportDonut,
@@ -16,8 +17,10 @@ import {
 } from '../../../components/report/ReportChrome';
 import {
   fetchReportMemberResult,
+  fetchReportPdfDownloadUrl,
   findProjectReport,
 } from '../../../api/report';
+import { ApiError } from '../../../api/client';
 import { getProjectIntegrations } from '../../../api/projectApi';
 import { toPersonalReportView } from '../../../lib/reportView';
 import type {
@@ -36,7 +39,7 @@ import warningIcon from '../../../assets/report/warning.svg';
 const TABLE_GRID = 'grid grid-cols-[1.6fr_1fr_1fr_1fr_1.1fr]';
 const reportCache = new Map<
   string,
-  { report: PersonalReportView; cautionText: string | null }
+  { reportId: number; report: PersonalReportView; cautionText: string | null }
 >();
 
 const STRENGTH_ICONS: Record<StrengthIconKey, string> = {
@@ -65,8 +68,11 @@ export default function PersonalReportPage() {
   const navigate = useNavigate();
   const cached = projectId ? reportCache.get(projectId) : undefined;
   const [report, setReport] = useState<PersonalReportView | null>(cached?.report ?? null);
+  const [reportId, setReportId] = useState<number | null>(cached?.reportId ?? null);
   const [cautionText, setCautionText] = useState<string | null>(cached?.cautionText ?? null);
   const [loadError, setLoadError] = useState(false);
+  const [isDownloading, setIsDownloading] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
 
   // 이 화면은 "내" 리포트인데 경로에 멤버 ID가 없다. 연동 상태 조회가 요청자의
   // projectMemberId를 함께 내려주므로 그것으로 내 결과를 찾는다.
@@ -78,12 +84,20 @@ export default function PersonalReportPage() {
     Promise.all([findProjectReport(numericProjectId), getProjectIntegrations(projectId)])
       .then(([found, integrations]) => {
         if (!found || found.reportStatus !== 'COMPLETED') throw new Error('리포트 없음');
-        return fetchReportMemberResult(found.reportId, integrations.projectMemberId);
+        return fetchReportMemberResult(found.reportId, integrations.projectMemberId).then((result) => ({
+          reportId: found.reportId,
+          result,
+        }));
       })
-      .then((result) => {
+      .then(({ reportId: loadedReportId, result }) => {
         if (cancelled) return;
         const view = toPersonalReportView(result);
-        reportCache.set(projectId, { report: view, cautionText: result.cautionText });
+        reportCache.set(projectId, {
+          reportId: loadedReportId,
+          report: view,
+          cautionText: result.cautionText,
+        });
+        setReportId(loadedReportId);
         setReport(view);
         // 분석 근거가 부족한 경우 서버가 한계를 알려준다(기능명세서의 '분석 제한' 표시).
         setCautionText(result.cautionText);
@@ -102,6 +116,19 @@ export default function PersonalReportPage() {
   };
 
   const handleBack = () => navigate(`/project/${projectId}/report`, { replace: true });
+
+  const handleDownload = async () => {
+    if (!reportId || isDownloading) return;
+    setIsDownloading(true);
+    try {
+      const { downloadUrl } = await fetchReportPdfDownloadUrl(reportId);
+      window.location.assign(downloadUrl);
+    } catch (error) {
+      setNotice(error instanceof ApiError ? error.message : '리포트 다운로드에 실패했어요. 다시 시도해 주세요.');
+    } finally {
+      setIsDownloading(false);
+    }
+  };
 
   if (!report) {
     return (
@@ -124,7 +151,12 @@ export default function PersonalReportPage() {
 
   return (
     <div className="flex min-h-svh flex-col bg-gray-25">
-      <ReportHeader title="개인 리포트" onBack={handleBack} />
+      <ReportHeader
+        title="개인 리포트"
+        onBack={handleBack}
+        onDownload={handleDownload}
+        downloadDisabled={!reportId || isDownloading}
+      />
 
       <ReportHero
         label={report.reportCode}
@@ -288,6 +320,11 @@ export default function PersonalReportPage() {
       </main>
 
       <ReportTabBar active="personal" onChange={handleTabChange} />
+      <AlertModal
+        open={Boolean(notice)}
+        title={notice ?? ''}
+        onConfirm={() => setNotice(null)}
+      />
     </div>
   );
 }
