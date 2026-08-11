@@ -7,7 +7,14 @@ import { getProjectDeadline, isFutureDate } from '../../lib/projectDate'
 import { useProjectStore } from '../../store/projectStore'
 import { syncProjectStatus } from '../../api/projectApi'
 import { fetchEvaluationTargets } from '../../api/evaluation'
-import { fetchReportDetail, searchReports, type ReportStatus } from '../../api/report'
+import { fetchReportDetail, generateReport, searchReports, type ReportStatus } from '../../api/report'
+import { formatReportDate } from '../../lib/reportView'
+import {
+  clearGenerateGuard,
+  markGenerateRequested,
+  markGeneratingSeen,
+  shouldRequestGenerate,
+} from '../../lib/reportGenerateGuard'
 import type { ProjectStatus } from '../../types/project'
 
 // 생성은 멤버 수만큼 LLM을 호출해 수십 초가 걸린다. 초반엔 자주 확인하고 길어지면 간격을 늘린다.
@@ -33,12 +40,6 @@ interface ReportItem {
   locked?: boolean
 }
 
-const formatReportDate = (iso: string | null) => {
-  if (!iso) return ''
-  const date = new Date(iso)
-  return `${date.getFullYear()}.${String(date.getMonth() + 1).padStart(2, '0')}.${String(date.getDate()).padStart(2, '0')}`
-}
-
 export default function ProjectReportPage() {
   const { id: projectId } = useParams<{ id: string }>()
   const navigate = useNavigate()
@@ -56,6 +57,9 @@ export default function ProjectReportPage() {
   const [currentProjectStatus, setCurrentProjectStatus] = useState<ProjectStatus | null>(null)
   const [evaluationCompleted, setEvaluationCompleted] = useState(false)
   const [evaluationLoadedProjectId, setEvaluationLoadedProjectId] = useState<string | null>(null)
+  // 폴링 상한에 걸려 확인을 멈춘 상태. pollAttempt를 올리면 처음부터 다시 확인한다.
+  const [pollTimedOut, setPollTimedOut] = useState(false)
+  const [pollAttempt, setPollAttempt] = useState(0)
   const activeRef = useRef(true)
 
   useEffect(() => {
@@ -162,6 +166,9 @@ export default function ProjectReportPage() {
     void fetchEvaluationTargets(numericProjectId)
       .then((res) => {
         if (cancelled) return
+        // 여기서는 Peer 평가 목록과 달리 대상이 0명인 경우를 "완료"로 보지 않는다.
+        // 아직 최종 제출하지 않은 1인 프로젝트까지 제출 완료로 보이면 평가 시작 버튼이 사라져
+        // 프로젝트를 완료할 방법이 없어진다. 그 경우는 아래 완료 상태 추론이 대신 맡는다.
         setEvaluationCompleted(
           res.targets.length > 0 && res.targets.every((target) => target.isEvaluated)
         )
@@ -182,6 +189,8 @@ export default function ProjectReportPage() {
   useEffect(() => {
     if (reportId === null || reportStatus !== 'GENERATING') return
     let cancelled = false
+    setPollTimedOut(false)
+    markGeneratingSeen(reportId)
 
     const run = async () => {
       const startedAt = Date.now()
@@ -194,18 +203,34 @@ export default function ProjectReportPage() {
         if (cancelled || !activeRef.current) return
 
         if (detail && detail.status !== 'GENERATING') {
+          clearGenerateGuard(reportId)
           applyReport({ reportId, status: detail.status, completedAt: detail.completedAt })
           return
         }
+
+        // 완료 전환은 리포트를 GENERATING으로 만들 뿐이고, AI 생성은 별도 호출로 시작한다.
+        // 서버가 스스로 시작했다면 여기까지 오기 전에 끝나므로, 오래 머물러 있다는 건
+        // 아무도 시작하지 않았다는 뜻이다. 그때 한 번만 깨운다.
+        // OWNER가 아니면 403이 오는데, 방장이 이 화면에 들어올 때 처리되므로 그냥 넘어간다.
+        if (shouldRequestGenerate(reportId)) {
+          markGenerateRequested(reportId)
+          await generateReport(reportId).catch(() => undefined)
+          if (cancelled || !activeRef.current) return
+        }
+
         delay = Math.min(Math.round(delay * 1.5), POLL_MAX_MS)
       }
+
+      // 여기까지 왔으면 화면은 계속 "생성 중"인데 확인은 멈춘 상태다. 그대로 두면
+      // 사용자는 새로고침 말고는 할 수 있는 게 없으므로 다시 확인할 길을 열어준다.
+      if (!cancelled && activeRef.current) setPollTimedOut(true)
     }
     void run()
 
     return () => {
       cancelled = true
     }
-  }, [reportId, reportStatus, applyReport])
+  }, [reportId, reportStatus, pollAttempt, applyReport])
 
   // 정상 완료는 전원 제출을 의미하므로 평가 API가 프로젝트 완료 후 닫혀도 제출 상태를 복원할
   // 수 있다. 타임아웃 완료는 미제출 사용자가 있을 수 있어 같은 추론을 적용하지 않는다.
@@ -382,16 +407,31 @@ export default function ProjectReportPage() {
         </div>
       ) : reportGenerating ? (
         <div className="mt-[72px] flex flex-col items-center gap-4">
-          <p className="text-title font-medium text-gray-500">리포트를 생성하고 있어요</p>
-          <p className="whitespace-pre-line text-center text-body-sm text-gray-400">
-            {'모든 평가가 완료되었어요\n잠시 후 리포트가 발행됩니다'}
+          <p className="text-title font-medium text-gray-500">
+            {pollTimedOut ? '리포트 생성이 예상보다 오래 걸리고 있어요' : '리포트를 생성하고 있어요'}
           </p>
+          <p className="whitespace-pre-line text-center text-body-sm text-gray-400">
+            {pollTimedOut
+              ? '잠시 후 다시 확인해 주세요'
+              : '모든 평가가 완료되었어요\n잠시 후 리포트가 발행됩니다'}
+          </p>
+          {pollTimedOut && (
+            <button
+              type="button"
+              onClick={() => setPollAttempt((value) => value + 1)}
+              className="h-10 rounded-11 bg-primary-500 px-4 text-body text-gray-25"
+            >
+              다시 확인
+            </button>
+          )}
         </div>
       ) : reportFailed ? (
+        // 실패한 리포트는 재생성이 막혀 있어(409) 기다린다고 상태가 바뀌지 않는다.
+        // "잠시 후 다시 확인해 주세요"는 영원히 오지 않을 변화를 기다리게 만든다.
         <div className="mt-[72px] flex flex-col items-center gap-4">
           <p className="text-title font-medium text-gray-500">리포트를 생성하지 못했어요</p>
           <p className="whitespace-pre-line text-center text-body-sm text-gray-400">
-            {'잠시 후 다시 확인해 주세요'}
+            {'자동으로 다시 생성되지는 않아요\n문제가 계속되면 문의해 주세요'}
           </p>
         </div>
       ) : evaluationCompleted ? (
