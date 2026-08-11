@@ -100,6 +100,7 @@ export function toTeamReportView(detail: ReportDetailResponse): TeamReportView {
       '분석할 활동이 충분하지 않아 인사이트를 생성하지 못했어요',
 
     completionRows: members.map((m) => ({
+      id: m.projectMemberId,
       name: m.memberName,
       profilePreset: (m.profilePreset ?? 'OTTER') as ProfilePreset,
       total: m.totalTaskCount,
@@ -109,6 +110,7 @@ export function toTeamReportView(detail: ReportDetailResponse): TeamReportView {
     })),
 
     contributions: members.map((m, index) => ({
+      id: m.projectMemberId,
       name: m.memberName,
       percent: round(m.contributionRate),
       color: REPORT_SERIES_COLORS[index % REPORT_SERIES_COLORS.length],
@@ -116,6 +118,7 @@ export function toTeamReportView(detail: ReportDetailResponse): TeamReportView {
     averageContribution: round(averageContribution),
 
     members: members.map((m) => ({
+      id: m.projectMemberId,
       name: m.memberName,
       profilePreset: (m.profilePreset ?? 'OTTER') as ProfilePreset,
       keywords: m.peerKeywords,

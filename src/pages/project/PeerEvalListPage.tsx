@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { cn } from '../../lib/utils';
-import { fetchEvaluationTargets, fetchMySelfFeedback, type TargetMember } from '../../api/evaluation';
+import { fetchEvaluationTargets, type TargetMember } from '../../api/evaluation';
 import { getIntegrationActorMappings, getProjectIntegrations, syncProjectStatus } from '../../api/projectApi';
 import { collectIntegrationData } from '../../api/integrationApi';
 import { ApiError } from '../../api/client';
@@ -104,6 +104,9 @@ export default function PeerEvalListPage() {
   const navigate = useNavigate();
   const [targets, setTargets] = useState<TargetMember[]>([]);
   const [selfDone, setSelfDone] = useState(false);
+  // 평가 진행 수는 서버가 직접 세어 내려준다. 목록의 isEvaluated로 다시 세면 서버 판정과 갈릴 수 있다.
+  // 조회 전에는 null이다 — 0/0을 "모두 완료"로 오해하지 않기 위해 "아직 모름"과 구분한다.
+  const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
   const [loading, setLoading] = useState(true);
   const [notice, setNotice] = useState<string | null>(null);
   const [finalSubmitting, setFinalSubmitting] = useState(false);
@@ -179,25 +182,23 @@ export default function PeerEvalListPage() {
     let cancelled = false;
     setLoading(true);
     setAccountStatus('none');
+    setProgress(null);
     Promise.all([
       fetchEvaluationTargets(projectId),
-      fetchMySelfFeedback(projectId)
-        .then(() => true)
-        .catch((err) => {
-          // 404 또는 EVAL400_3(백엔드 실제 미작성 응답) = 아직 자기 피드백을 작성하지 않은 정상 상태.
-          // 그 외는 실제 조회 실패로 취급해 위 catch로 넘긴다.
-          if (err instanceof ApiError && (err.status === 404 || err.code === 'EVAL400_3')) return false;
-          // 자기 피드백은 선택 사항이므로 조회 실패가 필수 팀원 평가 목록까지 막지 않게 한다.
-          return false;
-        }),
       getProjectIntegrations(id)
         .then((res) => ({ ok: true as const, res }))
         .catch(() => ({ ok: false as const, res: null })),
     ])
-      .then(async ([targetsRes, selfDoneRes, integrationsResult]) => {
+      .then(async ([targetsRes, integrationsResult]) => {
         if (cancelled) return;
         setTargets(targetsRes.targets);
-        setSelfDone(selfDoneRes);
+        setProgress({
+          done: targetsRes.completedPeerEvaluationCount,
+          total: targetsRes.totalPeerEvaluationCount,
+        });
+        // 자기 피드백 작성 여부는 대상 조회가 함께 내려준다. 예전에는 별도 조회의 404/EVAL400_3을
+        // "미작성"으로 해석했는데, 오류와 미작성을 구분할 수 없어 서버 판정을 그대로 쓴다.
+        setSelfDone(targetsRes.isSelfFeedbackCompleted);
         setIntegrationsUnavailable(!integrationsResult.ok);
 
         const linked = integrationsResult.ok
@@ -266,9 +267,11 @@ export default function PeerEvalListPage() {
 
   // 자기 피드백은 선택 사항이다. 외부 툴이 연동된 경우에는 실제 계정을 선택하거나
   // 계정 선택 단계를 끝까지 확인해야 최종 제출할 수 있다.
-  const doneCount = targets.filter((t) => t.isEvaluated).length;
-  const totalCount = targets.length;
-  const allDone = totalCount > 0 && doneCount === totalCount;
+  const doneCount = progress?.done ?? 0;
+  const totalCount = progress?.total ?? 0;
+  // 팀원이 나뿐이면 평가할 대상이 없다(0/0). 예전에는 여기서 total > 0을 요구해
+  // 최종 제출 버튼이 영원히 비활성이었고, 프로젝트를 완료할 방법 자체가 없었다.
+  const allDone = progress !== null && progress.done === progress.total;
   const accountCheckDone = linkedProviders.length === 0 || accountStatus !== 'none';
   const canFinalSubmit =
     !loading && !finalSubmitting && !integrationsUnavailable && allDone && accountCheckDone;
@@ -316,19 +319,23 @@ export default function PeerEvalListPage() {
             {allDone ? '모든 평가 완료' : '평가할 팀원을 선택하세요'}
           </h1>
           <p className="text-caption font-normal text-gray-400">
-            {allDone
-              ? '모든 팀원 평가가 완료되었습니다. 최종 제출해 주세요.'
-              : '닉네임 기반 익명 평가 / 리포트 발행 후 실명 공개'}
+            {!allDone
+              ? '닉네임 기반 익명 평가 / 리포트 발행 후 실명 공개'
+              : totalCount > 0
+                ? '모든 팀원 평가가 완료되었습니다. 최종 제출해 주세요.'
+                : '평가할 팀원이 없습니다. 최종 제출해 주세요.'}
           </p>
         </div>
 
-        {/* 진행률 */}
-        <div className="flex flex-col gap-2">
-          <span className="self-end text-body-sm font-semibold text-primary">
-            {doneCount} / {totalCount}명 평가 완료
-          </span>
-          <ProgressBar value={doneCount} max={totalCount} />
-        </div>
+        {/* 진행률 — 평가할 팀원이 없으면 "0 / 0명"만 남아 오히려 혼란스러우므로 숨긴다 */}
+        {totalCount > 0 && (
+          <div className="flex flex-col gap-2">
+            <span className="self-end text-body-sm font-semibold text-primary">
+              {doneCount} / {totalCount}명 평가 완료
+            </span>
+            <ProgressBar value={doneCount} max={totalCount} />
+          </div>
+        )}
 
         {/* 팀원 카드 목록 */}
         <div className="flex flex-col gap-3 py-3">
