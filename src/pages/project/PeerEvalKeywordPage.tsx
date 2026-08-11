@@ -53,7 +53,7 @@ export default function PeerEvalKeywordPage() {
   const navState = (location.state as NavState | null) ?? null;
   const [nickname, setNickname] = useState('');
   const [profilePreset, setProfilePreset] = useState<ProfilePreset | null>(null);
-  const [notice, setNotice] = useState<{ message: string; submitted: boolean } | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
@@ -117,26 +117,16 @@ export default function PeerEvalKeywordPage() {
     setSubmitting(true);
     try {
       const submit = navState.isExisting ? updatePeerEvaluation : createPeerEvaluation;
-      const result = await submit(projectId, targetMemberId, body);
+      await submit(projectId, targetMemberId, body);
 
       // 내가 팀의 마지막 제출자면 이 시점에 프로젝트가 완료되고 리포트가 만들어진다.
       // 서버가 조건을 검증하므로 아니어도 현재 상태만 돌아오고, 실패해도 평가 제출과는
       // 무관하므로 흐름을 막지 않는다. (종료일 7일 경과 쪽은 서버 배치가 처리한다)
       void syncProjectStatus(id).catch(() => undefined);
 
-      if (result.isNudgeTriggered) {
-        setNotice({
-          message: '평가 점수의 변별력이 낮아요. 다음부턴 팀원마다 다르게 평가하는 걸 고려해 주세요.',
-          submitted: true,
-        });
-      } else {
-        navigate(`/project/${id}/peer-eval`);
-      }
+      navigate(`/project/${id}/peer-eval`);
     } catch (err) {
-      setNotice({
-        message: err instanceof ApiError ? err.message : '제출에 실패했어요. 다시 시도해 주세요.',
-        submitted: false,
-      });
+      setNotice(err instanceof ApiError ? err.message : '제출에 실패했어요. 다시 시도해 주세요.');
     } finally {
       setSubmitting(false);
     }
@@ -223,13 +213,9 @@ export default function PeerEvalKeywordPage() {
             <InfoIcon />
           </span>
         }
-        title={notice?.message ?? ''}
+        title={notice ?? ''}
         confirmText="확인"
-        onConfirm={() => {
-          const submitted = notice?.submitted ?? false;
-          setNotice(null);
-          if (submitted) navigate(`/project/${id}/peer-eval`);
-        }}
+        onConfirm={() => setNotice(null)}
       />
     </div>
   );
