@@ -98,41 +98,43 @@ export default function ProjectTabBar() {
           : 'min-h-svh'
       )}
     >
-      <TopNavBar
-        title={project?.name ?? '프로젝트'}
-        onBack={() => navigate('/home')}
-        variant="projectContent"
-        onNotificationClick={() => navigate('/notifications')}
-        onSettingsClick={() => {
-          if (projectId) navigate(`/project/${projectId}/settings`)
-        }}
-      />
+      <div className="sticky top-[env(safe-area-inset-top)] z-10 shrink-0 bg-gray-25">
+        <TopNavBar
+          title={project?.name ?? '프로젝트'}
+          onBack={() => navigate('/home')}
+          variant="projectContent"
+          onNotificationClick={() => navigate('/notifications')}
+          onSettingsClick={() => {
+            if (projectId) navigate(`/project/${projectId}/settings`)
+          }}
+        />
 
-      <nav className="shrink-0 border-b border-gray-200 bg-white">
-        <ul className="flex">
-          {tabs.map((tab) => (
-            <li key={tab.to} className="flex-1">
-              <NavLink
-                to={tab.to}
-                className={({ isActive }) =>
-                  `relative flex h-10 items-center justify-center text-caption ${
-                    isActive ? 'text-primary' : 'text-gray-400'
-                  }`
-                }
-              >
-                {({ isActive }) => (
-                  <>
-                    {tab.label}
-                    {isActive && (
-                      <span className="absolute inset-x-0 bottom-0 h-0.5 bg-primary" aria-hidden />
-                    )}
-                  </>
-                )}
-              </NavLink>
-            </li>
-          ))}
-        </ul>
-      </nav>
+        <nav className="shrink-0 border-b border-gray-200 bg-white">
+          <ul className="flex">
+            {tabs.map((tab) => (
+              <li key={tab.to} className="flex-1">
+                <NavLink
+                  to={tab.to}
+                  className={({ isActive }) =>
+                    `relative flex h-10 items-center justify-center text-caption ${
+                      isActive ? 'text-primary' : 'text-gray-400'
+                    }`
+                  }
+                >
+                  {({ isActive }) => (
+                    <>
+                      {tab.label}
+                      {isActive && (
+                        <span className="absolute inset-x-0 bottom-0 h-0.5 bg-primary" aria-hidden />
+                      )}
+                    </>
+                  )}
+                </NavLink>
+              </li>
+            ))}
+          </ul>
+        </nav>
+      </div>
 
       <main className={cn('flex-1', isChatRoute && 'min-h-0 overflow-hidden')}>
         <Outlet />

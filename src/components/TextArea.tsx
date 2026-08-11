@@ -6,6 +6,7 @@ export interface TextAreaProps extends TextareaHTMLAttributes<HTMLTextAreaElemen
   helperText?: string;
   errorText?: string;
   successText?: string;
+  showCharacterCount?: boolean;
 }
 
 /**
@@ -24,6 +25,7 @@ export const TextArea = forwardRef<HTMLTextAreaElement, TextAreaProps>(
       id,
       maxLength,
       value,
+      showCharacterCount = true,
       onFocus,
       onBlur,
       ...props
@@ -35,6 +37,12 @@ export const TextArea = forwardRef<HTMLTextAreaElement, TextAreaProps>(
     const hasError = Boolean(errorText);
     const hasSuccess = Boolean(successText) && !hasError;
     const length = typeof value === "string" ? value.length : 0;
+    const hasMeta = Boolean(
+      hasError ||
+        hasSuccess ||
+        helperText ||
+        (maxLength && showCharacterCount)
+    );
 
     return (
       <div className="w-full">
@@ -76,28 +84,30 @@ export const TextArea = forwardRef<HTMLTextAreaElement, TextAreaProps>(
           {...props}
         />
 
-        <div className="mt-1.5 flex items-center justify-between gap-2">
-          <div>
-            {hasError && (
-              <p className="flex items-center gap-1 text-caption font-normal text-error">
-                ⚠ {errorText}
+        {hasMeta && (
+          <div className="mt-1.5 flex items-center justify-between gap-2">
+            <div>
+              {hasError && (
+                <p className="flex items-center gap-1 text-caption font-normal text-error">
+                  ⚠ {errorText}
+                </p>
+              )}
+              {!hasError && hasSuccess && (
+                <p className="flex items-center gap-1 text-caption font-normal text-success">
+                  ✓ {successText}
+                </p>
+              )}
+              {!hasError && !hasSuccess && helperText && (
+                <p className="text-caption font-normal text-gray-400">{helperText}</p>
+              )}
+            </div>
+            {maxLength && showCharacterCount && (
+              <p className="shrink-0 text-caption font-normal text-gray-400">
+                {length}/{maxLength}
               </p>
-            )}
-            {!hasError && hasSuccess && (
-              <p className="flex items-center gap-1 text-caption font-normal text-success">
-                ✓ {successText}
-              </p>
-            )}
-            {!hasError && !hasSuccess && helperText && (
-              <p className="text-caption font-normal text-gray-400">{helperText}</p>
             )}
           </div>
-          {maxLength && (
-            <p className="shrink-0 text-caption font-normal text-gray-400">
-              {length}/{maxLength}
-            </p>
-          )}
-        </div>
+        )}
       </div>
     );
   }

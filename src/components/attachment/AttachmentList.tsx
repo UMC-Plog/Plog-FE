@@ -135,7 +135,7 @@ export function AttachmentList({
         const isDeleting =
           deletingAttachmentId === attachment.attachmentId
         const TypeIcon = isFile ? FileText : LinkIcon
-        const ActionIcon = isFile ? Download : ExternalLink
+        const ActionIcon = isFile && !isPostDetail ? Download : ExternalLink
         const actionLabel = isFile ? '다운로드' : '링크 열기'
         const visibleActionLabel = isPostDetail ? '열기' : actionLabel
         const postDetailMeta = isFile

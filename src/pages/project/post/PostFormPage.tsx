@@ -249,11 +249,11 @@ export default function PostFormPage() {
   if (isEditMode && (isEditLoading || editLoadError || !existingPost)) {
     return (
       <Layout>
-        <header className="relative flex h-12 shrink-0 items-center border-b border-gray-200 bg-white px-3">
-          <Button type="button" variant="ghost" size="sm" fullWidth={false} onClick={handleCancel} className="px-0 text-gray-500">
+        <header className="relative z-10 flex h-14 shrink-0 items-center border-b border-gray-100 bg-gray-25 px-5 shadow-project-header">
+          <Button type="button" variant="ghost" size="sm" fullWidth={false} onClick={handleCancel} className="rounded-11 px-[18px] text-[14px] font-bold leading-5 text-gray-400">
             취소
           </Button>
-          <h1 className="absolute left-1/2 -translate-x-1/2 text-center text-body font-semibold text-gray-900">
+          <h1 className="absolute left-1/2 -translate-x-1/2 text-center text-title font-semibold leading-7 text-gray-900">
             {isEditMode ? '게시글 수정' : '게시글 작성'}
           </h1>
         </header>
@@ -274,14 +274,14 @@ export default function PostFormPage() {
 
   return (
     <Layout>
-      <header className="relative flex h-12 shrink-0 items-center border-b border-gray-200 bg-white px-3">
-        <Button type="button" variant="ghost" size="sm" fullWidth={false} onClick={handleCancel} className="px-0 text-gray-500">
+      <header className="relative z-10 flex h-14 shrink-0 items-center border-b border-gray-100 bg-gray-25 px-5 shadow-project-header">
+        <Button type="button" variant="ghost" size="sm" fullWidth={false} onClick={handleCancel} className="rounded-11 px-[18px] text-[14px] font-bold leading-5 text-gray-400">
           취소
         </Button>
-        <h1 className="absolute left-1/2 -translate-x-1/2 text-center text-body font-semibold text-gray-900">
+        <h1 className="absolute left-1/2 -translate-x-1/2 text-center text-title font-semibold leading-7 text-gray-900">
           {isEditMode ? '게시글 수정' : '게시글 작성'}
         </h1>
-        <Button type="button" size="sm" fullWidth={false} disabled={!canSubmit} onClick={() => void handleSubmit()} className="ml-auto text-white">
+        <Button type="button" size="sm" fullWidth={false} disabled={!canSubmit} onClick={() => void handleSubmit()} className="ml-auto rounded-11 px-[18px] text-[14px] font-bold leading-5 text-white">
           {isSubmitting
             ? isEditMode
               ? '수정 중'
@@ -292,11 +292,11 @@ export default function PostFormPage() {
         </Button>
       </header>
 
-      <main className="flex flex-1 flex-col px-5 pb-5 pt-5">
+      <main className="flex flex-1 flex-col px-5 pb-5 pt-6">
         <div className="mb-5 flex items-center gap-3">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-gray-100">
+          <div className="flex h-[50px] w-[50px] shrink-0 items-center justify-center overflow-hidden rounded-full bg-gray-100">
             {existingPost ? (
-              <PostAuthorAvatar profilePreset={existingPost.profilePreset} />
+              <PostAuthorAvatar profilePreset={existingPost.profilePreset} className="h-full w-full" />
             ) : avatarSrc ? (
               <img src={avatarSrc} alt="" className="h-full w-full object-cover" />
             ) : (
@@ -304,9 +304,9 @@ export default function PostFormPage() {
             )}
           </div>
           <div className="min-w-0">
-            <p className="truncate text-body-sm font-semibold text-gray-900">{authorName}</p>
+            <p className="truncate text-title font-normal leading-7 text-gray-900">{authorName}</p>
             {currentProject && (
-              <p className="truncate text-caption font-normal text-gray-400">
+              <p className="truncate text-caption font-normal leading-4 text-gray-400">
                 {currentProject.name}
               </p>
             )}
@@ -325,6 +325,7 @@ export default function PostFormPage() {
               setTitle(event.target.value)
               setSubmitError(undefined)
             }}
+            className="bg-gray-25 px-5 leading-6"
           />
           <TextArea
             aria-label="게시글 내용"
@@ -337,7 +338,8 @@ export default function PostFormPage() {
               setContent(event.target.value)
               setSubmitError(undefined)
             }}
-            className="min-h-60"
+            showCharacterCount={false}
+            className="h-[280px] min-h-[280px] rounded-lg bg-gray-25 px-5 py-[19px] leading-6"
           />
         </div>
 
@@ -347,7 +349,7 @@ export default function PostFormPage() {
           </p>
         )}
 
-        <div className="mt-5">
+        <div>
           <AttachmentPicker
             value={attachments}
             onChange={(nextAttachments) => {

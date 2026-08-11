@@ -179,18 +179,20 @@ export default function NoticeFormPage() {
   if (isEditMode && (isEditLoading || editLoadError || !existingNotice)) {
     return (
       <Layout>
-        <header className="grid h-12 grid-cols-3 items-center border-b border-gray-200 bg-white px-3">
+        <header className="relative z-10 flex h-14 shrink-0 items-center border-b border-gray-100 bg-gray-25 px-5 shadow-project-header">
           <Button
             type="button"
             variant="ghost"
             size="sm"
             fullWidth={false}
             onClick={handleCancel}
-            className="justify-self-start px-0 text-gray-500"
+            className="rounded-11 px-[18px] text-[14px] font-bold leading-5 text-gray-400"
           >
             취소
           </Button>
-          <h1 className="text-center text-body font-semibold text-gray-900">공지 수정</h1>
+          <h1 className="absolute left-1/2 -translate-x-1/2 text-center text-title font-semibold leading-7 text-gray-900">
+            공지 수정
+          </h1>
         </header>
         <main className="flex flex-1 flex-col items-center justify-center px-8 text-center">
           <p className="text-title font-bold text-gray-700">
@@ -209,18 +211,18 @@ export default function NoticeFormPage() {
 
   return (
     <Layout>
-      <header className="grid h-12 grid-cols-3 items-center border-b border-gray-200 bg-white px-3">
+      <header className="relative z-10 flex h-14 shrink-0 items-center border-b border-gray-100 bg-gray-25 px-5 shadow-project-header">
         <Button
           type="button"
           variant="ghost"
           size="sm"
           fullWidth={false}
           onClick={handleCancel}
-          className="justify-self-start px-0 text-gray-500"
+          className="rounded-11 px-[18px] text-[14px] font-bold leading-5 text-gray-400"
         >
           취소
         </Button>
-        <h1 className="text-center text-body font-semibold text-gray-900">
+        <h1 className="absolute left-1/2 -translate-x-1/2 text-center text-title font-semibold leading-7 text-gray-900">
           {isEditMode ? '공지 수정' : '공지 작성'}
         </h1>
         <Button
@@ -229,15 +231,15 @@ export default function NoticeFormPage() {
           fullWidth={false}
           disabled={!canSubmit}
           onClick={() => void handleSubmit()}
-          className="justify-self-end text-white"
+          className="ml-auto rounded-11 px-[18px] text-[14px] font-bold leading-5 text-white"
         >
           {isSubmitting ? (isEditMode ? '수정 중' : '게시 중') : isEditMode ? '수정' : '게시'}
         </Button>
       </header>
 
-      <main className="flex flex-1 flex-col px-5 py-5">
+      <main className="flex flex-1 flex-col px-5 pb-5 pt-6">
         <div className="mb-5 flex items-center gap-3">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-gray-100">
+          <div className="flex h-[50px] w-[50px] shrink-0 items-center justify-center overflow-hidden rounded-full bg-gray-100">
             {avatarSrc ? (
               <img src={avatarSrc} alt="" className="h-full w-full object-cover" />
             ) : (
@@ -245,9 +247,9 @@ export default function NoticeFormPage() {
             )}
           </div>
           <div className="min-w-0">
-            <p className="truncate text-body-sm font-semibold text-gray-900">{authorName}</p>
+            <p className="truncate text-title font-normal leading-7 text-gray-900">{authorName}</p>
             {currentProject && (
-              <p className="truncate text-caption font-normal text-gray-400">
+              <p className="truncate text-caption font-normal leading-4 text-gray-400">
                 {currentProject.name}
               </p>
             )}
@@ -266,6 +268,7 @@ export default function NoticeFormPage() {
               setTitle(event.target.value)
               setSubmitError(undefined)
             }}
+            className="bg-gray-25 px-5 leading-6"
           />
           <TextArea
             aria-label="공지 내용"
@@ -278,7 +281,8 @@ export default function NoticeFormPage() {
               setContent(event.target.value)
               setSubmitError(undefined)
             }}
-            className="min-h-60"
+            showCharacterCount={false}
+            className="h-[280px] min-h-[280px] rounded-lg bg-gray-25 px-5 py-[19px] leading-6"
           />
         </div>
         {submitError && (

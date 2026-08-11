@@ -243,7 +243,7 @@ export default function ProjectFeedPage() {
               className="flex w-full items-center gap-2 px-4 py-3 text-left text-body-sm text-gray-700 hover:bg-gray-50"
             >
               <SquarePen
-                className="h-5 w-5 text-primary stroke-primary [&>path:nth-of-type(2)]:fill-current"
+                className="h-5 w-5 text-primary"
                 aria-hidden
               />
               게시글 작성
