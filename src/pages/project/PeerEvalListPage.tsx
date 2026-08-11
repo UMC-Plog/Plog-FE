@@ -2,13 +2,14 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { useNavigate, useParams } from 'react-router-dom';
 import { cn } from '../../lib/utils';
 import { fetchEvaluationTargets, fetchMySelfFeedback, type TargetMember } from '../../api/evaluation';
-import { getIntegrationActorMappings, getProjectIntegrations } from '../../api/projectApi';
+import { getIntegrationActorMappings, getProjectIntegrations, syncProjectStatus } from '../../api/projectApi';
 import { collectIntegrationData } from '../../api/integrationApi';
 import { ApiError } from '../../api/client';
 import { AlertModal } from '../../components/Modal';
 import { isCollectionFinished, type ProjectIntegrationType } from '../../types/project';
 import { PeerEvalAvatar } from '../../components/PeerEvalAvatar';
 import { isAccountCheckDone } from '../../lib/peerEvalAccountCheck';
+import { useProjectStore } from '../../store/projectStore';
 
 // actor-mappings API는 Google을 google-docs/google-slides로 분리해서 받는다.
 type AccountProvider = 'github' | 'figma' | 'notion' | 'google-docs' | 'google-slides';
@@ -105,6 +106,7 @@ export default function PeerEvalListPage() {
   const [selfDone, setSelfDone] = useState(false);
   const [loading, setLoading] = useState(true);
   const [notice, setNotice] = useState<string | null>(null);
+  const [finalSubmitting, setFinalSubmitting] = useState(false);
   const [linkedProviders, setLinkedProviders] = useState<AccountProvider[]>([]);
   // 외부 툴이 연동된 프로젝트는 계정을 선택하거나 모든 단계를 확인해야 최종 제출할 수 있다.
   // selected = 계정을 하나 이상 골라 서버에 매핑이 남음 / checked = 끝까지 진행했지만 전부 건너뜀
@@ -185,7 +187,8 @@ export default function PeerEvalListPage() {
           // 404 또는 EVAL400_3(백엔드 실제 미작성 응답) = 아직 자기 피드백을 작성하지 않은 정상 상태.
           // 그 외는 실제 조회 실패로 취급해 위 catch로 넘긴다.
           if (err instanceof ApiError && (err.status === 404 || err.code === 'EVAL400_3')) return false;
-          throw err;
+          // 자기 피드백은 선택 사항이므로 조회 실패가 필수 팀원 평가 목록까지 막지 않게 한다.
+          return false;
         }),
       getProjectIntegrations(id)
         .then((res) => ({ ok: true as const, res }))
@@ -220,7 +223,7 @@ export default function PeerEvalListPage() {
               res?.mappings.some((mapping) => mapping.projectMemberId === res.currentProjectMemberId) ??
               false
           );
-          setAccountStatus(hasMapping ? 'selected' : isAccountCheckDone(id) ? 'checked' : 'none');
+          setAccountStatus(hasMapping ? 'selected' : isAccountCheckDone(id, linked) ? 'checked' : 'none');
 
           // 수집을 시작하거나 지켜봐야 하는 경우:
           //   null    아직 한 번도 안 함        → 호출
@@ -268,7 +271,7 @@ export default function PeerEvalListPage() {
   const allDone = totalCount > 0 && doneCount === totalCount;
   const accountCheckDone = linkedProviders.length === 0 || accountStatus !== 'none';
   const canFinalSubmit =
-    !loading && !integrationsUnavailable && allDone && accountCheckDone;
+    !loading && !finalSubmitting && !integrationsUnavailable && allDone && accountCheckDone;
 
   const submitButtonLabel = !allDone
     ? '모든 평가 완료 후 제출 가능해요'
@@ -280,9 +283,18 @@ export default function PeerEvalListPage() {
           ? '내 계정 확인 후 제출 가능해요'
           : '최종 제출하기';
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!canFinalSubmit || !id) return;
-    navigate(`/project/${id}/report`, { state: { justSubmitted: true } });
+    setFinalSubmitting(true);
+    try {
+      await syncProjectStatus(id);
+      await useProjectStore.getState().fetchProjects(true).catch(() => undefined);
+      navigate(`/project/${id}/report`, { state: { justSubmitted: true } });
+    } catch (err) {
+      setNotice(err instanceof ApiError ? err.message : '최종 제출에 실패했어요. 다시 시도해 주세요.');
+    } finally {
+      setFinalSubmitting(false);
+    }
   };
 
   return (
@@ -461,7 +473,7 @@ export default function PeerEvalListPage() {
         <button
           type="button"
           disabled={!canFinalSubmit}
-          onClick={handleSubmit}
+          onClick={() => void handleSubmit()}
           className={cn(
             'w-full h-14 rounded-lg text-body font-bold transition-colors',
             canFinalSubmit
@@ -469,7 +481,7 @@ export default function PeerEvalListPage() {
               : 'bg-gray-100 text-gray-400 cursor-not-allowed',
           )}
         >
-          {submitButtonLabel}
+          {finalSubmitting ? '제출 중...' : submitButtonLabel}
         </button>
       </div>
 

@@ -192,7 +192,7 @@ export default function PeerEvalAccountSelectPage() {
       // 마지막 단계를 정상적으로 넘긴 경우에만 확인 완료로 기록한다. 전부 건너뛰면 서버에
       // 아무것도 남지 않아, 목록에서 "확인완료"를 보여주려면 이 기록이 필요하다.
       // 연동 상태 조회가 실패해 단계 목록을 모르는 채로 빠져나가는 경우(isLast=false)는 제외한다.
-      if (id && isLast) markAccountCheckDone(id);
+      if (id && isLast && linkedProviders) markAccountCheckDone(id, linkedProviders);
       navigate(`/project/${id}/peer-eval`);
     } else {
       navigate(`/project/${id}/peer-eval/accounts/${nextProvider}`);

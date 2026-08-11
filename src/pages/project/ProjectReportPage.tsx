@@ -8,6 +8,7 @@ import { useProjectStore } from '../../store/projectStore'
 import { syncProjectStatus } from '../../api/projectApi'
 import { fetchEvaluationTargets } from '../../api/evaluation'
 import { fetchReportDetail, searchReports, type ReportStatus } from '../../api/report'
+import type { ProjectStatus } from '../../types/project'
 
 // 생성은 멤버 수만큼 LLM을 호출해 수십 초가 걸린다. 초반엔 자주 확인하고 길어지면 간격을 늘린다.
 const POLL_START_MS = 3000
@@ -22,7 +23,7 @@ const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
 
 // Figma의 radius/shadow 값(12/16/18/22/11px)이 기존 디자인 토큰(sm6/md10/lg14/xl20)과
 // 맞지 않아 이 화면만 임의값으로 정확히 맞춤 — 팀 논의 후 토큰 확장 필요
-type EvaluationStatus = 'locked' | 'unlocked' | 'submitted'
+type EvaluationStatus = 'locked' | 'unlocked' | 'submitted' | 'closed'
 
 interface ReportItem {
   id: string
@@ -52,6 +53,7 @@ export default function ProjectReportPage() {
   const [isTimeoutApplied, setIsTimeoutApplied] = useState(false)
   const [loadedProjectId, setLoadedProjectId] = useState<string | null>(null)
   const [reportLoadFailed, setReportLoadFailed] = useState(false)
+  const [currentProjectStatus, setCurrentProjectStatus] = useState<ProjectStatus | null>(null)
   const [evaluationCompleted, setEvaluationCompleted] = useState(false)
   const [evaluationLoadedProjectId, setEvaluationLoadedProjectId] = useState<string | null>(null)
   const activeRef = useRef(true)
@@ -80,11 +82,31 @@ export default function ProjectReportPage() {
     if (!projectId) return
     let cancelled = false
     setReportLoadFailed(false)
+    setCurrentProjectStatus(null)
+    setIsTimeoutApplied(false)
 
     const loadReport = async () => {
       try {
+        // 진행 중 프로젝트의 리포트 탭 진입만으로 완료 전환이 일어나면 최종 제출 조건을
+        // 우회한다. 완료 전환은 Peer 평가 목록의 "최종 제출하기"에서만 요청한다.
+        if (project?.status !== 'COMPLETED') {
+          const numericProjectId = Number(projectId)
+          const searched = await searchReports({ size: 100 })
+          if (cancelled) return
+          const found = searched.content.find((item) => item.projectId === numericProjectId)
+          setCurrentProjectStatus(found ? 'COMPLETED' : (project?.status ?? null))
+          applyReport({
+            reportId: found?.reportId ?? null,
+            status: found?.reportStatus ?? null,
+            completedAt: found?.completedAt ?? null,
+          })
+          return
+        }
+
+        // 이미 완료된 프로젝트에서만 동기화 API를 조회해 타임아웃 발행 여부까지 복원한다.
         const res = await syncProjectStatus(projectId)
         if (cancelled) return
+        setCurrentProjectStatus(res.currentStatus)
         setIsTimeoutApplied(res.isTimeoutApplied)
         applyReport({ reportId: res.reportId, status: res.reportStatus })
 
@@ -110,6 +132,7 @@ export default function ProjectReportPage() {
           return
         }
         const found = fallback?.content.find((item) => item.projectId === numericProjectId)
+        setCurrentProjectStatus(found ? 'COMPLETED' : (project?.status ?? null))
         applyReport({
           reportId: found?.reportId ?? null,
           status: found?.reportStatus ?? null,
@@ -125,7 +148,7 @@ export default function ProjectReportPage() {
     return () => {
       cancelled = true
     }
-  }, [projectId, applyReport])
+  }, [projectId, project?.status, applyReport])
 
   // 리포트 생성 여부와 현재 사용자의 평가 제출 여부는 별개다. 다른 팀원이 아직 제출하지 않아
   // 리포트가 없어도, 내 평가를 모두 마쳤다면 새로고침 후에도 완료 상태를 유지한다.
@@ -134,6 +157,7 @@ export default function ProjectReportPage() {
     if (!projectId || !Number.isFinite(numericProjectId)) return
     let cancelled = false
     setEvaluationCompleted(false)
+    setEvaluationLoadedProjectId(null)
 
     void fetchEvaluationTargets(numericProjectId)
       .then((res) => {
@@ -143,8 +167,6 @@ export default function ProjectReportPage() {
         )
       })
       .catch(() => {
-        // 평가 가능 기간 전에는 대상 조회가 실패할 수 있다. 리포트 화면 전체를 오류 처리하지
-        // 않고, 평가 미완료 상태로 두어 프로젝트 일정에 맞는 시작 안내를 계속 보여준다.
         if (!cancelled) setEvaluationCompleted(false)
       })
       .finally(() => {
@@ -185,9 +207,16 @@ export default function ProjectReportPage() {
     }
   }, [reportId, reportStatus, applyReport])
 
+  // 정상 완료는 전원 제출을 의미하므로 평가 API가 프로젝트 완료 후 닫혀도 제출 상태를 복원할
+  // 수 있다. 타임아웃 완료는 미제출 사용자가 있을 수 있어 같은 추론을 적용하지 않는다.
+  const evaluationSubmitted =
+    evaluationCompleted ||
+    (currentProjectStatus === 'COMPLETED' && reportStatus !== null && !isTimeoutApplied)
   const status: EvaluationStatus =
-    evaluationCompleted
+    evaluationSubmitted
       ? 'submitted'
+      : currentProjectStatus === 'COMPLETED'
+      ? 'closed'
       : project && !isFutureDate(project.expectedEndDate)
       ? 'unlocked'
       : 'locked'
@@ -289,7 +318,7 @@ export default function ProjectReportPage() {
 
       {!isReportLoading &&
         !reportLoadFailed &&
-        status === 'submitted' &&
+        (status === 'submitted' || showSubmittedModal) &&
         (!hasReports || showSubmittedModal) && (
           <div className="flex w-full items-center gap-3.5 rounded-18 bg-gradient-to-r from-primary-500 to-aqua-500 px-5 py-[22px] shadow-cta">
             <p className="flex-1 text-body-sm font-bold tracking-[-0.4px] text-gray-25">
