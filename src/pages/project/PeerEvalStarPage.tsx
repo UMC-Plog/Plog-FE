@@ -100,6 +100,8 @@ export default function PeerEvalStarPage() {
   const [nickname, setNickname] = useState('');
   const [profilePreset, setProfilePreset] = useState<ProfilePreset | null>(null);
   const [existing, setExisting] = useState<PeerEvaluationDetailResponse | null>(null);
+  // 이미 평가한 팀원인지. 신규(POST)와 수정(PUT)을 가르는 기준이라 서버가 알려준 값을 그대로 쓴다.
+  const [evaluated, setEvaluated] = useState(false);
   const [loading, setLoading] = useState(true);
   const [loadFailed, setLoadFailed] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
@@ -112,29 +114,40 @@ export default function PeerEvalStarPage() {
 
     setLoading(true);
     setLoadFailed(false);
-    Promise.all([
-      fetchEvaluationTargets(projectId),
-      fetchPeerEvaluationDetail(projectId, targetMemberId).catch((err) => {
-        if (err instanceof ApiError && err.status === 404) return null;
-        throw err;
-      }),
-    ])
-      .then(([res, detail]) => {
+    setExisting(null);
+    setEvaluated(false);
+
+    const load = async () => {
+      try {
+        const res = await fetchEvaluationTargets(projectId);
         if (cancelled) return;
+
         const target = res.targets.find((t) => t.projectMemberId === targetMemberId);
         if (!target) throw new Error('평가 대상을 찾을 수 없습니다.');
         setNickname(target.nickname);
         setProfilePreset(target.profilePreset);
-        setExisting(detail);
-      })
-      .catch((err) => {
+        setEvaluated(target.isEvaluated);
+
+        // 평가한 적이 없으면 불러올 내역도 없다. 서버가 거부할 요청을 애초에 보내지 않는다.
+        // (예전에는 무조건 조회하고 404만 정상으로 처리했는데, 서버는 미작성을 400으로
+        //  내려줘서 첫 평가를 시작하는 경로가 통째로 막혔다.)
+        if (!target.isEvaluated) return;
+
+        // 기존 점수는 미리 채워주기 위한 것일 뿐이라, 못 받아도 빈 상태로 평가할 수 있어야 한다.
+        const detail = await fetchPeerEvaluationDetail(projectId, targetMemberId).catch(
+          () => null
+        );
+        if (!cancelled) setExisting(detail);
+      } catch (err) {
         if (cancelled) return;
         setLoadFailed(true);
         setNotice(err instanceof ApiError ? err.message : '평가 정보를 불러오지 못했어요.');
-      })
-      .finally(() => {
+      } finally {
         if (!cancelled) setLoading(false);
-      })
+      }
+    };
+
+    void load();
 
     return () => {
       cancelled = true;
@@ -180,7 +193,9 @@ export default function PeerEvalStarPage() {
         scores: ratings,
         keywords: existing?.keyword,
         feedback: existing?.feedback,
-        isExisting: Boolean(existing),
+        // 기존 점수 조회 성공 여부가 아니라 서버가 알려준 평가 이력으로 판단한다.
+        // 조회가 실패해도 이미 평가한 팀원이면 수정(PUT)이어야 한다.
+        isExisting: evaluated,
       },
     });
   };
