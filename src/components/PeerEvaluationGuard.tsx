@@ -25,14 +25,17 @@ export function PeerEvaluationGuard() {
       })
       .catch(() => {
         if (!cancelled) {
-          setVerified({ projectId: id, status: cachedProjectStatus ?? null })
+          const latestCachedStatus = useProjectStore
+            .getState()
+            .projects.find((project) => project.id === id)?.status
+          setVerified({ projectId: id, status: latestCachedStatus ?? null })
         }
       })
 
     return () => {
       cancelled = true
     }
-  }, [id, cachedProjectStatus])
+  }, [id])
 
   if (id && cachedProjectStatus === 'COMPLETED') {
     return <Navigate to={`/project/${id}/report`} replace />
@@ -40,7 +43,19 @@ export function PeerEvaluationGuard() {
 
   // 캐시가 IN_PROGRESS여도 서버는 이미 완료됐을 수 있으므로 최신 상태 확인 전에는
   // 하위 평가 화면을 렌더링하지 않는다.
-  if (!id || verified.projectId !== id) return null
+  if (!id) return null
+
+  if (verified.projectId !== id) {
+    return (
+      <div className="flex h-[calc(100dvh-env(safe-area-inset-top))] items-center justify-center bg-gray-25">
+        <span
+          className="h-9 w-9 animate-spin rounded-full border-4 border-blue-100 border-t-blue-500"
+          role="status"
+          aria-label="프로젝트 상태 확인 중"
+        />
+      </div>
+    )
+  }
 
   if (verified.status === 'COMPLETED') {
     return <Navigate to={`/project/${id}/report`} replace />
