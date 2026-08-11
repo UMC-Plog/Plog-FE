@@ -338,21 +338,25 @@ export default function ProjectChatPage() {
     const viewport = window.visualViewport;
     const chatPage = chatPageRef.current;
     if (!viewport || !chatPage) return;
-    const chatPageTop = chatPage.getBoundingClientRect().top + window.scrollY;
+    let frameId: number | null = null;
 
     const updateHeight = () => {
-      // pageTop을 포함한 실제 화면 하단과 채팅 페이지 시작점 사이의 높이를 사용한다.
-      // iOS Safari가 키보드 표시 중 문서를 위로 이동해도 입력창이 화면 하단에 유지된다.
-      const visibleBottom = viewport.pageTop + viewport.height;
-      const height = Math.max(240, visibleBottom - chatPageTop);
-      chatPage.style.height = `${height}px`;
+      if (frameId !== null) cancelAnimationFrame(frameId);
+      frameId = requestAnimationFrame(() => {
+        frameId = null;
+        // getBoundingClientRect와 visualViewport.offsetTop은 모두 layout viewport 좌표다.
+        // pageTop/window.scrollY를 섞으면 일부 iOS/PWA에서 키보드가 문서를 이동시킬 때
+        // 높이가 이중 보정되어 채팅방 전체가 화면 위로 밀린다.
+        const chatPageTop = chatPage.getBoundingClientRect().top;
+        const visibleBottom = viewport.offsetTop + viewport.height;
+        const height = Math.max(240, Math.floor(visibleBottom - chatPageTop));
+        chatPage.style.height = `${height}px`;
 
-      if (document.activeElement?.getAttribute('data-chat-input') === 'true') {
-        requestAnimationFrame(() => {
+        if (document.activeElement === textInputRef.current) {
           const container = messagesRef.current;
           if (container) container.scrollTop = container.scrollHeight;
-        });
-      }
+        }
+      });
     };
 
     updateHeight();
@@ -360,6 +364,7 @@ export default function ProjectChatPage() {
     viewport.addEventListener('scroll', updateHeight);
     window.addEventListener('orientationchange', updateHeight);
     return () => {
+      if (frameId !== null) cancelAnimationFrame(frameId);
       viewport.removeEventListener('resize', updateHeight);
       viewport.removeEventListener('scroll', updateHeight);
       window.removeEventListener('orientationchange', updateHeight);
@@ -391,6 +396,10 @@ export default function ProjectChatPage() {
     });
     setInput('');
     setPendingAttachments([]);
+    // 전송 버튼을 눌러도 iOS 키보드가 닫히지 않도록 사용자 입력 이벤트 안에서
+    // 포커스를 유지한다. 상태 반영 뒤에도 커서가 입력창에 남도록 한 번 더 확인한다.
+    textInputRef.current?.focus({ preventScroll: true });
+    requestAnimationFrame(() => textInputRef.current?.focus({ preventScroll: true }));
   }, [input, pendingAttachments, roomId]);
 
   const handleFiles = useCallback((files: File[]) => {
@@ -642,6 +651,10 @@ export default function ProjectChatPage() {
           <button
             type="submit"
             disabled={!canSend}
+            onPointerDown={(event) => {
+              // 터치 시 submit 버튼이 input의 포커스를 가져가면 iOS 키보드가 닫힌다.
+              event.preventDefault();
+            }}
             className="size-10 bg-primary rounded-md flex items-center justify-center shrink-0 text-gray-25 hover:bg-primary-600 disabled:bg-gray-200 disabled:hover:bg-gray-200 transition-colors"
             aria-label="전송"
           >
