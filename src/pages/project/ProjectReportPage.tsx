@@ -1,12 +1,20 @@
 import { Check, Crown, Info } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { AlertModal } from '../../components/Modal'
 import { cn } from '../../lib/utils'
 import { getProjectDeadline, isFutureDate } from '../../lib/projectDate'
 import { useProjectStore } from '../../store/projectStore'
-import { fetchEvaluationTargets, fetchMySelfFeedback } from '../../api/evaluation'
-import { searchReports, type ReportSearchResponse } from '../../api/report'
+import { syncProjectStatus } from '../../api/projectApi'
+import { fetchReportDetail, searchReports, type ReportStatus } from '../../api/report'
+
+// 생성은 멤버 수만큼 LLM을 호출해 수십 초가 걸린다. 초반엔 자주 확인하고 길어지면 간격을 늘린다.
+const POLL_START_MS = 3000
+const POLL_MAX_MS = 15000
+// 상한은 끝나지 않은 생성이 방치되는 것을 막는 안전장치다. 화면을 벗어나면 어차피 멈춘다.
+const POLL_TIMEOUT_MS = 10 * 60 * 1000
+
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
 
 // Figma의 radius/shadow 값(12/16/18/22/11px)이 기존 디자인 토큰(sm6/md10/lg14/xl20)과
 // 맞지 않아 이 화면만 임의값으로 정확히 맞춤 — 팀 논의 후 토큰 확장 필요
@@ -34,57 +42,106 @@ export default function ProjectReportPage() {
     state.projects.find((item) => item.id === projectId)
   )
 
-  const [evalComplete, setEvalComplete] = useState(false)
-  const [report, setReport] = useState<ReportSearchResponse | null>(null)
+  const [reportId, setReportId] = useState<number | null>(null)
+  const [reportStatus, setReportStatus] = useState<ReportStatus | null>(null)
+  const [completedAt, setCompletedAt] = useState<string | null>(null)
+  const [isTimeoutApplied, setIsTimeoutApplied] = useState(false)
+  const activeRef = useRef(true)
 
-  // Peer평가/자기피드백 전원 완료 여부와, 이미 생성된 리포트가 있는지를 실제 API로 확인한다.
-  // projectStore에 아직 이 프로젝트가 안 불러와졌어도 projectId만 유효하면 호출한다.
   useEffect(() => {
-    const numericProjectId = Number(projectId)
-    if (!Number.isFinite(numericProjectId)) return
+    activeRef.current = true
+    return () => {
+      activeRef.current = false
+    }
+  }, [])
+
+  const applyReport = useCallback(
+    (next: { reportId: number | null; status: ReportStatus | null; completedAt?: string | null }) => {
+      setReportId(next.reportId)
+      setReportStatus(next.status)
+      if (next.completedAt !== undefined) setCompletedAt(next.completedAt)
+    },
+    []
+  )
+
+  // 리포트는 프로젝트가 완료로 전환될 때 만들어지고, 그 전환을 확인해주는 게 이 API다.
+  // 전원 제출을 마지막 사람이 끝냈어도 아무도 호출하지 않으면 계속 IN_PROGRESS로 남아
+  // 리포트가 생기지 않으므로, 리포트 화면에 들어올 때마다 확인한다.
+  // 조건 미충족이면 에러가 아니라 현재 상태가 오므로 매번 불러도 안전하다.
+  useEffect(() => {
+    if (!projectId) return
     let cancelled = false
 
-    Promise.all([
-      fetchEvaluationTargets(numericProjectId),
-      fetchMySelfFeedback(numericProjectId)
-        .then(() => true)
-        .catch(() => false),
-    ])
-      .then(([targetsRes, selfDone]) => {
-        if (cancelled) return
-        const allDone =
-          targetsRes.targets.length > 0 &&
-          targetsRes.targets.every((t) => t.isEvaluated) &&
-          selfDone
-        setEvalComplete(allDone)
-      })
-      .catch(() => undefined)
-
-    // keyword 검색은 이름이 겹치는 다른 프로젝트를 잘못 집어올 수 있어 projectId로 다시 필터링한다.
-    searchReports({ size: 100 })
+    syncProjectStatus(projectId)
       .then((res) => {
-        if (!cancelled) setReport(res.content.find((item) => item.projectId === numericProjectId) ?? null)
+        if (cancelled) return
+        setIsTimeoutApplied(res.isTimeoutApplied)
+        applyReport({ reportId: res.reportId, status: res.reportStatus })
       })
-      .catch(() => undefined)
+      .catch(() => {
+        // 상태 전환에 실패해도 이미 발행된 리포트는 보여줄 수 있어야 한다.
+        if (cancelled) return
+        const numericProjectId = Number(projectId)
+        void searchReports({ size: 100 })
+          .then((res) => {
+            if (cancelled) return
+            const found = res.content.find((item) => item.projectId === numericProjectId)
+            applyReport({
+              reportId: found?.reportId ?? null,
+              status: found?.reportStatus ?? null,
+              completedAt: found?.completedAt ?? null,
+            })
+          })
+          .catch(() => undefined)
+      })
 
     return () => {
       cancelled = true
     }
-  }, [projectId])
+  }, [projectId, applyReport])
+
+  // 생성은 멤버 수만큼 LLM을 호출해 수십 초가 걸린다. 끝날 때까지 상세를 폴링한다.
+  useEffect(() => {
+    if (reportId === null || reportStatus !== 'GENERATING') return
+    let cancelled = false
+
+    const run = async () => {
+      const startedAt = Date.now()
+      let delay = POLL_START_MS
+      while (Date.now() - startedAt < POLL_TIMEOUT_MS) {
+        await sleep(delay)
+        if (cancelled || !activeRef.current) return
+
+        const detail = await fetchReportDetail(reportId).catch(() => null)
+        if (cancelled || !activeRef.current) return
+
+        if (detail && detail.status !== 'GENERATING') {
+          applyReport({ reportId, status: detail.status, completedAt: detail.completedAt })
+          return
+        }
+        delay = Math.min(Math.round(delay * 1.5), POLL_MAX_MS)
+      }
+    }
+    void run()
+
+    return () => {
+      cancelled = true
+    }
+  }, [reportId, reportStatus, applyReport])
 
   const status: EvaluationStatus =
-    evalComplete || report?.reportStatus === 'COMPLETED'
+    reportStatus !== null
       ? 'submitted'
       : project && !isFutureDate(project.expectedEndDate)
       ? 'unlocked'
       : 'locked'
 
-  const [showPublishedModal, setShowPublishedModal] = useState(false)
+  const [showSubmittedModal, setShowSubmittedModal] = useState(false)
 
-  // Peer 평가 목록에서 "최종 제출하기"로 막 넘어온 경우에만 발행 모달을 한 번 띄움
+  // Peer 평가 목록에서 "최종 제출하기"로 막 넘어온 경우에만 안내를 한 번 띄운다.
   useEffect(() => {
     if ((location.state as { justSubmitted?: boolean } | null)?.justSubmitted) {
-      setShowPublishedModal(true)
+      setShowSubmittedModal(true)
       navigate('.', { replace: true, state: null })
     }
   }, [location.state, navigate])
@@ -96,12 +153,13 @@ export default function ProjectReportPage() {
     navigate(`/project/${projectId}/peer-eval`)
   }
 
-  const submittedAt = formatReportDate(report?.completedAt ?? null)
-  const reportGenerating = status === 'submitted' && report?.reportStatus !== 'COMPLETED'
+  const submittedAt = formatReportDate(completedAt)
+  const reportGenerating = reportStatus === 'GENERATING'
+  const reportFailed = reportStatus === 'FAILED'
   const reports: ReportItem[] =
-    status === 'submitted' && report?.reportStatus === 'COMPLETED'
+    reportStatus === 'COMPLETED' && reportId !== null
       ? [
-          { id: String(report.reportId), tier: 'basic', title: `${project?.name ?? report.projectName} 기여도 분석 리포트`, createdAt: submittedAt },
+          { id: String(reportId), tier: 'basic', title: `${project?.name ?? '프로젝트'} 기여도 분석 리포트`, createdAt: submittedAt },
           { id: 'premium', tier: 'premium', title: '개인 기여도 리포트', createdAt: submittedAt, locked: true },
         ]
       : []
@@ -159,6 +217,16 @@ export default function ProjectReportPage() {
         </button>
       )}
 
+      {/* 종료일 7일 경과로 일부 미제출 상태에서 발행된 경우, 데이터가 완전하지 않다는 것을 알려야 한다 */}
+      {hasReports && isTimeoutApplied && (
+        <div className="mt-3 flex items-start gap-2 rounded-12 bg-primary-50 px-4 py-3">
+          <Info className="mt-0.5 h-4 w-4 shrink-0 text-primary-500" aria-hidden />
+          <p className="text-caption font-medium text-primary-500">
+            일부 팀원이 평가를 제출하지 않아, 제출된 평가와 수집된 활동을 기준으로 발행됐어요
+          </p>
+        </div>
+      )}
+
       {hasReports ? (
         <div className="mt-3 flex flex-col gap-3">
           {reports.map((item) => (
@@ -206,6 +274,13 @@ export default function ProjectReportPage() {
             {'모든 평가가 완료되었어요\n잠시 후 리포트가 발행됩니다'}
           </p>
         </div>
+      ) : reportFailed ? (
+        <div className="mt-[72px] flex flex-col items-center gap-4">
+          <p className="text-title font-medium text-gray-500">리포트를 생성하지 못했어요</p>
+          <p className="whitespace-pre-line text-center text-body-sm text-gray-400">
+            {'잠시 후 다시 확인해 주세요'}
+          </p>
+        </div>
       ) : (
         <div className="mt-[72px] flex flex-col items-center gap-4">
           <p className="text-title font-medium text-gray-500">아직 리포트가 없어요</p>
@@ -215,16 +290,25 @@ export default function ProjectReportPage() {
         </div>
       )}
 
+      {/* 예전에는 제출 직후 무조건 "발행되었습니다"를 띄웠는데, 실제로는 아무것도 발행되지
+          않은 경우가 대부분이었다. 실제 리포트 상태를 확인한 뒤 사실에 맞는 문구를 보여준다. */}
       <AlertModal
-        open={showPublishedModal}
+        open={showSubmittedModal}
         icon={
           <span className="flex h-[52px] w-[52px] items-center justify-center rounded-full bg-primary-100 text-primary-500">
             <Check className="h-6 w-6" strokeWidth={2.5} aria-hidden />
           </span>
         }
-        title="리포트가 발행되었습니다"
+        title={reportStatus === 'COMPLETED' ? '리포트가 발행되었습니다' : '평가를 제출했습니다'}
+        description={
+          reportStatus === 'COMPLETED'
+            ? undefined
+            : reportGenerating
+            ? '리포트를 생성하고 있어요. 잠시만 기다려 주세요.'
+            : '모든 팀원이 평가를 마치면 리포트가 발행돼요.'
+        }
         confirmText="확인"
-        onConfirm={() => setShowPublishedModal(false)}
+        onConfirm={() => setShowSubmittedModal(false)}
       />
     </div>
   )

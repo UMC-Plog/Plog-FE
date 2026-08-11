@@ -8,6 +8,7 @@ import {
   type PeerEvaluationCreateRequest,
 } from '../../api/evaluation';
 import { ApiError } from '../../api/client';
+import { syncProjectStatus } from '../../api/projectApi';
 import { AlertModal } from '../../components/Modal';
 import { PeerEvalAvatar } from '../../components/PeerEvalAvatar';
 import type { ProfilePreset } from '../../lib/profilePreset';
@@ -117,6 +118,12 @@ export default function PeerEvalKeywordPage() {
     try {
       const submit = navState.isExisting ? updatePeerEvaluation : createPeerEvaluation;
       const result = await submit(projectId, targetMemberId, body);
+
+      // 내가 팀의 마지막 제출자면 이 시점에 프로젝트가 완료되고 리포트가 만들어진다.
+      // 서버가 조건을 검증하므로 아니어도 현재 상태만 돌아오고, 실패해도 평가 제출과는
+      // 무관하므로 흐름을 막지 않는다. (종료일 7일 경과 쪽은 서버 배치가 처리한다)
+      void syncProjectStatus(id).catch(() => undefined);
+
       if (result.isNudgeTriggered) {
         setNotice({
           message: '평가 점수의 변별력이 낮아요. 다음부턴 팀원마다 다르게 평가하는 걸 고려해 주세요.',
