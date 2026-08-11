@@ -67,7 +67,7 @@ export default function BottomTabBar() {
   const location = useLocation();
   const hasUnreadChat = useNotificationBadgeStore((state) => state.hasUnreadChat);
   const refreshBadges = useNotificationBadgeStore((state) => state.refresh);
-  const isProjectHome = location.pathname === "/home";
+  const usesFixedViewport = location.pathname === "/home" || location.pathname === "/my";
 
   const isFirstRender = useRef(true);
 
@@ -95,7 +95,7 @@ export default function BottomTabBar() {
     <div
       className={cn(
         "flex flex-col bg-gray-25",
-        isProjectHome
+        usesFixedViewport
           ? "h-[calc(100dvh-env(safe-area-inset-top))] overflow-hidden"
           : "min-h-[calc(100dvh-env(safe-area-inset-top))]"
       )}
@@ -103,7 +103,7 @@ export default function BottomTabBar() {
       <main
         className={cn(
           "flex-1 bg-gray-25 pb-[calc(66px+max(22px,env(safe-area-inset-bottom)))]",
-          isProjectHome && "min-h-0 overflow-hidden"
+          usesFixedViewport && "min-h-0 overflow-hidden"
         )}
       >
         <Outlet />

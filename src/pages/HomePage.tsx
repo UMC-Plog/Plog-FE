@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Bell, FolderOpen, Plus } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "../components/Button";
@@ -62,6 +62,8 @@ export default function HomePage() {
   const hasUnreadNotification = useNotificationBadgeStore((state) => state.hasUnreadNotification);
   const [statusFilter, setStatusFilter] = useState<ProjectStatusFilterValue>("ALL");
   const [viewMode, setViewMode] = useState<ProjectViewMode>(getInitialViewMode);
+  const [isContentScrollable, setIsContentScrollable] = useState(false);
+  const scrollAreaRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     try {
@@ -78,6 +80,27 @@ export default function HomePage() {
         : projects.filter((project) => project.status === statusFilter),
     [projects, statusFilter]
   );
+
+  useEffect(() => {
+    const scrollArea = scrollAreaRef.current;
+    if (!scrollArea) return;
+
+    const updateScrollability = () => {
+      const hasOverflow = scrollArea.scrollHeight > scrollArea.clientHeight + 1;
+      setIsContentScrollable(hasOverflow);
+
+      if (!hasOverflow) {
+        scrollArea.scrollTop = 0;
+      }
+    };
+
+    updateScrollability();
+
+    const resizeObserver = new ResizeObserver(updateScrollability);
+    resizeObserver.observe(scrollArea);
+
+    return () => resizeObserver.disconnect();
+  }, [error, filteredProjects.length, isLoading, viewMode]);
 
   return (
     <div className="flex h-full min-h-0 flex-col bg-gray-25">
@@ -99,7 +122,15 @@ export default function HomePage() {
         </button>
       </header>
 
-      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain pb-6">
+      <div
+        ref={scrollAreaRef}
+        className={cn(
+          "min-h-0 flex-1 pb-6",
+          isContentScrollable
+            ? "overflow-y-auto overscroll-contain"
+            : "overflow-y-hidden overscroll-none"
+        )}
+      >
         <div className="mt-[14px] flex items-center justify-between gap-3 px-5">
           <ProjectStatusFilter value={statusFilter} onChange={setStatusFilter} />
           <ProjectViewToggle value={viewMode} onChange={setViewMode} />

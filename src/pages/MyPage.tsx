@@ -88,13 +88,13 @@ export default function MyPage() {
   }, [syncProfile]);
 
   return (
-    <div className="min-h-full bg-gray-25">
-      <header className="flex h-14 items-center gap-2 border-b border-gray-100 bg-gray-25 px-6">
+    <div className="flex h-full min-h-0 flex-col bg-gray-25">
+      <header className="flex h-14 shrink-0 items-center gap-2 border-b border-gray-100 bg-gray-25 px-6">
         <PlogMark />
         <h1 className="text-title text-gray-900">마이페이지</h1>
       </header>
 
-      <div className="px-5 pt-6">
+      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 pb-6 pt-6">
         {isLoading ? (
           <div
             className="flex h-[78px] items-center justify-center"
