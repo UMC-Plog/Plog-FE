@@ -49,6 +49,8 @@ export default function ProjectReportPage() {
   const [reportStatus, setReportStatus] = useState<ReportStatus | null>(null)
   const [completedAt, setCompletedAt] = useState<string | null>(null)
   const [isTimeoutApplied, setIsTimeoutApplied] = useState(false)
+  const [loadedProjectId, setLoadedProjectId] = useState<string | null>(null)
+  const [reportLoadFailed, setReportLoadFailed] = useState(false)
   const activeRef = useRef(true)
 
   useEffect(() => {
@@ -74,9 +76,11 @@ export default function ProjectReportPage() {
   useEffect(() => {
     if (!projectId) return
     let cancelled = false
+    setReportLoadFailed(false)
 
-    syncProjectStatus(projectId)
-      .then(async (res) => {
+    const loadReport = async () => {
+      try {
+        const res = await syncProjectStatus(projectId)
         if (cancelled) return
         setIsTimeoutApplied(res.isTimeoutApplied)
         applyReport({ reportId: res.reportId, status: res.reportStatus })
@@ -92,23 +96,28 @@ export default function ProjectReportPage() {
             completedAt: detail.completedAt,
           })
         }
-      })
-      .catch(() => {
+      } catch {
         // 상태 전환에 실패해도 이미 발행된 리포트는 보여줄 수 있어야 한다.
         if (cancelled) return
         const numericProjectId = Number(projectId)
-        void searchReports({ size: 100 })
-          .then((res) => {
-            if (cancelled) return
-            const found = res.content.find((item) => item.projectId === numericProjectId)
-            applyReport({
-              reportId: found?.reportId ?? null,
-              status: found?.reportStatus ?? null,
-              completedAt: found?.completedAt ?? null,
-            })
-          })
-          .catch(() => undefined)
-      })
+        const fallback = await searchReports({ size: 100 }).catch(() => null)
+        if (cancelled) return
+        if (!fallback) {
+          setReportLoadFailed(true)
+          return
+        }
+        const found = fallback?.content.find((item) => item.projectId === numericProjectId)
+        applyReport({
+          reportId: found?.reportId ?? null,
+          status: found?.reportStatus ?? null,
+          completedAt: found?.completedAt ?? null,
+        })
+      } finally {
+        if (!cancelled) setLoadedProjectId(projectId)
+      }
+    }
+
+    void loadReport()
 
     return () => {
       cancelled = true
@@ -169,6 +178,7 @@ export default function ProjectReportPage() {
   }
 
   const submittedAt = formatReportDate(completedAt)
+  const isReportLoading = loadedProjectId !== projectId
   const reportGenerating = reportStatus === 'GENERATING'
   const reportFailed = reportStatus === 'FAILED'
   const reports: ReportItem[] =
@@ -184,7 +194,17 @@ export default function ProjectReportPage() {
 
   return (
     <div className="min-h-[calc(100svh-theme(spacing.12)-theme(spacing.10))] bg-gray-25 px-[21px] pt-[22px] pb-6">
-      {status === 'locked' && (
+      {isReportLoading ? (
+        <div className="mt-[72px] flex flex-col items-center gap-4" role="status">
+          <span className="h-9 w-9 animate-spin rounded-full border-4 border-blue-100 border-t-blue-500" />
+          <p className="text-body-sm font-medium text-gray-400">리포트를 불러오고 있어요</p>
+        </div>
+      ) : reportLoadFailed ? (
+        <div className="mt-[72px] flex flex-col items-center gap-4" role="alert">
+          <p className="text-title font-medium text-gray-500">리포트를 불러오지 못했어요</p>
+          <p className="text-body-sm text-gray-400">잠시 후 다시 확인해 주세요</p>
+        </div>
+      ) : status === 'locked' ? (
         <div className="flex flex-col gap-3">
           <div className="flex items-center gap-3.5 rounded-18 bg-gray-50 px-5 py-[22px]">
             <div className="flex flex-1 flex-col gap-1.5">
@@ -204,9 +224,9 @@ export default function ProjectReportPage() {
             </p>
           </div>
         </div>
-      )}
+      ) : null}
 
-      {status === 'unlocked' && (
+      {!isReportLoading && !reportLoadFailed && status === 'unlocked' && (
         <button
           type="button"
           aria-label="Peer 평가 시작"
@@ -235,7 +255,7 @@ export default function ProjectReportPage() {
       )}
 
       {/* 종료일 7일 경과로 일부 미제출 상태에서 발행된 경우, 데이터가 완전하지 않다는 것을 알려야 한다 */}
-      {hasReports && isTimeoutApplied && (
+      {!isReportLoading && !reportLoadFailed && hasReports && isTimeoutApplied && (
         <div className="mt-3 flex items-start gap-2 rounded-12 bg-primary-50 px-4 py-3">
           <Info className="mt-0.5 h-4 w-4 shrink-0 text-primary-500" aria-hidden />
           <p className="text-caption font-medium text-primary-500">
@@ -244,7 +264,7 @@ export default function ProjectReportPage() {
         </div>
       )}
 
-      {hasReports ? (
+      {!isReportLoading && !reportLoadFailed && (hasReports ? (
         <div className="mt-3 flex flex-col gap-3">
           {reports.map((item) => (
             <div
@@ -305,7 +325,7 @@ export default function ProjectReportPage() {
             {'Peer 평가를 완료하면 \n기여도 리포트가 자동으로 생성됩니다'}
           </p>
         </div>
-      )}
+      ))}
 
       {/* 예전에는 제출 직후 무조건 "발행되었습니다"를 띄웠는데, 실제로는 아무것도 발행되지
           않은 경우가 대부분이었다. 실제 리포트 상태를 확인한 뒤 사실에 맞는 문구를 보여준다. */}

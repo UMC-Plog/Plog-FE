@@ -230,11 +230,11 @@ export default function PersonalReportPage() {
           title="강점 분석"
           description={`${report.ownerName}님의 강점을 AI가 분석했어요`}
         >
-          <div className="flex gap-2.5">
+          <div className="grid grid-cols-3 items-stretch gap-2.5">
             {report.strengths.map((strength) => (
               <div
                 key={strength.title}
-                className="flex h-[128px] w-[112px] shrink-0 flex-col items-center gap-2 rounded-16 border border-gray-200 px-[10px] pt-[13px] shadow-chip"
+                className="flex min-h-[128px] min-w-0 flex-col items-center gap-2 rounded-16 border border-gray-200 px-[10px] py-[13px] shadow-chip"
               >
                 <IconBox src={STRENGTH_ICONS[strength.icon]} className="size-8" />
                 <span className="text-[14px] font-bold leading-[20px] text-gray-700">

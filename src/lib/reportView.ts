@@ -76,6 +76,7 @@ export function toTeamReportView(detail: ReportDetailResponse): TeamReportView {
       : 0
 
   return {
+    reportCode: detail.reportCode,
     projectName: detail.projectName,
     publishedAt: formatReportDate(detail.completedAt),
     memberCount: detail.memberCount,
