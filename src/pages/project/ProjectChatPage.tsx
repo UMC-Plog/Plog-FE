@@ -227,7 +227,6 @@ export default function ProjectChatPage() {
   const [mentionQuery, setMentionQuery] = useState<string | null>(null);
   const [mentionStartIndex, setMentionStartIndex] = useState<number | null>(null);
   const [activeMentionIndex, setActiveMentionIndex] = useState(0);
-  const chatPageRef = useRef<HTMLDivElement>(null);
   const messagesRef = useRef<HTMLDivElement>(null);
   const textInputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -330,47 +329,6 @@ export default function ProjectChatPage() {
     const container = messagesRef.current;
     if (container) container.scrollTo({ top: container.scrollHeight, behavior: 'smooth' });
   }, [messages.length]);
-
-  // 모바일 키보드는 layout viewport가 아닌 visual viewport만 줄이는 브라우저가 있어
-  // 실제 보이는 높이를 채팅 컨테이너에 반영한다. 입력창을 fixed로 두지 않고 같은 flex
-  // 레이아웃에 포함해 키보드가 열려도 +/입력/전송 버튼이 한 줄로 유지되게 한다.
-  useEffect(() => {
-    const viewport = window.visualViewport;
-    const chatPage = chatPageRef.current;
-    if (!viewport || !chatPage) return;
-    let frameId: number | null = null;
-
-    const updateHeight = () => {
-      if (frameId !== null) cancelAnimationFrame(frameId);
-      frameId = requestAnimationFrame(() => {
-        frameId = null;
-        // getBoundingClientRect와 visualViewport.offsetTop은 모두 layout viewport 좌표다.
-        // pageTop/window.scrollY를 섞으면 일부 iOS/PWA에서 키보드가 문서를 이동시킬 때
-        // 높이가 이중 보정되어 채팅방 전체가 화면 위로 밀린다.
-        const chatPageTop = chatPage.getBoundingClientRect().top;
-        const visibleBottom = viewport.offsetTop + viewport.height;
-        const height = Math.max(240, Math.floor(visibleBottom - chatPageTop));
-        chatPage.style.height = `${height}px`;
-
-        if (document.activeElement === textInputRef.current) {
-          const container = messagesRef.current;
-          if (container) container.scrollTop = container.scrollHeight;
-        }
-      });
-    };
-
-    updateHeight();
-    viewport.addEventListener('resize', updateHeight);
-    viewport.addEventListener('scroll', updateHeight);
-    window.addEventListener('orientationchange', updateHeight);
-    return () => {
-      if (frameId !== null) cancelAnimationFrame(frameId);
-      viewport.removeEventListener('resize', updateHeight);
-      viewport.removeEventListener('scroll', updateHeight);
-      window.removeEventListener('orientationchange', updateHeight);
-      chatPage.style.removeProperty('height');
-    };
-  }, []);
 
   const handleSend = useCallback(() => {
     const text = input.trim();
@@ -499,10 +457,7 @@ export default function ProjectChatPage() {
     !hasAttachmentError;
 
   return (
-    <div
-      ref={chatPageRef}
-      className="flex h-full min-h-0 flex-col overflow-hidden bg-gray-25"
-    >
+    <div className="flex h-full min-h-0 flex-col overflow-hidden bg-gray-25">
       <div ref={messagesRef} className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4">
         <div className="flex flex-col gap-4">
           {messages.map((message, index) => {
