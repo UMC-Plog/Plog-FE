@@ -109,6 +109,9 @@ export default function PeerEvalListPage() {
   const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
   const [loading, setLoading] = useState(true);
   const [notice, setNotice] = useState<string | null>(null);
+  // 평가 자체를 시작할 수 없는 상태. null이면 정상이고, reason은 서버가 알려준 사유다
+  // (사유를 알 수 없으면 빈 문자열).
+  const [loadError, setLoadError] = useState<{ reason: string } | null>(null);
   const [finalSubmitting, setFinalSubmitting] = useState(false);
   const [linkedProviders, setLinkedProviders] = useState<AccountProvider[]>([]);
   // 외부 툴이 연동된 프로젝트는 계정을 선택하거나 모든 단계를 확인해야 최종 제출할 수 있다.
@@ -183,6 +186,7 @@ export default function PeerEvalListPage() {
     setLoading(true);
     setAccountStatus('none');
     setProgress(null);
+    setLoadError(null);
     Promise.all([
       fetchEvaluationTargets(projectId),
       getProjectIntegrations(id)
@@ -254,7 +258,10 @@ export default function PeerEvalListPage() {
       })
       .catch((err) => {
         if (!cancelled) {
-          setNotice(err instanceof ApiError ? err.message : '평가 정보를 불러오지 못했어요. 다시 시도해 주세요.');
+          // 팀원 목록을 못 받으면 이 화면에서 할 수 있는 게 없다. 예전에는 서버 문구만
+          // 모달로 띄우고 나머지는 그대로 둬서, 목록은 비었는데 자기 피드백 카드는
+          // 눌리는 반쪽짜리 화면이 남았다.
+          setLoadError({ reason: err instanceof ApiError ? err.message : '' });
         }
       })
       .finally(() => {
@@ -312,6 +319,20 @@ export default function PeerEvalListPage() {
         <span className="text-title text-gray-900">Peer 평가</span>
       </header>
 
+      {loadError ? (
+        /* 평가를 시작할 수 없으면 아래 카드들도 의미가 없다. 목록·자기 피드백·제출 버튼을
+           모두 감추고 사유만 보여준다. 서버 원문은 개발자용 문구라 보조로만 쓴다. */
+        <div
+          className="flex min-h-0 flex-1 flex-col items-center justify-center gap-3 px-8 text-center"
+          role="alert"
+        >
+          <p className="text-title font-medium text-gray-500">아직 평가를 시작할 수 없어요</p>
+          <p className="text-body-sm text-gray-400">
+            {loadError.reason || '잠시 후 다시 시도해 주세요'}
+          </p>
+        </div>
+      ) : (
+        <>
       <div className="min-h-0 flex-1 overflow-y-auto px-5 pb-6 pt-6 flex flex-col gap-4">
         {/* 제목 */}
         <div className="flex flex-col gap-2">
@@ -491,6 +512,8 @@ export default function PeerEvalListPage() {
           {finalSubmitting ? '제출 중...' : submitButtonLabel}
         </button>
       </div>
+        </>
+      )}
 
       <AlertModal open={Boolean(notice)} title={notice ?? ''} onConfirm={() => setNotice(null)} />
     </div>

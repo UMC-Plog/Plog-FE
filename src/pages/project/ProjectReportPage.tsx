@@ -3,7 +3,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { AlertModal } from '../../components/Modal'
 import { cn } from '../../lib/utils'
-import { getProjectDeadline, isFutureDate } from '../../lib/projectDate'
+import { getProjectDeadline } from '../../lib/projectDate'
 import { useProjectStore } from '../../store/projectStore'
 import { syncProjectStatus } from '../../api/projectApi'
 import { fetchEvaluationTargets } from '../../api/evaluation'
@@ -27,6 +27,12 @@ const POLL_TIMEOUT_MS = 10 * 60 * 1000
 const SHOW_PERSONAL_REPORT_CARD = false
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
+
+/** "2026-08-14" → "8월 14일". 값이 없거나 형식이 다르면 빈 문자열 */
+function formatEvaluationDeadline(value: string | undefined) {
+  const matched = value?.match(/^(\d{4})-(\d{2})-(\d{2})$/)
+  return matched ? `${Number(matched[2])}월 ${Number(matched[3])}일` : ''
+}
 
 // Figma의 radius/shadow 값(12/16/18/22/11px)이 기존 디자인 토큰(sm6/md10/lg14/xl20)과
 // 맞지 않아 이 화면만 임의값으로 정확히 맞춤 — 팀 논의 후 토큰 확장 필요
@@ -242,9 +248,12 @@ export default function ProjectReportPage() {
       ? 'submitted'
       : currentProjectStatus === 'COMPLETED'
       ? 'closed'
-      : project && !isFutureDate(project.expectedEndDate)
-      ? 'unlocked'
-      : 'locked'
+      : // 종료일과 오늘을 여기서 비교하지 않는다. 서버가 자체 기준으로 개방 여부를 판정하고
+        // 있어서 같은 규칙을 양쪽에서 계산하면 어긋나는 순간이 생기고, 그때 버튼은 열리는데
+        // 평가 API는 거부하는 상태가 된다.
+        project?.evaluationAvailable
+        ? 'unlocked'
+        : 'locked'
 
   const [showSubmittedModal, setShowSubmittedModal] = useState(false)
 
@@ -257,6 +266,8 @@ export default function ProjectReportPage() {
   }, [location.state, navigate])
 
   const deadline = project ? getProjectDeadline(project) : null
+  // 평가가 언제 마감됐는지 알려줄 때만 쓴다. 서버가 안 내려주면 문구에서 생략한다.
+  const evaluationDeadlineLabel = formatEvaluationDeadline(project?.evaluationDeadline)
 
   const handleStartEvaluation = () => {
     if (status !== 'unlocked' || !projectId) return
@@ -309,6 +320,22 @@ export default function ProjectReportPage() {
             <p className="text-caption font-medium text-primary-500">
               프로젝트 마감일부터 Peer 평가를 시작할 수 있어요
             </p>
+          </div>
+        </div>
+      ) : status === 'closed' ? (
+        /* 프로젝트가 완료됐는데 내 제출 이력을 확인할 수 없는 경우(주로 타임아웃 발행).
+           예전에는 이 상태에 대응하는 화면이 없어 상단이 통째로 비어 보였다. */
+        <div className="flex items-center gap-3.5 rounded-18 bg-gray-50 px-5 py-[22px]">
+          <div className="flex flex-1 flex-col gap-1.5">
+            <p className="text-body-sm font-semibold text-gray-400">Peer 평가가 종료되었어요</p>
+            <p className="text-caption font-medium text-gray-400">
+              {evaluationDeadlineLabel
+                ? `${evaluationDeadlineLabel}에 마감되어 더 이상 제출할 수 없어요`
+                : '프로젝트가 완료되어 더 이상 제출할 수 없어요'}
+            </p>
+          </div>
+          <div className="flex h-[46px] shrink-0 items-center rounded-12 bg-gray-100 px-[18px]">
+            <span className="text-title font-bold text-gray-400">종료</span>
           </div>
         </div>
       ) : null}

@@ -25,9 +25,9 @@ export function getDaysFromToday(date: string) {
   return Math.round((parseDateOnly(date) - parseDateOnly(toDateInputValue(new Date()))) / DAY_IN_MS);
 }
 
-export function isFutureDate(date: string) {
-  return Boolean(date) && getDaysFromToday(date) > 0;
-}
+// isFutureDate는 Peer 평가 개방 여부를 종료일로 직접 판정하는 데만 쓰였다.
+// 서버가 evaluationAvailable로 내려주는 값을 쓰기로 하면서 호출부가 없어졌고,
+// 같은 규칙을 프론트에서 다시 계산하는 일이 반복되지 않도록 함수째 지웠다.
 
 export function getProjectDeadline(project: Project) {
   const days = getDaysFromToday(project.expectedEndDate);
