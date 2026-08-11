@@ -106,7 +106,7 @@ export default function PeerEvalListPage() {
   const [loading, setLoading] = useState(true);
   const [notice, setNotice] = useState<string | null>(null);
   const [linkedProviders, setLinkedProviders] = useState<AccountProvider[]>([]);
-  // 계정 선택은 전부 건너뛸 수 있어 최종 제출 조건에는 넣지 않고, 배지 표시에만 쓴다.
+  // 외부 툴이 연동된 프로젝트는 계정을 선택하거나 모든 단계를 확인해야 최종 제출할 수 있다.
   // selected = 계정을 하나 이상 골라 서버에 매핑이 남음 / checked = 끝까지 진행했지만 전부 건너뜀
   const [accountStatus, setAccountStatus] = useState<'none' | 'checked' | 'selected'>('none');
   const [integrationsUnavailable, setIntegrationsUnavailable] = useState(false);
@@ -261,14 +261,27 @@ export default function PeerEvalListPage() {
     };
   }, [id, integrationsRetryToken, runCollection]);
 
-  // 자기 피드백과 "내 계정 선택"은 둘 다 선택 사항이라 진행률/제출 조건에서 제외한다.
-  // 팀원 평가만 전부 마치면 최종 제출할 수 있다.
+  // 자기 피드백은 선택 사항이다. 외부 툴이 연동된 경우에는 실제 계정을 선택하거나
+  // 계정 선택 단계를 끝까지 확인해야 최종 제출할 수 있다.
   const doneCount = targets.filter((t) => t.isEvaluated).length;
   const totalCount = targets.length;
   const allDone = totalCount > 0 && doneCount === totalCount;
+  const accountCheckDone = linkedProviders.length === 0 || accountStatus !== 'none';
+  const canFinalSubmit =
+    !loading && !integrationsUnavailable && allDone && accountCheckDone;
+
+  const submitButtonLabel = !allDone
+    ? '모든 평가 완료 후 제출 가능해요'
+    : loading
+      ? '연동 상태를 확인하고 있어요'
+      : integrationsUnavailable
+        ? '연동 상태 확인 후 제출 가능해요'
+        : !accountCheckDone
+          ? '내 계정 확인 후 제출 가능해요'
+          : '최종 제출하기';
 
   const handleSubmit = () => {
-    if (!allDone || !id) return;
+    if (!canFinalSubmit || !id) return;
     navigate(`/project/${id}/report`, { state: { justSubmitted: true } });
   };
 
@@ -432,7 +445,7 @@ export default function PeerEvalListPage() {
         </div>
 
         {/* 완료 상태 안내 박스 */}
-        {allDone && (
+        {canFinalSubmit && (
           <InfoBox>
             <div className="text-caption text-primary leading-5">
               <p className="font-bold">제출 전 확인사항</p>
@@ -447,16 +460,16 @@ export default function PeerEvalListPage() {
       <div className="w-full shrink-0 bg-white px-5 pb-8 pt-3">
         <button
           type="button"
-          disabled={!allDone}
+          disabled={!canFinalSubmit}
           onClick={handleSubmit}
           className={cn(
             'w-full h-14 rounded-lg text-body font-bold transition-colors',
-            allDone
+            canFinalSubmit
               ? 'bg-primary text-gray-25 hover:bg-primary-600'
               : 'bg-gray-100 text-gray-400 cursor-not-allowed',
           )}
         >
-          {allDone ? '최종 제출하기' : '모든 평가 완료 후 제출 가능해요'}
+          {submitButtonLabel}
         </button>
       </div>
 
