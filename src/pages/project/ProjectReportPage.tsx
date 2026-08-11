@@ -9,6 +9,7 @@ import { syncProjectStatus } from '../../api/projectApi'
 import { fetchEvaluationTargets } from '../../api/evaluation'
 import { fetchReportDetail, generateReport, searchReports, type ReportStatus } from '../../api/report'
 import { formatReportDate } from '../../lib/reportView'
+import { isFinalSubmitted } from '../../lib/peerEvalFinalSubmit'
 import {
   clearGenerateGuard,
   markGenerateRequested,
@@ -61,7 +62,11 @@ export default function ProjectReportPage() {
   const [loadedProjectId, setLoadedProjectId] = useState<string | null>(null)
   const [reportLoadFailed, setReportLoadFailed] = useState(false)
   const [currentProjectStatus, setCurrentProjectStatus] = useState<ProjectStatus | null>(null)
-  const [evaluationCompleted, setEvaluationCompleted] = useState(false)
+  // 평가 진행 수. 조회 전이거나 조회에 실패하면 null이다.
+  const [evaluationProgress, setEvaluationProgress] = useState<{
+    done: number
+    total: number
+  } | null>(null)
   const [evaluationLoadedProjectId, setEvaluationLoadedProjectId] = useState<string | null>(null)
   // 폴링 상한에 걸려 확인을 멈춘 상태. pollAttempt를 올리면 처음부터 다시 확인한다.
   const [pollTimedOut, setPollTimedOut] = useState(false)
@@ -160,27 +165,26 @@ export default function ProjectReportPage() {
     }
   }, [projectId, project?.status, applyReport])
 
-  // 리포트 생성 여부와 현재 사용자의 평가 제출 여부는 별개다. 다른 팀원이 아직 제출하지 않아
-  // 리포트가 없어도, 내 평가를 모두 마쳤다면 새로고침 후에도 완료 상태를 유지한다.
+  // 평가를 어디까지 했는지 확인한다. 제출 여부를 판정하려는 게 아니라 버튼 문구를
+  // "평가 시작"과 "평가 계속하기" 중에서 고르기 위한 것이다.
   useEffect(() => {
     const numericProjectId = Number(projectId)
     if (!projectId || !Number.isFinite(numericProjectId)) return
     let cancelled = false
-    setEvaluationCompleted(false)
+    setEvaluationProgress(null)
     setEvaluationLoadedProjectId(null)
 
     void fetchEvaluationTargets(numericProjectId)
       .then((res) => {
         if (cancelled) return
-        // 여기서는 Peer 평가 목록과 달리 대상이 0명인 경우를 "완료"로 보지 않는다.
-        // 아직 최종 제출하지 않은 1인 프로젝트까지 제출 완료로 보이면 평가 시작 버튼이 사라져
-        // 프로젝트를 완료할 방법이 없어진다. 그 경우는 아래 완료 상태 추론이 대신 맡는다.
-        setEvaluationCompleted(
-          res.targets.length > 0 && res.targets.every((target) => target.isEvaluated)
-        )
+        setEvaluationProgress({
+          done: res.completedPeerEvaluationCount,
+          total: res.totalPeerEvaluationCount,
+        })
       })
       .catch(() => {
-        if (!cancelled) setEvaluationCompleted(false)
+        // 평가 기간이 아니거나 이미 닫힌 경우 실패한다. 진행 상태를 모를 뿐이라 화면은 그대로 그린다.
+        if (!cancelled) setEvaluationProgress(null)
       })
       .finally(() => {
         if (!cancelled) setEvaluationLoadedProjectId(projectId)
@@ -238,10 +242,14 @@ export default function ProjectReportPage() {
     }
   }, [reportId, reportStatus, pollAttempt, applyReport])
 
-  // 정상 완료는 전원 제출을 의미하므로 평가 API가 프로젝트 완료 후 닫혀도 제출 상태를 복원할
-  // 수 있다. 타임아웃 완료는 미제출 사용자가 있을 수 있어 같은 추론을 적용하지 않는다.
+  // 최종 제출은 서버에 사용자별 기록이 남지 않아 로컬 기록으로 판정한다.
+  // 예전에는 "팀원 평가를 다 했으면 제출한 것"으로 봤는데, 내 계정 선택이 남아 아직 제출하지
+  // 못한 사람까지 완료로 처리해 평가 화면으로 돌아갈 버튼이 사라졌다.
+  //
+  // 정상 완료는 전원 제출을 의미하므로 기록이 없는 기기에서도 제출 상태를 복원할 수 있다.
+  // 타임아웃 완료는 미제출 사용자가 있을 수 있어 같은 추론을 적용하지 않는다.
   const evaluationSubmitted =
-    evaluationCompleted ||
+    (projectId ? isFinalSubmitted(projectId) : false) ||
     (currentProjectStatus === 'COMPLETED' && reportStatus !== null && !isTimeoutApplied)
   const status: EvaluationStatus =
     evaluationSubmitted
@@ -265,6 +273,9 @@ export default function ProjectReportPage() {
     }
   }, [location.state, navigate])
 
+  // 한 명이라도 평가했으면 "시작"이 아니라 "이어서 하기"다. 평가를 다 마치고 최종 제출만
+  // 남은 사람이 "평가 시작"을 보고 이미 끝났다고 오해하는 일을 막는다.
+  const evaluationInProgress = (evaluationProgress?.done ?? 0) > 0
   const deadline = project ? getProjectDeadline(project) : null
   // 평가가 언제 마감됐는지 알려줄 때만 쓴다. 서버가 안 내려주면 문구에서 생략한다.
   const evaluationDeadlineLabel = formatEvaluationDeadline(project?.evaluationDeadline)
@@ -343,14 +354,14 @@ export default function ProjectReportPage() {
       {!isReportLoading && !reportLoadFailed && status === 'unlocked' && (
         <button
           type="button"
-          aria-label="Peer 평가 시작"
+          aria-label={evaluationInProgress ? 'Peer 평가 계속하기' : 'Peer 평가 시작'}
           onClick={handleStartEvaluation}
           className="flex w-full items-center gap-3.5 rounded-18 bg-gradient-to-r from-primary-500 to-aqua-500 px-5 py-[22px] text-left shadow-cta"
         >
           <div className="flex flex-1 flex-col gap-2">
             <div className="flex items-center gap-2">
               <p className="text-body-sm font-bold tracking-[-0.4px] text-gray-25">
-                Peer 평가를 시작하세요
+                {evaluationInProgress ? 'Peer 평가를 이어서 해주세요' : 'Peer 평가를 시작하세요'}
               </p>
               {deadline && (
                 <span className="flex h-[18px] w-10 items-center justify-center rounded-full bg-primary-100 text-[10px] font-bold text-navy-700">
@@ -362,8 +373,8 @@ export default function ProjectReportPage() {
               AI 리포트 생성을 위해 평가가 필요해요
             </p>
           </div>
-          <span className="flex h-[46px] shrink-0 items-center rounded-12 bg-gray-25 px-[18px] text-title font-bold text-navy-700">
-            평가 시작
+          <span className="flex h-[46px] shrink-0 items-center whitespace-nowrap rounded-12 bg-gray-25 px-[18px] text-title font-bold text-navy-700">
+            {evaluationInProgress ? '이어서 하기' : '평가 시작'}
           </span>
         </button>
       )}
@@ -461,7 +472,7 @@ export default function ProjectReportPage() {
             {'자동으로 다시 생성되지는 않아요\n문제가 계속되면 문의해 주세요'}
           </p>
         </div>
-      ) : evaluationCompleted ? (
+      ) : evaluationSubmitted ? (
         <div className="mt-[72px] flex flex-col items-center gap-4">
           <p className="text-title font-medium text-gray-500">리포트 발행을 기다리고 있어요</p>
           <p className="whitespace-pre-line text-center text-body-sm text-gray-400">
