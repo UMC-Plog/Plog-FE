@@ -9,6 +9,7 @@ import { AlertModal } from '../../components/Modal';
 import { isCollectionFinished, type ProjectIntegrationType } from '../../types/project';
 import { PeerEvalAvatar } from '../../components/PeerEvalAvatar';
 import { isAccountCheckDone } from '../../lib/peerEvalAccountCheck';
+import { markFinalSubmitted } from '../../lib/peerEvalFinalSubmit';
 import { useProjectStore } from '../../store/projectStore';
 
 // actor-mappings API는 Google을 google-docs/google-slides로 분리해서 받는다.
@@ -313,6 +314,9 @@ export default function PeerEvalListPage() {
     setFinalSubmitting(true);
     try {
       await syncProjectStatus(id);
+      // 서버는 사용자별 제출 이력을 남기지 않는다. 리포트 화면이 제출 여부를 추측하지 않도록
+      // 실제로 눌렀다는 사실을 여기서 기록한다.
+      markFinalSubmitted(id);
       await useProjectStore.getState().fetchProjects(true).catch(() => undefined);
       navigate(`/project/${id}/report`, { state: { justSubmitted: true } });
     } catch (err) {
