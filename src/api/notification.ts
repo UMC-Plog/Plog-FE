@@ -59,3 +59,12 @@ export function fetchNotifications(params: { page?: number; size?: number } = {}
 
   return apiRequest<NotificationPageResponse>(`/api/notifications?${searchParams.toString()}`)
 }
+
+// 응답 본문은 쓰지 않는다. 화면은 이미 로컬 상태를 갱신하고, 정확한 값은 다음 조회에서 맞춰진다.
+export function markNotificationAsRead(notificationId: number) {
+  return apiRequest<unknown>(`/api/notifications/${notificationId}/read`, { method: 'PATCH' })
+}
+
+export function markAllNotificationsAsRead() {
+  return apiRequest<unknown>('/api/notifications/read-all', { method: 'PATCH' })
+}
