@@ -54,7 +54,6 @@ export default function ProjectReportPage() {
   const [reportLoadFailed, setReportLoadFailed] = useState(false)
   const [evaluationCompleted, setEvaluationCompleted] = useState(false)
   const [evaluationLoadedProjectId, setEvaluationLoadedProjectId] = useState<string | null>(null)
-  const [evaluationLoadFailed, setEvaluationLoadFailed] = useState(false)
   const activeRef = useRef(true)
 
   useEffect(() => {
@@ -134,7 +133,7 @@ export default function ProjectReportPage() {
     const numericProjectId = Number(projectId)
     if (!projectId || !Number.isFinite(numericProjectId)) return
     let cancelled = false
-    setEvaluationLoadFailed(false)
+    setEvaluationCompleted(false)
 
     void fetchEvaluationTargets(numericProjectId)
       .then((res) => {
@@ -144,7 +143,9 @@ export default function ProjectReportPage() {
         )
       })
       .catch(() => {
-        if (!cancelled) setEvaluationLoadFailed(true)
+        // 평가 가능 기간 전에는 대상 조회가 실패할 수 있다. 리포트 화면 전체를 오류 처리하지
+        // 않고, 평가 미완료 상태로 두어 프로젝트 일정에 맞는 시작 안내를 계속 보여준다.
+        if (!cancelled) setEvaluationCompleted(false)
       })
       .finally(() => {
         if (!cancelled) setEvaluationLoadedProjectId(projectId)
@@ -185,7 +186,7 @@ export default function ProjectReportPage() {
   }, [reportId, reportStatus, applyReport])
 
   const status: EvaluationStatus =
-    reportStatus !== null || evaluationCompleted
+    evaluationCompleted
       ? 'submitted'
       : project && !isFutureDate(project.expectedEndDate)
       ? 'unlocked'
@@ -211,7 +212,6 @@ export default function ProjectReportPage() {
   const submittedAt = formatReportDate(completedAt)
   const isReportLoading =
     loadedProjectId !== projectId || evaluationLoadedProjectId !== projectId
-  const pageLoadFailed = reportLoadFailed || (reportStatus === null && evaluationLoadFailed)
   const reportGenerating = reportStatus === 'GENERATING'
   const reportFailed = reportStatus === 'FAILED'
   const reports: ReportItem[] =
@@ -232,7 +232,7 @@ export default function ProjectReportPage() {
           <span className="h-9 w-9 animate-spin rounded-full border-4 border-blue-100 border-t-blue-500" />
           <p className="text-body-sm font-medium text-gray-400">리포트를 불러오고 있어요</p>
         </div>
-      ) : pageLoadFailed ? (
+      ) : reportLoadFailed ? (
         <div className="mt-[72px] flex flex-col items-center gap-4" role="alert">
           <p className="text-title font-medium text-gray-500">리포트를 불러오지 못했어요</p>
           <p className="text-body-sm text-gray-400">잠시 후 다시 확인해 주세요</p>
@@ -259,7 +259,7 @@ export default function ProjectReportPage() {
         </div>
       ) : null}
 
-      {!isReportLoading && !pageLoadFailed && status === 'unlocked' && (
+      {!isReportLoading && !reportLoadFailed && status === 'unlocked' && (
         <button
           type="button"
           aria-label="Peer 평가 시작"
@@ -288,7 +288,7 @@ export default function ProjectReportPage() {
       )}
 
       {!isReportLoading &&
-        !pageLoadFailed &&
+        !reportLoadFailed &&
         status === 'submitted' &&
         (!hasReports || showSubmittedModal) && (
           <div className="flex w-full items-center gap-3.5 rounded-18 bg-gradient-to-r from-primary-500 to-aqua-500 px-5 py-[22px] shadow-cta">
@@ -302,7 +302,7 @@ export default function ProjectReportPage() {
         )}
 
       {/* 종료일 7일 경과로 일부 미제출 상태에서 발행된 경우, 데이터가 완전하지 않다는 것을 알려야 한다 */}
-      {!isReportLoading && !pageLoadFailed && hasReports && isTimeoutApplied && (
+      {!isReportLoading && !reportLoadFailed && hasReports && isTimeoutApplied && (
         <div className="mt-3 flex items-start gap-2 rounded-12 bg-primary-50 px-4 py-3">
           <Info className="mt-0.5 h-4 w-4 shrink-0 text-primary-500" aria-hidden />
           <p className="text-caption font-medium text-primary-500">
@@ -311,7 +311,7 @@ export default function ProjectReportPage() {
         </div>
       )}
 
-      {!isReportLoading && !pageLoadFailed && (hasReports ? (
+      {!isReportLoading && !reportLoadFailed && (hasReports ? (
         <div className="mt-3 flex flex-col gap-3">
           {reports.map((item) => (
             <div
