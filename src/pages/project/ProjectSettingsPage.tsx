@@ -225,6 +225,7 @@ export function ProjectSettingsPage() {
   const { id = "" } = useParams();
   const navigate = useNavigate();
   const fetchProjects = useProjectStore((state) => state.fetchProjects);
+  const updateProject = useProjectStore((state) => state.updateProject);
   const removeProject = useProjectStore((state) => state.removeProject);
   const [settings, setSettings] = useState<ProjectSettingsResponse | null>(null);
   const [integrationLinks, setIntegrationLinks] = useState<
@@ -348,14 +349,31 @@ export function ProjectSettingsPage() {
     setIsSaving(true);
     setError(null);
     try {
-      await updateProjectSettings(id, {
+      const updatedSettings = await updateProjectSettings(id, {
         projectName: trimmedName,
         projectType: toApiProjectType(type),
         endDay: `${year}-${month}-${day}`,
       });
-      const refreshedSettings = await getProjectSettings(id);
-      applySettings(refreshedSettings);
-      await fetchProjects(true);
+
+      updateProject(id, {
+        name: updatedSettings.projectName,
+        type: toUiProjectType(updatedSettings.projectType),
+        expectedEndDate: updatedSettings.endDay,
+      });
+      setSettings((current) =>
+        current
+          ? {
+              ...current,
+              projectName: updatedSettings.projectName,
+              projectType: updatedSettings.projectType,
+              endDay: updatedSettings.endDay,
+              updatedAt: updatedSettings.updatedAt,
+            }
+          : current
+      );
+
+      // 저장 결과는 이미 로컬에 반영됐다. 목록 동기화 실패는 공통 로더가 다음 진입 때 재시도한다.
+      void fetchProjects(true).catch(() => undefined);
       navigate(`/project/${id}/feed`);
     } catch (saveError) {
       setError(getErrorMessage(saveError));

@@ -14,6 +14,7 @@ interface ProjectState {
   hasFetched: boolean;
   error: string | null;
   fetchProjects: (force?: boolean) => Promise<void>;
+  updateProject: (projectId: string, changes: Partial<Pick<Project, "expectedEndDate" | "name" | "type">>) => void;
   createProject: (request: CreateProjectRequest) => Promise<CreatedProject>;
   removeProject: (projectId: string) => void;
   reset: () => void;
@@ -21,6 +22,25 @@ interface ProjectState {
 
 let fetchPromise: Promise<void> | null = null;
 let requestGeneration = 0;
+type ProjectChanges = Partial<Pick<Project, "expectedEndDate" | "name" | "type">>;
+const pendingProjectChanges = new Map<string, ProjectChanges>();
+
+function mergePendingProjectChanges(projects: Project[]) {
+  return projects.map((project) => {
+    const changes = pendingProjectChanges.get(project.id);
+    if (!changes) return project;
+
+    const hasReachedServer = Object.entries(changes).every(
+      ([key, value]) => project[key as keyof ProjectChanges] === value
+    );
+    if (hasReachedServer) {
+      pendingProjectChanges.delete(project.id);
+      return project;
+    }
+
+    return { ...project, ...changes };
+  });
+}
 
 function getErrorMessage(error: unknown) {
   return error instanceof ApiError
@@ -40,7 +60,9 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     set({ isLoading: true, hasFetched: false, error: null });
     const currentPromise = getProjects()
       .then((projects) => {
-        if (generation === requestGeneration) set({ projects, hasFetched: true });
+        if (generation === requestGeneration) {
+          set({ projects: mergePendingProjectChanges(projects), hasFetched: true });
+        }
       })
       .catch((error: unknown) => {
         if (generation === requestGeneration) set({ error: getErrorMessage(error) });
@@ -55,6 +77,17 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
 
     fetchPromise = currentPromise;
     return fetchPromise;
+  },
+  updateProject: (projectId, changes) => {
+    pendingProjectChanges.set(projectId, {
+      ...pendingProjectChanges.get(projectId),
+      ...changes,
+    });
+    set((state) => ({
+      projects: state.projects.map((project) =>
+        project.id === projectId ? { ...project, ...changes } : project
+      ),
+    }));
   },
   createProject: async (request) => {
     set({ error: null });
@@ -86,6 +119,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
   },
   // 나가기 성공 직후 목록 조회가 실패해도 나간 프로젝트가 남아 보이지 않도록 로컬에서 먼저 제거한다.
   removeProject: (projectId) => {
+    pendingProjectChanges.delete(projectId);
     set((state) => ({
       projects: state.projects.filter((project) => project.id !== projectId),
     }));
@@ -93,6 +127,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
   reset: () => {
     requestGeneration += 1;
     fetchPromise = null;
+    pendingProjectChanges.clear();
     set({
       projects: [],
       isLoading: false,
