@@ -1,11 +1,13 @@
 import {
   FileText,
+  Folder,
   Image,
   Link as LinkIcon,
   Paperclip,
   RotateCcw,
   X,
 } from 'lucide-react'
+import figmaIcon from '../../assets/integrations/figma.svg'
 import {
   useCallback,
   useEffect,
@@ -419,23 +421,23 @@ export function AttachmentPicker({
       )}
 
       {isPostVariant && (
-        <div className="flex items-center gap-5 border-b border-gray-200 pb-3">
+        <div className="mx-[14px] flex h-9 items-center gap-[27px] border-b border-gray-200">
           <button
             type="button"
             disabled={disabled || atLimit}
             onClick={openFilePicker}
-            className="inline-flex items-center gap-1.5 text-body-sm text-gray-500 hover:text-gray-700 disabled:text-gray-300"
+            className="inline-flex items-center gap-2 text-caption font-normal leading-4 text-gray-500 hover:text-gray-700 disabled:text-gray-300"
           >
-            <Paperclip className="h-4 w-4" aria-hidden />
+            <Folder className="h-3 w-3" aria-hidden />
             파일 및 이미지
           </button>
           <button
             type="button"
             disabled={disabled || atLimit}
             onClick={openLinkModal}
-            className="inline-flex items-center gap-1.5 text-body-sm text-gray-500 hover:text-gray-700 disabled:text-gray-300"
+            className="inline-flex items-center gap-2 text-caption font-normal leading-4 text-gray-500 hover:text-gray-700 disabled:text-gray-300"
           >
-            <LinkIcon className="h-4 w-4" aria-hidden />
+            <LinkIcon className="h-2.5 w-2.5" aria-hidden />
             링크
           </button>
         </div>
@@ -444,7 +446,7 @@ export function AttachmentPicker({
       {value.length > 0 && (
         <ul
           className={`${
-            isPostVariant ? 'mt-4' : isTaskVariant ? '' : 'mt-2'
+            isPostVariant ? 'mt-5' : isTaskVariant ? '' : 'mt-2'
           } flex flex-col gap-2`}
         >
           {value.map((draft) => {
@@ -452,6 +454,7 @@ export function AttachmentPicker({
             const isNewFile = isFile && draft.source === 'NEW'
             const isUploading = isNewFile && draft.status === 'UPLOADING'
             const isFailed = isNewFile && draft.status === 'ERROR'
+            const isFigmaFile = isFile && /\.fig$/i.test(draft.fileName)
             const Icon = isFile
               ? isStyledCardVariant && isImageAttachment(draft)
                 ? Image
@@ -463,25 +466,37 @@ export function AttachmentPicker({
                 key={draft.localId}
                 className={
                   isPostVariant
-                    ? 'rounded-md bg-gray-50 px-3 py-3'
+                    ? 'min-h-14 rounded-12 bg-gray-100 px-3 py-[10px]'
                     : isTaskVariant
                       ? 'rounded-md bg-gray-100 px-3 py-3'
                     : 'rounded-md border border-gray-200 bg-white p-3'
                 }
               >
                 <div className="flex items-center gap-2">
-                  <Icon className="h-4 w-4 shrink-0 text-primary" aria-hidden />
+                  {isPostVariant ? (
+                    isFigmaFile ? (
+                      <img src={figmaIcon} alt="" className="h-9 w-9 shrink-0" />
+                    ) : (
+                      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-white">
+                        <Icon className="h-4 w-4 text-primary" aria-hidden />
+                      </span>
+                    )
+                  ) : (
+                    <Icon className="h-4 w-4 shrink-0 text-primary" aria-hidden />
+                  )}
                   <span
-                    className={`min-w-0 flex-1 truncate text-body-sm ${
-                      isStyledCardVariant
-                        ? 'text-blue-600'
+                    className={`min-w-0 flex-1 truncate ${
+                      isPostVariant
+                        ? 'text-caption font-normal leading-4 text-navy-700'
+                        : isStyledCardVariant
+                          ? 'text-body-sm text-blue-600'
                         : 'text-gray-700'
                     }`}
                   >
                     {draft.fileName}
                   </span>
                   {isFile && draft.fileSize !== undefined && (
-                    <span className="shrink-0 text-caption font-normal text-gray-400">
+                    <span className="shrink-0 text-caption font-normal leading-4 text-gray-400">
                       {formatFileSize(draft.fileSize)}
                     </span>
                   )}
@@ -507,7 +522,7 @@ export function AttachmentPicker({
                   </button>
                 </div>
 
-                {isNewFile && (
+                {isNewFile && (!isPostVariant || isUploading || isFailed) && (
                   <div className="mt-1.5 flex items-center justify-between gap-2 pl-6">
                     <span
                       className={`text-caption font-normal ${
