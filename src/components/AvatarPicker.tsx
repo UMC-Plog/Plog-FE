@@ -89,7 +89,7 @@ export function AvatarPicker({
         className={cn(
           "grid justify-items-center",
           size === "profile-edit"
-            ? "w-full grid-cols-[repeat(4,74px)] gap-x-[22px] gap-y-4"
+            ? "w-full grid-cols-4 gap-x-[clamp(8px,5vw,22px)] gap-y-4"
             : "grid-cols-4 gap-3"
         )}
       >
@@ -102,7 +102,7 @@ export function AvatarPicker({
             className={cn(
               "flex items-center justify-center overflow-hidden rounded-full transition-all",
               size === "profile-edit"
-                ? "h-[72px] w-[74px]"
+                ? "aspect-square w-full max-w-[74px]"
                 : size === "lg"
                   ? "h-16 w-16"
                   : "h-14 w-14",

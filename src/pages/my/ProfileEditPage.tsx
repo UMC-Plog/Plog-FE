@@ -299,7 +299,7 @@ export function ProfileEditPage() {
                 value={realName}
                 onChange={(event) => setRealName(event.target.value)}
                 locked={!nameChangeAvailable || !nameEditing}
-                className="h-14 w-[354px] rounded-lg bg-white text-gray-900 disabled:text-gray-900"
+                className="h-14 w-full rounded-lg bg-white text-gray-900 disabled:text-gray-900"
                 suffix={
                   <Button
                     type="button"
@@ -322,7 +322,7 @@ export function ProfileEditPage() {
               onChange={(event) => handleNicknameChange(event.target.value)}
               errorText={nicknameError}
               successText={nicknameSuccess}
-              className="h-14 w-[354px] rounded-lg"
+              className="h-14 w-full rounded-lg"
               suffix={
                 <Button
                   type="button"
