@@ -29,17 +29,6 @@ body {
   box-sizing: border-box;
 }
 
-/* iOS 홈 화면(standalone)에서는 viewport-fit=cover로 확장된 상단 안전 영역을 확보한다. */
-@media (display-mode: standalone) {
-  #root {
-    padding-top: env(safe-area-inset-top);
-  }
-
-  .app-shell {
-    min-height: calc(100dvh - env(safe-area-inset-top));
-  }
-}
-
 /* 인증/온보딩 화면 공통 모바일 셸 (성재 담당 컴포넌트에서 사용) */
 .app-shell {
   max-width: theme("maxWidth.mobile");
@@ -50,6 +39,17 @@ body {
   display: flex;
   flex-direction: column;
   position: relative;
+}
+
+/* iOS 홈 화면(standalone)에서는 viewport-fit=cover로 확장된 상단 안전 영역을 확보한다. */
+@media (display-mode: standalone) {
+  #root {
+    padding-top: env(safe-area-inset-top);
+  }
+
+  .app-shell {
+    min-height: calc(100dvh - env(safe-area-inset-top));
+  }
 }
 
 .notion-selection-scroll {
