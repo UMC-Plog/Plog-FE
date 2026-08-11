@@ -4,12 +4,23 @@
 // 서버에 아무 흔적도 남지 않아 "아직 안 들어가봤음"과 구분할 수 없다. 배지 표시 용도라서
 // 로컬에 기록해 두는 것으로 충분하다고 보고, 기기가 바뀌면 다시 "연결하기"로 보이는 것은 감수한다.
 
+import { useAuthStore } from '../store/authStore'
+
 const KEY_PREFIX = 'plog-account-check-'
 
-export function markAccountCheckDone(projectId: string) {
-  window.localStorage.setItem(`${KEY_PREFIX}${projectId}`, 'true')
+function getKey(projectId: string) {
+  const userId = useAuthStore.getState().user?.id ?? 'anonymous'
+  return `${KEY_PREFIX}${userId}-${projectId}`
 }
 
-export function isAccountCheckDone(projectId: string) {
-  return window.localStorage.getItem(`${KEY_PREFIX}${projectId}`) === 'true'
+function getProviderSignature(providers: readonly string[]) {
+  return [...providers].sort().join(',')
+}
+
+export function markAccountCheckDone(projectId: string, providers: readonly string[]) {
+  window.localStorage.setItem(getKey(projectId), getProviderSignature(providers))
+}
+
+export function isAccountCheckDone(projectId: string, providers: readonly string[]) {
+  return window.localStorage.getItem(getKey(projectId)) === getProviderSignature(providers)
 }

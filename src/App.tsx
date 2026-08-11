@@ -42,6 +42,7 @@ import { ProjectInvitationPage } from './pages/project/ProjectInvitationPage'
 import NotificationPage from './pages/NotificationPage'
 import { PushNotificationManager } from './components/PushNotificationManager'
 import { IntegrationCallbackPage } from './pages/project/IntegrationCallbackPage'
+import { PeerEvaluationGuard } from './components/PeerEvaluationGuard'
 
 function App() {
   return (
@@ -83,11 +84,13 @@ function App() {
         <Route path="/project/:id/settings/integrations/:provider" element={<IntegrationConnectionPage />} />
 
           {/* Peer 평가 플로우 — ProjectTabBar 밖 독립 화면 */}
-          <Route path="/project/:id/peer-eval" element={<PeerEvalListPage />} />
-          <Route path="/project/:id/peer-eval/self" element={<SelfFeedbackPage />} />
-          <Route path="/project/:id/peer-eval/accounts/:provider" element={<PeerEvalAccountSelectPage />} />
-          <Route path="/project/:id/peer-eval/:memberId/star" element={<PeerEvalStarPage />} />
-          <Route path="/project/:id/peer-eval/:memberId/keyword" element={<PeerEvalKeywordPage />} />
+          <Route path="/project/:id/peer-eval" element={<PeerEvaluationGuard />}>
+            <Route index element={<PeerEvalListPage />} />
+            <Route path="self" element={<SelfFeedbackPage />} />
+            <Route path="accounts/:provider" element={<PeerEvalAccountSelectPage />} />
+            <Route path=":memberId/star" element={<PeerEvalStarPage />} />
+            <Route path=":memberId/keyword" element={<PeerEvalKeywordPage />} />
+          </Route>
 
           {/* 발행된 리포트 상세 — 자체 헤더/하단탭을 가진 독립 화면 */}
           <Route path="/project/:id/report/team" element={<TeamReportPage />} />

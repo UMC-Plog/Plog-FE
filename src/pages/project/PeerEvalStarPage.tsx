@@ -4,6 +4,8 @@ import { cn } from '../../lib/utils';
 import { fetchEvaluationTargets, fetchPeerEvaluationDetail, type PeerEvaluationDetailResponse } from '../../api/evaluation';
 import { PeerEvalAvatar } from '../../components/PeerEvalAvatar';
 import type { ProfilePreset } from '../../lib/profilePreset';
+import { ApiError } from '../../api/client';
+import { AlertModal } from '../../components/Modal';
 
 const CATEGORIES = [
   { id: 'collaborationScore', label: '협업 태도', sub: '소통 방식, 팀 분위기 기여도' },
@@ -98,6 +100,9 @@ export default function PeerEvalStarPage() {
   const [nickname, setNickname] = useState('');
   const [profilePreset, setProfilePreset] = useState<ProfilePreset | null>(null);
   const [existing, setExisting] = useState<PeerEvaluationDetailResponse | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [loadFailed, setLoadFailed] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
 
   useEffect(() => {
     const projectId = Number(id);
@@ -105,22 +110,31 @@ export default function PeerEvalStarPage() {
     if (!Number.isFinite(projectId) || !Number.isFinite(targetMemberId)) return;
     let cancelled = false;
 
-    fetchEvaluationTargets(projectId)
-      .then((res) => {
+    setLoading(true);
+    setLoadFailed(false);
+    Promise.all([
+      fetchEvaluationTargets(projectId),
+      fetchPeerEvaluationDetail(projectId, targetMemberId).catch((err) => {
+        if (err instanceof ApiError && err.status === 404) return null;
+        throw err;
+      }),
+    ])
+      .then(([res, detail]) => {
         if (cancelled) return;
         const target = res.targets.find((t) => t.projectMemberId === targetMemberId);
-        if (target) {
-          setNickname(target.nickname);
-          setProfilePreset(target.profilePreset);
-        }
+        if (!target) throw new Error('평가 대상을 찾을 수 없습니다.');
+        setNickname(target.nickname);
+        setProfilePreset(target.profilePreset);
+        setExisting(detail);
       })
-      .catch(() => undefined);
-
-    fetchPeerEvaluationDetail(projectId, targetMemberId)
-      .then((detail) => {
-        if (!cancelled) setExisting(detail);
+      .catch((err) => {
+        if (cancelled) return;
+        setLoadFailed(true);
+        setNotice(err instanceof ApiError ? err.message : '평가 정보를 불러오지 못했어요.');
       })
-      .catch(() => undefined);
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      })
 
     return () => {
       cancelled = true;
@@ -153,7 +167,7 @@ export default function PeerEvalStarPage() {
   }, [ratings]);
 
   const showNudge = allRated && allSame;
-  const canProceed = allRated;
+  const canProceed = allRated && !loading && !loadFailed;
 
   const setRating = (categoryId: string, value: number) => {
     setRatings((prev) => ({ ...prev, [categoryId]: value }));
@@ -246,6 +260,15 @@ export default function PeerEvalStarPage() {
           다음
         </button>
       </div>
+
+      <AlertModal
+        open={Boolean(notice)}
+        title={notice ?? ''}
+        onConfirm={() => {
+          setNotice(null);
+          if (loadFailed) navigate(`/project/${id}/peer-eval`, { replace: true });
+        }}
+      />
     </div>
   );
 }
