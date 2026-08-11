@@ -124,7 +124,10 @@ export default function BottomTabBar() {
               >
                 <span className="relative inline-flex">
                   <Icon />
-                  <NotificationDot show={to === "/chat" && hasUnreadChat} />
+                  <NotificationDot
+                    show={to === "/chat" && hasUnreadChat}
+                    className="top-[1px] right-[-1px]"
+                  />
                 </span>
                 {label}
               </NavLink>
