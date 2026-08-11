@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { cn } from '../../../lib/utils';
 import { PeerEvalAvatar } from '../../../components/PeerEvalAvatar';
+import { AlertModal } from '../../../components/Modal';
 import {
   ReportAiNote,
   ReportDonut,
@@ -15,7 +16,8 @@ import {
   ReportTabBar,
   type ReportTab,
 } from '../../../components/report/ReportChrome';
-import { fetchReportDetail, findProjectReport } from '../../../api/report';
+import { fetchReportDetail, fetchReportPdfDownloadUrl, findProjectReport } from '../../../api/report';
+import { ApiError } from '../../../api/client';
 import { toTeamReportView } from '../../../lib/reportView';
 import type { TeamReportView } from '../../../lib/reportViewTypes';
 import starIcon from '../../../assets/report/star.svg';
@@ -25,19 +27,24 @@ import warningIcon from '../../../assets/report/warning.svg';
 const TABLE_GRID = 'grid grid-cols-[1.6fr_1fr_1fr_1fr_1.1fr]';
 // 이 비율 미만이면 경고 색으로 표시하고 하단 경고 문구에 포함한다
 const RATE_WARNING_THRESHOLD = 80;
+const reportCache = new Map<string, { reportId: number; report: TeamReportView }>();
 
 const rateTone = (rate: number) => (rate >= RATE_WARNING_THRESHOLD ? 'text-success' : 'text-error');
 
 export default function TeamReportPage() {
   const { id: projectId } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const [report, setReport] = useState<TeamReportView | null>(null);
+  const cached = projectId ? reportCache.get(projectId) : undefined;
+  const [report, setReport] = useState<TeamReportView | null>(cached?.report ?? null);
+  const [reportId, setReportId] = useState<number | null>(cached?.reportId ?? null);
   const [loadError, setLoadError] = useState(false);
+  const [isDownloading, setIsDownloading] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
 
   // 화면은 projectId만 알고 들어오므로 리포트를 먼저 찾고 상세를 받아온다.
   useEffect(() => {
     const numericProjectId = Number(projectId);
-    if (!Number.isFinite(numericProjectId)) return;
+    if (!projectId || !Number.isFinite(numericProjectId)) return;
     let cancelled = false;
 
     findProjectReport(numericProjectId)
@@ -47,7 +54,11 @@ export default function TeamReportPage() {
         return fetchReportDetail(found.reportId);
       })
       .then((detail) => {
-        if (!cancelled) setReport(toTeamReportView(detail));
+        if (cancelled) return;
+        const view = toTeamReportView(detail);
+        reportCache.set(projectId, { reportId: detail.reportId, report: view });
+        setReportId(detail.reportId);
+        setReport(view);
       })
       .catch(() => {
         if (!cancelled) setLoadError(true);
@@ -65,10 +76,25 @@ export default function TeamReportPage() {
     if (tab === 'personal') navigate(`/project/${projectId}/report/personal`);
   };
 
+  const handleBack = () => navigate(`/project/${projectId}/report`, { replace: true });
+
+  const handleDownload = async () => {
+    if (!reportId || isDownloading) return;
+    setIsDownloading(true);
+    try {
+      const { downloadUrl } = await fetchReportPdfDownloadUrl(reportId);
+      window.location.assign(downloadUrl);
+    } catch (error) {
+      setNotice(error instanceof ApiError ? error.message : '리포트 다운로드에 실패했어요. 다시 시도해 주세요.');
+    } finally {
+      setIsDownloading(false);
+    }
+  };
+
   if (!report) {
     return (
-      <div className="flex min-h-svh flex-col bg-gray-25">
-        <ReportHeader />
+      <div className="flex h-dvh min-h-0 flex-col overflow-hidden bg-gray-25">
+        <ReportHeader title="팀 리포트" onBack={handleBack} />
         <div className="flex flex-1 flex-col items-center justify-center gap-3 px-5">
           <p className="text-title font-medium text-gray-500">
             {loadError ? '리포트를 불러오지 못했어요' : '리포트를 불러오는 중...'}
@@ -86,7 +112,12 @@ export default function TeamReportPage() {
 
   return (
     <div className="flex min-h-svh flex-col bg-gray-25">
-      <ReportHeader />
+      <ReportHeader
+        title="팀 리포트"
+        onBack={handleBack}
+        onDownload={handleDownload}
+        downloadDisabled={!reportId || isDownloading}
+      />
 
       <ReportHero
         label="PROJECT REPORT"
@@ -306,6 +337,11 @@ export default function TeamReportPage() {
       </main>
 
       <ReportTabBar active="team" onChange={handleTabChange} />
+      <AlertModal
+        open={Boolean(notice)}
+        title={notice ?? ''}
+        onConfirm={() => setNotice(null)}
+      />
     </div>
   );
 }
