@@ -7,7 +7,7 @@ interface NotificationDotProps {
   className?: string;
 }
 
-/** 아이콘 우측 상단 모서리에 붙는 안 읽음 표시 점(8px). 부모를 `relative inline-flex`로 감싼 뒤 아이콘과 함께 넣어 쓴다. */
+/** 아이콘 우측 상단 모서리에 붙는 안 읽음 표시 점(9px). 부모를 `relative inline-flex`로 감싼 뒤 아이콘과 함께 넣어 쓴다. */
 export function NotificationDot({ show, ring = "white", className }: NotificationDotProps) {
   if (!show) return null;
 
@@ -15,7 +15,7 @@ export function NotificationDot({ show, ring = "white", className }: Notificatio
     <span
       aria-hidden="true"
       className={cn(
-        "absolute -right-0.5 -top-0.5 h-2 w-2 rounded-full bg-error",
+        "absolute -right-0.5 -top-0.5 h-[9px] w-[9px] rounded-full bg-error",
         ring === "white" ? "border border-white" : "border border-gray-25",
         className
       )}
