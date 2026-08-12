@@ -21,7 +21,7 @@ export interface ChatListItemProps {
 const GRID_POSITIONS: Record<number, Array<{ ml: string; mt: string }>> = {
   2: [
     { ml: '', mt: '' },
-    { ml: 'ml-4', mt: 'mt-4' },
+    { ml: 'ml-7', mt: 'mt-7' },
   ],
   3: [
     { ml: '', mt: '' },
@@ -72,6 +72,14 @@ function AvatarItem({
 }
 
 function AvatarGrid({ participants }: { participants: ChatParticipant[] }) {
+  if (participants.length === 1) {
+    return (
+      <div className="flex h-[52px] w-[52px] items-center justify-center shrink-0">
+        <AvatarItem participant={participants[0]} ml="" mt="" />
+      </div>
+    );
+  }
+
   const count = Math.min(Math.max(participants.length, 2), 4) as 2 | 3 | 4;
   const positions = GRID_POSITIONS[count];
   return (
