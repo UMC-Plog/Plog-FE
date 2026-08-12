@@ -3,10 +3,31 @@
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg?v=2" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <meta name="theme-color" content="#2186FB" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="PLOG" />
     <meta
       name="viewport"
       content="width=device-width, initial-scale=1.0, viewport-fit=cover"
     />
+    <script>
+      if (
+        window.matchMedia('(display-mode: standalone)').matches ||
+        navigator.standalone === true
+      ) {
+        document.documentElement.dataset.displayMode = 'standalone'
+        document
+          .querySelector('meta[name="viewport"]')
+          .setAttribute(
+            'content',
+            'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover',
+          )
+      }
+    </script>
     <title>Plog</title>
     <!-- Pretendard: Plog 디자인 시스템 지정 서체 -->
     <link
