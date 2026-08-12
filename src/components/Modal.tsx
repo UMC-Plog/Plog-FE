@@ -5,6 +5,7 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 import { cn } from "../lib/utils";
+import alertExclamation from "../assets/alert-exclamation.svg";
 
 interface ModalProps {
   open: boolean;
@@ -188,10 +189,10 @@ interface AlertModalProps {
   open: boolean;
   icon?: ReactNode;
   title: string;
-  description?: string;
+  description?: ReactNode;
   confirmText?: string;
   onConfirm: () => void;
-  variant?: "default" | "profile-saved";
+  variant?: "default" | "profile-saved" | "warning";
 }
 
 /** 아이콘 + 타이틀 + 설명 + 버튼 1개 형태의 알림 모달 (로그인 실패, 탈퇴 완료 등) */
@@ -205,22 +206,40 @@ export function AlertModal({
   variant = "default",
 }: AlertModalProps) {
   const isProfileSaved = variant === "profile-saved";
+  const isWarning = variant === "warning";
 
   return (
     <Modal
       open={open}
+      variant={isWarning ? "projectContent" : "default"}
       contentClassName={isProfileSaved ? "h-[248px] p-6" : undefined}
     >
       <div className={cn("flex flex-col items-center text-center", isProfileSaved && "h-full pt-3")}>
-        {icon && <div className="mb-3">{icon}</div>}
-        <h2 className="text-title font-bold text-gray-900">{title}</h2>
-        {description && <p className="mt-1.5 text-body-sm text-gray-500">{description}</p>}
+        {isWarning ? (
+          <span className="flex h-11 w-11 items-center justify-center rounded-full bg-[#FDECEC]" aria-hidden>
+            <img src={alertExclamation} alt="" className="h-[22px] w-1" />
+          </span>
+        ) : (
+          icon && <div className="mb-3">{icon}</div>
+        )}
+        <h2 className={cn("text-title font-bold text-gray-900", isWarning && "mt-[14px] font-semibold leading-7")}>
+          {title}
+        </h2>
+        {description && (
+          <div className={cn("mt-1.5 text-body-sm text-gray-500", isWarning && "mt-2 whitespace-pre-line font-normal leading-5 text-gray-400")}>
+            {description}
+          </div>
+        )}
         <button
           type="button"
           onClick={onConfirm}
           className={cn(
             "w-full bg-blue-500 text-body font-semibold text-white hover:bg-blue-600",
-            isProfileSaved ? "mt-auto h-14 rounded-lg" : "mt-5 h-12 rounded-md"
+            isProfileSaved
+              ? "mt-auto h-14 rounded-lg"
+              : isWarning
+                ? "mt-[22px] h-14 rounded-lg bg-[#3182F6] text-[16px] font-bold leading-6"
+                : "mt-5 h-12 rounded-md"
           )}
         >
           {confirmText}

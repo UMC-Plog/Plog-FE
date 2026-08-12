@@ -13,7 +13,7 @@ import { AttachmentPicker } from '../attachment/AttachmentPicker'
 import { AVATAR_PRESETS } from '../AvatarPicker'
 import { Button } from '../Button'
 import { Input } from '../Input'
-import { BottomSheet } from '../Modal'
+import { AlertModal, BottomSheet } from '../Modal'
 import { cn } from '../../lib/utils'
 import {
   getAttachmentDraftSummary,
@@ -35,6 +35,7 @@ interface TaskCardFormModalProps {
   open: boolean
   projectId: number
   projectType?: ProjectType
+  projectEndDate?: string
   task?: TaskDetailViewModel | null
   onClose: () => void
   onSaved: () => void
@@ -98,6 +99,16 @@ function getErrorMessage(error: unknown) {
     : '네트워크 상태를 확인한 뒤 다시 시도해 주세요.'
 }
 
+function isAfterProjectEndDate(endDate: string, projectEndDate?: string) {
+  if (!projectEndDate) return false
+  const datePattern = /^\d{4}-\d{2}-\d{2}$/
+  return (
+    datePattern.test(endDate) &&
+    datePattern.test(projectEndDate) &&
+    endDate > projectEndDate
+  )
+}
+
 function mapTaskAttachments(task: TaskDetailViewModel): AttachmentDraft[] {
   return task.attachments.map((attachment) =>
     attachment.type === 'FILE'
@@ -148,6 +159,7 @@ export function TaskCardFormModal({
   open,
   projectId,
   projectType,
+  projectEndDate,
   task,
   onClose,
   onSaved,
@@ -172,6 +184,7 @@ export function TaskCardFormModal({
   const [attachments, setAttachments] = useState<AttachmentDraft[]>([])
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState<string>()
+  const [isDeadlineAlertOpen, setIsDeadlineAlertOpen] = useState(false)
   const [editBaseline, setEditBaseline] = useState<TaskEditBaseline | null>(null)
 
   const categories = useMemo(
@@ -233,6 +246,7 @@ export function TaskCardFormModal({
     )
     setIsSubmitting(false)
     setSubmitError(undefined)
+    setIsDeadlineAlertOpen(false)
     submittingRef.current = false
     void loadMembers()
 
@@ -371,6 +385,16 @@ export function TaskCardFormModal({
       !category ||
       submittingRef.current
     ) {
+      return
+    }
+
+    const hasChangedEndDate =
+      !isEditMode || Boolean(editBaseline && endDate !== editBaseline.endDate)
+    if (
+      hasChangedEndDate &&
+      isAfterProjectEndDate(endDate, projectEndDate)
+    ) {
+      setIsDeadlineAlertOpen(true)
       return
     }
 
@@ -516,7 +540,8 @@ export function TaskCardFormModal({
   }
 
   return (
-    <BottomSheet
+    <>
+      <BottomSheet
       open={open}
       onClose={isSubmitting ? undefined : onClose}
       variant="task"
@@ -917,6 +942,20 @@ export function TaskCardFormModal({
           </Button>
         </div>
       </div>
-    </BottomSheet>
+      </BottomSheet>
+      <AlertModal
+        open={isDeadlineAlertOpen}
+        variant="warning"
+        title={isEditMode ? '업무카드 수정 불가' : '업무카드 등록 불가'}
+        description={
+          isEditMode ? (
+            '예정 마감일 이후의 업무카드는 리포트에\n반영 불가해요'
+          ) : (
+            '예정 마감일 이후의 업무카드는\n리포트에 반영되지 않아 등록이 불가해요'
+          )
+        }
+        onConfirm={() => setIsDeadlineAlertOpen(false)}
+      />
+    </>
   )
 }

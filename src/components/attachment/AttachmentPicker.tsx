@@ -17,7 +17,11 @@ import {
 } from 'react'
 import type { ChangeEvent, DragEvent } from 'react'
 import { ApiError } from '../../api/client'
-import { uploadFile, validateUploadFileType } from '../../api/file'
+import {
+  uploadFile,
+  validateUploadFile,
+  validateUploadFileType,
+} from '../../api/file'
 import {
   createFileFingerprint,
   formatFileSize,
@@ -31,7 +35,7 @@ import {
 import type { FileUploadUsage } from '../../types/file'
 import { Button } from '../Button'
 import { Input } from '../Input'
-import { Modal } from '../Modal'
+import { AlertModal, Modal } from '../Modal'
 
 interface AttachmentPickerProps {
   value: AttachmentDraft[]
@@ -91,6 +95,7 @@ export function AttachmentPicker({
   const [linkUrl, setLinkUrl] = useState('')
   const [linkError, setLinkError] = useState<string>()
   const [attachmentError, setAttachmentError] = useState<string>()
+  const [isFileSizeAlertOpen, setIsFileSizeAlertOpen] = useState(false)
 
   useEffect(() => {
     draftsRef.current = value
@@ -222,6 +227,15 @@ export function AttachmentPicker({
     let invalidFileError: string | undefined
 
     for (const file of files) {
+      try {
+        validateUploadFile(file)
+      } catch (error: unknown) {
+        if (error instanceof ApiError && error.code === 'FILE_SIZE_EXCEEDED') {
+          setIsFileSizeAlertOpen(true)
+          continue
+        }
+      }
+
       if (variant === 'post') {
         try {
           validateUploadFileType(file)
@@ -721,6 +735,14 @@ export function AttachmentPicker({
           </Button>
         </div>
       </Modal>
+
+      <AlertModal
+        open={isFileSizeAlertOpen}
+        variant="warning"
+        title="파일 업로드 실패"
+        description="파일은 최대 50MB까지 업로드할 수 있어요"
+        onConfirm={() => setIsFileSizeAlertOpen(false)}
+      />
     </div>
   )
 }
