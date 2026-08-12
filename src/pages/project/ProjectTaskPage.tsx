@@ -599,6 +599,7 @@ export default function ProjectTaskPage() {
           open={isCreateOpen}
           projectId={projectId}
           projectType={project?.type}
+          projectEndDate={project?.expectedEndDate}
           onClose={() => setIsCreateOpen(false)}
           onSaved={() => void loadTasks()}
         />
@@ -609,6 +610,7 @@ export default function ProjectTaskPage() {
           open
           projectId={projectId}
           projectType={project?.type}
+          projectEndDate={project?.expectedEndDate}
           task={editingTask}
           onClose={() => setEditingTask(null)}
           onSaved={() => void loadTasks()}
