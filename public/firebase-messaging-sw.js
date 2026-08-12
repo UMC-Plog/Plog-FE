@@ -22,7 +22,7 @@ self.addEventListener('activate', (event) => {
 //
 // 서비스워커는 REST 응답을 못 보고 FCM data 필드만 참조한다. data.type이 없으면(서버가 아직
 // 안 넣어주거나 모르는 타입이면) 기존처럼 채팅방으로 보낸다.
-function resolveNotificationPath(type, projectId, resourceId) {
+function resolveNotificationPath(type, projectId, _resourceId) {
   const base = `/project/${projectId}`
   switch (type) {
     case 'PEER_EVALUATION_STARTED':
@@ -30,7 +30,7 @@ function resolveNotificationPath(type, projectId, resourceId) {
     case 'REPORT_PUBLISHED':
       return `${base}/report/team`
     case 'NOTICE':
-      return resourceId ? `${base}/posts/${resourceId}` : `${base}/feed`
+      return `${base}/notices`
     default:
       return `${base}/chat`
   }
