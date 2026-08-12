@@ -126,7 +126,7 @@ export default function BottomTabBar() {
                   <Icon />
                   <NotificationDot
                     show={to === "/chat" && hasUnreadChat}
-                    className="top-[1px] right-[-1px]"
+                    className="top-[-2px] right-[-2px]"
                   />
                 </span>
                 {label}
