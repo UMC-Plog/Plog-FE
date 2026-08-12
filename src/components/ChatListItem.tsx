@@ -21,7 +21,7 @@ export interface ChatListItemProps {
 const GRID_POSITIONS: Record<number, Array<{ ml: string; mt: string }>> = {
   2: [
     { ml: '', mt: '' },
-    { ml: 'ml-7', mt: 'mt-7' },
+    { ml: 'ml-4', mt: 'mt-4' },
   ],
   3: [
     { ml: '', mt: '' },
