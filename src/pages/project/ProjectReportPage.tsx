@@ -406,21 +406,17 @@ export default function ProjectReportPage() {
           {reports.map((item) => (
             <div
               key={item.id}
-              className="relative h-[106px] w-full rounded-16 border border-primary-500 shadow-card"
+              className="flex min-h-[106px] w-full items-center gap-4 rounded-16 border border-primary-500 py-5 pl-[21px] pr-6 shadow-card"
             >
-              <div className="absolute left-[21px] right-[102px] top-1/2 flex -translate-y-1/2 flex-col gap-2">
-                {item.tier === 'basic' ? (
-                  <span className="w-fit rounded-full border border-gray-200 px-2.5 py-1.5 text-caption font-medium text-gray-400">
-                    BASIC
-                  </span>
-                ) : (
+              <div className="flex min-w-0 flex-1 flex-col gap-2">
+                {item.tier === 'premium' && (
                   <span className="flex w-fit items-center gap-1.5 rounded-full bg-gradient-to-r from-primary-500 to-aqua-500 px-2 py-1.5 text-caption font-medium text-gray-25">
                     <Crown className="h-3 w-3" aria-hidden />
                     Premium
                   </span>
                 )}
-                <p className="text-body text-gray-900">{item.title}</p>
-                <p className="pb-0.5 text-caption font-medium text-gray-400">
+                <p className="break-keep text-body text-gray-900">{item.title}</p>
+                <p className="text-caption font-medium text-gray-400">
                   생성일: {item.createdAt}
                 </p>
               </div>
@@ -432,7 +428,7 @@ export default function ProjectReportPage() {
                   navigate(`/project/${projectId}/report/${item.tier === 'basic' ? 'team' : 'personal'}`)
                 }
                 className={cn(
-                  'absolute right-6 top-1/2 h-10 -translate-y-1/2 rounded-11 px-4 text-body',
+                  'h-10 shrink-0 rounded-11 px-4 text-body',
                   item.locked ? 'bg-gray-100 text-gray-400' : 'bg-primary-500 text-gray-25'
                 )}
               >
