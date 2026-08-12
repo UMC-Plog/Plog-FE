@@ -9,7 +9,7 @@ import defaultProfileIcon from '../../assets/default-profile.png';
 import { fetchChannels, fetchMessages, markRoomAsRead, type ChatAttachmentThumbnailResponse, type ChatChannelParticipantResponse, type ChatMessageAttachmentResponse, type ChatMessageResponse } from '../../api/chat';
 import { createChatStompClient, subscribeToDestination, publishToDestination, chatDestinations } from '../../api/chatSocket';
 import { ApiError, reissueAccessToken } from '../../api/client';
-import { uploadFile } from '../../api/file';
+import { uploadFile, validateUploadFile } from '../../api/file';
 import docFileIcon from '../../assets/doc-file-icon.png';
 
 const MAX_CHAT_ATTACHMENTS = 10;
@@ -219,6 +219,7 @@ export default function ProjectChatPage() {
   const { id: projectId = '' } = useParams<{ id: string }>();
   const [input, setInput] = useState('');
   const [notice, setNotice] = useState<string | null>(null);
+  const [fileSizeAlertDescription, setFileSizeAlertDescription] = useState<string | null>(null);
   const [messages, setMessages] = useState<ChatMessageResponse[]>([]);
   const [pendingAttachments, setPendingAttachments] = useState<PendingChatAttachment[]>([]);
   const [memberNicknames, setMemberNicknames] = useState<Set<string>>(new Set());
@@ -362,7 +363,29 @@ export default function ProjectChatPage() {
 
   const handleFiles = useCallback((files: File[]) => {
     if (files.length === 0) return;
-    if (pendingAttachments.length + files.length > MAX_CHAT_ATTACHMENTS) {
+
+    const uploadableFiles: File[] = [];
+    let invalidFileError: string | null = null;
+    for (const file of files) {
+      try {
+        validateUploadFile(file);
+        uploadableFiles.push(file);
+      } catch (error: unknown) {
+        if (error instanceof ApiError && error.code === 'FILE_SIZE_EXCEEDED') {
+          setFileSizeAlertDescription(error.message);
+          continue;
+        }
+        invalidFileError ??= error instanceof ApiError
+          ? error.message
+          : '지원하지 않는 파일 형식입니다.';
+      }
+    }
+    if (invalidFileError) {
+      setNotice(invalidFileError);
+    }
+    if (uploadableFiles.length === 0) return;
+
+    if (pendingAttachments.length + uploadableFiles.length > MAX_CHAT_ATTACHMENTS) {
       setNotice(`첨부는 최대 ${MAX_CHAT_ATTACHMENTS}개까지 추가할 수 있어요.`);
       return;
     }
@@ -372,13 +395,13 @@ export default function ProjectChatPage() {
         `${attachment.file.name}\u0000${attachment.file.size}\u0000${attachment.file.lastModified}`
       )
     );
-    const uniqueFiles = files.filter((file) => {
+    const uniqueFiles = uploadableFiles.filter((file) => {
       const fingerprint = `${file.name}\u0000${file.size}\u0000${file.lastModified}`;
       if (existing.has(fingerprint)) return false;
       existing.add(fingerprint);
       return true;
     });
-    if (uniqueFiles.length !== files.length) {
+    if (uniqueFiles.length !== uploadableFiles.length) {
       setNotice('같은 파일은 중복으로 첨부할 수 없어요.');
     }
 
@@ -404,12 +427,16 @@ export default function ProjectChatPage() {
           const message = error instanceof ApiError
             ? error.message
             : '파일 업로드에 실패했어요.';
+          if (error instanceof ApiError && error.code === 'FILE_SIZE_EXCEEDED') {
+            setFileSizeAlertDescription(error.message);
+          } else {
+            setNotice(message);
+          }
           setPendingAttachments((prev) => prev.map((item) =>
             item.id === attachment.id
               ? { ...item, status: 'ERROR', error: message }
               : item
           ));
-          setNotice(message);
         });
     }
   }, [pendingAttachments]);
@@ -618,7 +645,14 @@ export default function ProjectChatPage() {
         </form>
       </div>
 
-      <AlertModal open={Boolean(notice)} title={notice ?? ''} onConfirm={() => setNotice(null)} />
+      <AlertModal open={!fileSizeAlertDescription && Boolean(notice)} title={notice ?? ''} onConfirm={() => setNotice(null)} />
+      <AlertModal
+        open={Boolean(fileSizeAlertDescription)}
+        variant="warning"
+        title="파일 업로드 실패"
+        description={fileSizeAlertDescription ?? undefined}
+        onConfirm={() => setFileSizeAlertDescription(null)}
+      />
     </div>
   );
 }
