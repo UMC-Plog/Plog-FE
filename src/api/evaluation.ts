@@ -49,13 +49,14 @@ export interface EvaluationTargetResponse {
   isSelfFeedbackCompleted: boolean
   /** 연동된 모든 외부 서비스에서 본인 계정 선택을 마쳤는지 */
   isAccountMappingCompleted: boolean
-  /**
-   * 서버 기준 최종 제출 가능 여부.
-   * 자기 피드백 작성과 모든 연동 툴의 계정 선택까지 요구하는데, 팀에서 정한 정책은
-   * 자기 피드백이 선택 사항이고 계정 선택도 전부 건너뛸 수 있다. 기준이 서로 달라
-   * 제출 버튼 활성화에는 쓰지 않는다.
-   */
+  /** 서버 기준 현재 사용자의 최종 제출 가능 여부 */
   isFinalSubmissionAvailable: boolean
+  /** 현재 사용자가 최종 제출을 마쳤는지 */
+  isCurrentMemberFinalSubmitted: boolean
+  /** 최종 제출을 완료한 프로젝트 멤버 수 */
+  completedFinalSubmissionCount: number
+  /** 최종 제출 대상 프로젝트 멤버 수 */
+  totalFinalSubmissionCount: number
 }
 
 export function fetchEvaluationTargets(projectId: number) {

@@ -9,7 +9,6 @@ import { syncProjectStatus } from '../../api/projectApi'
 import { fetchEvaluationTargets } from '../../api/evaluation'
 import { fetchReportDetail, generateReport, searchReports, type ReportStatus } from '../../api/report'
 import { formatReportDate } from '../../lib/reportView'
-import { isFinalSubmitted } from '../../lib/peerEvalFinalSubmit'
 import {
   clearGenerateGuard,
   markGenerateRequested,
@@ -54,6 +53,8 @@ export default function ProjectReportPage() {
   const project = useProjectStore((state) =>
     state.projects.find((item) => item.id === projectId)
   )
+  const justSubmittedFromNavigation =
+    (location.state as { justSubmitted?: boolean } | null)?.justSubmitted === true
 
   const [reportId, setReportId] = useState<number | null>(null)
   const [reportStatus, setReportStatus] = useState<ReportStatus | null>(null)
@@ -66,11 +67,14 @@ export default function ProjectReportPage() {
   const [evaluationProgress, setEvaluationProgress] = useState<{
     done: number
     total: number
+    isCurrentMemberFinalSubmitted: boolean
   } | null>(null)
   const [evaluationLoadedProjectId, setEvaluationLoadedProjectId] = useState<string | null>(null)
   // 폴링 상한에 걸려 확인을 멈춘 상태. pollAttempt를 올리면 처음부터 다시 확인한다.
   const [pollTimedOut, setPollTimedOut] = useState(false)
   const [pollAttempt, setPollAttempt] = useState(0)
+  const [submittedInSession, setSubmittedInSession] = useState(justSubmittedFromNavigation)
+  const [showSubmittedModal, setShowSubmittedModal] = useState(justSubmittedFromNavigation)
   const activeRef = useRef(true)
 
   useEffect(() => {
@@ -89,10 +93,8 @@ export default function ProjectReportPage() {
     []
   )
 
-  // 리포트는 프로젝트가 완료로 전환될 때 만들어지고, 그 전환을 확인해주는 게 이 API다.
-  // 전원 제출을 마지막 사람이 끝냈어도 아무도 호출하지 않으면 계속 IN_PROGRESS로 남아
-  // 리포트가 생기지 않으므로, 리포트 화면에 들어올 때마다 확인한다.
-  // 조건 미충족이면 에러가 아니라 현재 상태가 오므로 매번 불러도 안전하다.
+  // 리포트는 마지막 사용자의 명시적인 최종 제출 또는 평가 타임아웃으로 프로젝트가 완료될 때 만들어진다.
+  // 진행 중 프로젝트에서는 상태 전환 API를 호출하지 않아 리포트 탭 진입이 최종 제출을 우회하지 않게 한다.
   useEffect(() => {
     if (!projectId) return
     let cancelled = false
@@ -180,6 +182,7 @@ export default function ProjectReportPage() {
         setEvaluationProgress({
           done: res.completedPeerEvaluationCount,
           total: res.totalPeerEvaluationCount,
+          isCurrentMemberFinalSubmitted: res.isCurrentMemberFinalSubmitted,
         })
       })
       .catch(() => {
@@ -242,14 +245,12 @@ export default function ProjectReportPage() {
     }
   }, [reportId, reportStatus, pollAttempt, applyReport])
 
-  // 최종 제출은 서버에 사용자별 기록이 남지 않아 로컬 기록으로 판정한다.
-  // 예전에는 "팀원 평가를 다 했으면 제출한 것"으로 봤는데, 내 계정 선택이 남아 아직 제출하지
-  // 못한 사람까지 완료로 처리해 평가 화면으로 돌아갈 버튼이 사라졌다.
-  //
-  // 정상 완료는 전원 제출을 의미하므로 기록이 없는 기기에서도 제출 상태를 복원할 수 있다.
+  // 최종 제출은 서버의 사용자별 제출 기록으로 판정한다.
+  // 정상 완료는 전원 제출을 의미하므로 평가 API가 닫힌 뒤에도 제출 상태를 복원할 수 있다.
   // 타임아웃 완료는 미제출 사용자가 있을 수 있어 같은 추론을 적용하지 않는다.
   const evaluationSubmitted =
-    (projectId ? isFinalSubmitted(projectId) : false) ||
+    submittedInSession ||
+    evaluationProgress?.isCurrentMemberFinalSubmitted === true ||
     (currentProjectStatus === 'COMPLETED' && reportStatus !== null && !isTimeoutApplied)
   const status: EvaluationStatus =
     evaluationSubmitted
@@ -263,15 +264,14 @@ export default function ProjectReportPage() {
         ? 'unlocked'
         : 'locked'
 
-  const [showSubmittedModal, setShowSubmittedModal] = useState(false)
-
   // Peer 평가 목록에서 "최종 제출하기"로 막 넘어온 경우에만 안내를 한 번 띄운다.
   useEffect(() => {
-    if ((location.state as { justSubmitted?: boolean } | null)?.justSubmitted) {
+    if (justSubmittedFromNavigation) {
+      setSubmittedInSession(true)
       setShowSubmittedModal(true)
       navigate('.', { replace: true, state: null })
     }
-  }, [location.state, navigate])
+  }, [justSubmittedFromNavigation, navigate])
 
   // 한 명이라도 평가했으면 "시작"이 아니라 "이어서 하기"다. 평가를 다 마치고 최종 제출만
   // 남은 사람이 "평가 시작"을 보고 이미 끝났다고 오해하는 일을 막는다.

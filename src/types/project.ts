@@ -165,6 +165,9 @@ export interface ProjectStatusSyncResponse {
   /** 완료로 전환되기 전에는 null */
   reportId: number | null;
   reportStatus: "GENERATING" | "COMPLETED" | "FAILED" | null;
+  isCurrentMemberFinalSubmitted?: boolean;
+  completedFinalSubmissionCount?: number;
+  totalFinalSubmissionCount?: number;
 }
 
 export interface ProjectIntegrationDisconnectResponse {

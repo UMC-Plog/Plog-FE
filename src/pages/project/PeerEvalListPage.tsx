@@ -9,7 +9,6 @@ import { AlertModal } from '../../components/Modal';
 import { isCollectionFinished, type ProjectIntegrationType } from '../../types/project';
 import { PeerEvalAvatar } from '../../components/PeerEvalAvatar';
 import { isAccountCheckDone } from '../../lib/peerEvalAccountCheck';
-import { markFinalSubmitted } from '../../lib/peerEvalFinalSubmit';
 import { useProjectStore } from '../../store/projectStore';
 
 // actor-mappings API는 Google을 google-docs/google-slides로 분리해서 받는다.
@@ -108,6 +107,12 @@ export default function PeerEvalListPage() {
   // 평가 진행 수는 서버가 직접 세어 내려준다. 목록의 isEvaluated로 다시 세면 서버 판정과 갈릴 수 있다.
   // 조회 전에는 null이다 — 0/0을 "모두 완료"로 오해하지 않기 위해 "아직 모름"과 구분한다.
   const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
+  const [finalSubmission, setFinalSubmission] = useState<{
+    submitted: boolean;
+    done: number;
+    total: number;
+    available: boolean;
+  } | null>(null);
   const [loading, setLoading] = useState(true);
   const [notice, setNotice] = useState<string | null>(null);
   // 평가 자체를 시작할 수 없는 상태. null이면 정상이고, reason은 서버가 알려준 사유다
@@ -187,6 +192,7 @@ export default function PeerEvalListPage() {
     setLoading(true);
     setAccountStatus('none');
     setProgress(null);
+    setFinalSubmission(null);
     setLoadError(null);
     Promise.all([
       fetchEvaluationTargets(projectId),
@@ -200,6 +206,12 @@ export default function PeerEvalListPage() {
         setProgress({
           done: targetsRes.completedPeerEvaluationCount,
           total: targetsRes.totalPeerEvaluationCount,
+        });
+        setFinalSubmission({
+          submitted: targetsRes.isCurrentMemberFinalSubmitted,
+          done: targetsRes.completedFinalSubmissionCount,
+          total: targetsRes.totalFinalSubmissionCount,
+          available: targetsRes.isFinalSubmissionAvailable,
         });
         // 자기 피드백 작성 여부는 대상 조회가 함께 내려준다. 예전에는 별도 조회의 404/EVAL400_3을
         // "미작성"으로 해석했는데, 오류와 미작성을 구분할 수 없어 서버 판정을 그대로 쓴다.
@@ -288,35 +300,39 @@ export default function PeerEvalListPage() {
     };
   }, [id, integrationsRetryToken, runCollection, navigate]);
 
-  // 자기 피드백은 선택 사항이다. 외부 툴이 연동된 경우에는 실제 계정을 선택하거나
-  // 계정 선택 단계를 끝까지 확인해야 최종 제출할 수 있다.
+  // 자기 피드백과 계정 선택은 선택 사항이다. 최종 제출 가능 여부는 서버 판정을 단일 기준으로 쓴다.
   const doneCount = progress?.done ?? 0;
   const totalCount = progress?.total ?? 0;
+  const finalSubmitted = finalSubmission?.submitted ?? false;
+  const finalDoneCount = finalSubmission?.done ?? 0;
+  const finalTotalCount = finalSubmission?.total ?? 0;
   // 팀원이 나뿐이면 평가할 대상이 없다(0/0). 예전에는 여기서 total > 0을 요구해
   // 최종 제출 버튼이 영원히 비활성이었고, 프로젝트를 완료할 방법 자체가 없었다.
   const allDone = progress !== null && progress.done === progress.total;
-  const accountCheckDone = linkedProviders.length === 0 || accountStatus !== 'none';
   const canFinalSubmit =
-    !loading && !finalSubmitting && !integrationsUnavailable && allDone && accountCheckDone;
+    !loading && !finalSubmitting && !finalSubmitted && finalSubmission?.available === true;
 
-  const submitButtonLabel = !allDone
-    ? '모든 평가 완료 후 제출 가능해요'
-    : loading
-      ? '연동 상태를 확인하고 있어요'
-      : integrationsUnavailable
-        ? '연동 상태 확인 후 제출 가능해요'
-        : !accountCheckDone
-          ? '내 계정 확인 후 제출 가능해요'
+  const submitButtonLabel = loading
+    ? '제출 상태를 확인하고 있어요'
+    : finalSubmitted
+      ? '제출 완료'
+      : !allDone
+        ? '모든 평가 완료 후 제출 가능해요'
+        : finalSubmission?.available !== true
+          ? '최종 제출할 수 없어요'
           : '최종 제출하기';
 
   const handleSubmit = async () => {
     if (!canFinalSubmit || !id) return;
     setFinalSubmitting(true);
     try {
-      await syncProjectStatus(id);
-      // 서버는 사용자별 제출 이력을 남기지 않는다. 리포트 화면이 제출 여부를 추측하지 않도록
-      // 실제로 눌렀다는 사실을 여기서 기록한다.
-      markFinalSubmitted(id);
+      const res = await syncProjectStatus(id);
+      setFinalSubmission((prev) => ({
+        submitted: res.isCurrentMemberFinalSubmitted ?? true,
+        done: res.completedFinalSubmissionCount ?? (prev?.submitted ? prev.done : (prev?.done ?? 0) + 1),
+        total: res.totalFinalSubmissionCount ?? prev?.total ?? 0,
+        available: false,
+      }));
       await useProjectStore.getState().fetchProjects(true).catch(() => undefined);
       navigate(`/project/${id}/report`, { state: { justSubmitted: true } });
     } catch (err) {
@@ -356,10 +372,12 @@ export default function PeerEvalListPage() {
         {/* 제목 */}
         <div className="flex flex-col gap-2">
           <h1 className="text-h3 font-semibold text-gray-900">
-            {allDone ? '모든 평가 완료' : '평가할 팀원을 선택하세요'}
+            {finalSubmitted ? '최종 제출 완료' : allDone ? '모든 평가 완료' : '평가할 팀원을 선택하세요'}
           </h1>
           <p className="text-caption font-normal text-gray-400">
-            {!allDone
+            {finalSubmitted
+              ? '다른 팀원의 최종 제출을 기다리고 있어요.'
+              : !allDone
               ? '닉네임 기반 익명 평가 / 리포트 발행 후 실명 공개'
               : totalCount > 0
                 ? '모든 팀원 평가가 완료되었습니다. 최종 제출해 주세요.'
@@ -377,8 +395,24 @@ export default function PeerEvalListPage() {
           </div>
         )}
 
+        {finalSubmitted && (
+          <InfoBox>
+            <div className="text-caption text-primary leading-5">
+              <p className="font-bold">최종 제출이 완료되었습니다</p>
+              <p className="font-normal">
+                {finalTotalCount > 0
+                  ? `${finalDoneCount} / ${finalTotalCount}명 제출 완료`
+                  : '전원 제출 완료 시 기여도 리포트가 자동으로 발행됩니다.'}
+              </p>
+              {finalTotalCount > 0 && (
+                <p className="font-normal">전원 제출 완료 시 기여도 리포트가 자동으로 발행됩니다.</p>
+              )}
+            </div>
+          </InfoBox>
+        )}
+
         {/* 팀원 카드 목록 */}
-        <div className="flex flex-col gap-3 py-3">
+        {!finalSubmitted && <div className="flex flex-col gap-3 py-3">
           {loading ? (
             <p className="text-body-sm text-gray-400 text-center py-6">불러오는 중...</p>
           ) : (
@@ -441,7 +475,7 @@ export default function PeerEvalListPage() {
                   내 계정 선택
                 </span>
                 <p className="text-caption font-normal leading-4 text-gray-400">
-                  연동 상태를 확인하지 못했어요. 연동된 툴이 있다면 계정 선택 후 제출할 수 있어요.
+                  연동 상태를 확인하지 못했어요. 리포트 정확도를 높이려면 계정을 확인해 주세요.
                 </p>
                 <button
                   type="button"
@@ -494,14 +528,14 @@ export default function PeerEvalListPage() {
                     <>
                       신뢰도 높은 리포트 출력을 위해
                       <br />
-                      본인 계정 선택이 필요해요
+                      본인 계정을 선택할 수 있어요
                     </>
                   )}
                 </p>
               </div>
             </div>
           )}
-        </div>
+        </div>}
 
         {/* 완료 상태 안내 박스 */}
         {canFinalSubmit && (
