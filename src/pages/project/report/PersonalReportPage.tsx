@@ -286,14 +286,14 @@ export default function PersonalReportPage({ renderMode = false }: { renderMode?
         >
           {/* 오른쪽 팁 목록은 AI가 쓰는 문장이라 길이가 정해져 있지 않다. 도넛 기준으로 잡은
               171px를 고정하면 팁이 3개만 돼도 카드 밖으로 넘치므로 최소 높이로 둔다. */}
-          <div className="flex min-h-[171px] items-center rounded-18 border border-gray-100 py-[21px] pl-px">
+          <div className="flex min-h-[171px] items-center rounded-18 border border-gray-100 py-[21px] pl-px pr-4">
             <ReportDonut
               gaugePercent={report.weakness.percent}
               caption="취약도"
               value={report.weakness.percent}
               unit="%"
             />
-            {/* 제목이 한 줄에 들어가야 해서 오른쪽 패딩 없이 남는 폭(201px)을 모두 쓴다 */}
+            {/* AI 문장이 길어져도 오른쪽 보더에 붙지 않도록 안전 여백을 유지한다. */}
             <div className="flex min-w-0 flex-1 flex-col gap-3">
               <div className="flex flex-col gap-[3px]">
                 <span className="text-[11px] font-normal leading-[16px] text-gray-500">주요 취약점</span>
