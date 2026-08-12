@@ -16,10 +16,16 @@ import {
   ReportTabBar,
   type ReportTab,
 } from '../../../components/report/ReportChrome';
-import { downloadReportPdfZip, fetchReportDetail, findProjectReport } from '../../../api/report';
+import {
+  downloadReportPdfZip,
+  fetchReportDetail,
+  findProjectReport,
+} from '../../../api/report';
 import { ApiError } from '../../../api/client';
 import { teamReportCache } from '../../../lib/reportCache';
 import { toTeamReportView } from '../../../lib/reportView';
+import { readReportRenderData } from '../../../lib/reportRenderData';
+import type { ReportDetailResponse } from '../../../api/report';
 import starIcon from '../../../assets/report/star.svg';
 import warningIcon from '../../../assets/report/warning.svg';
 
@@ -30,7 +36,7 @@ const RATE_WARNING_THRESHOLD = 80;
 
 const rateTone = (rate: number) => (rate >= RATE_WARNING_THRESHOLD ? 'text-success' : 'text-error');
 
-export default function TeamReportPage() {
+export default function TeamReportPage({ renderMode = false }: { renderMode?: boolean }) {
   const { id: projectId } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const cached = projectId ? teamReportCache.get(projectId) : undefined;
@@ -42,6 +48,12 @@ export default function TeamReportPage() {
 
   // 화면은 projectId만 알고 들어오므로 리포트를 먼저 찾고 상세를 받아온다.
   useEffect(() => {
+    if (renderMode) {
+      const detail = readReportRenderData<ReportDetailResponse>();
+      if (detail) setReport(toTeamReportView(detail));
+      else setLoadError(true);
+      return;
+    }
     const numericProjectId = Number(projectId);
     if (!projectId || !Number.isFinite(numericProjectId)) return;
     let cancelled = false;
@@ -72,7 +84,7 @@ export default function TeamReportPage() {
     return () => {
       cancelled = true;
     };
-  }, [projectId]);
+  }, [projectId, renderMode]);
 
   const deadlineWarnings =
     report?.completionRows.filter((row) => row.deadlineRate < RATE_WARNING_THRESHOLD) ?? [];
@@ -97,8 +109,8 @@ export default function TeamReportPage() {
 
   if (!report) {
     return (
-      <div className="flex h-dvh min-h-0 flex-col overflow-hidden bg-gray-25">
-        <ReportHeader title="팀 리포트" onBack={handleBack} />
+      <div data-report-error={loadError || undefined} className="flex h-dvh min-h-0 flex-col overflow-hidden bg-gray-25">
+        {!renderMode && <ReportHeader title="팀 리포트" onBack={handleBack} />}
         <div className="flex flex-1 flex-col items-center justify-center gap-3 px-5">
           <p className="text-title font-medium text-gray-500">
             {loadError ? '리포트를 불러오지 못했어요' : '리포트를 불러오는 중...'}
@@ -109,19 +121,22 @@ export default function TeamReportPage() {
             </p>
           )}
         </div>
-        <ReportTabBar active="team" onChange={handleTabChange} />
+        {!renderMode && <ReportTabBar active="team" onChange={handleTabChange} />}
       </div>
     );
   }
 
   return (
-    <div className="flex min-h-svh flex-col bg-gray-25">
-      <ReportHeader
+    <div
+      data-report-ready="true"
+      className={cn('flex min-h-svh flex-col bg-gray-25', renderMode && 'report-print-root')}
+    >
+      {!renderMode && <ReportHeader
         title="팀 리포트"
         onBack={handleBack}
         onDownload={handleDownload}
         downloadDisabled={!reportId || !report.pdfAvailable || isDownloading}
-      />
+      />}
 
       <ReportHero
         label={report.reportCode}
@@ -341,12 +356,12 @@ export default function TeamReportPage() {
         </ReportSection>
       </main>
 
-      <ReportTabBar active="team" onChange={handleTabChange} />
-      <AlertModal
+      {!renderMode && <ReportTabBar active="team" onChange={handleTabChange} />}
+      {!renderMode && <AlertModal
         open={Boolean(notice)}
         title={notice ?? ''}
         onConfirm={() => setNotice(null)}
-      />
+      />}
     </div>
   );
 }

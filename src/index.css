@@ -87,3 +87,41 @@ body {
   border-radius: 999px;
   background: #c5ccd6;
 }
+
+@media print {
+  @page {
+    size: A4;
+    margin: 12mm;
+  }
+
+  html,
+  body,
+  #root {
+    width: auto;
+    max-width: none;
+    min-height: 0;
+    margin: 0;
+    padding: 0;
+    background: white;
+  }
+
+  .report-print-root {
+    width: 186mm;
+    min-height: 0;
+    margin: 0 auto;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+
+  .report-print-root main {
+    padding-bottom: 0;
+  }
+
+  .report-print-root article {
+    break-inside: avoid;
+  }
+
+  .report-print-root section > :first-child {
+    break-after: avoid;
+  }
+}

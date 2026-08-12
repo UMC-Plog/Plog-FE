@@ -63,7 +63,7 @@ export function ReportStatCard({
   caption,
 }: {
   label: string;
-  value: number;
+  value: number | null;
   unit: string;
   percent?: number;
   caption?: { muted: string; highlight: string };
@@ -72,10 +72,20 @@ export function ReportStatCard({
     <div className="flex min-w-0 flex-1 flex-col gap-1.5 rounded-16 bg-white p-4 shadow-stat">
       <p className="text-[12px] font-normal leading-[16px] text-gray-900">{label}</p>
       <div className="flex h-[38px] items-baseline gap-[3px]">
-        <span className="text-[36px] font-bold leading-[40px] text-primary">{value}</span>
-        <span className="text-[22px] font-semibold text-primary-300">{unit}</span>
+        {value === null ? (
+          <span className="text-[20px] font-bold leading-[38px] text-gray-500">측정 불가</span>
+        ) : (
+          <>
+            <span className="text-[36px] font-bold leading-[40px] text-primary">{value}</span>
+            <span className="text-[22px] font-semibold text-primary-300">{unit}</span>
+          </>
+        )}
       </div>
-      <ScoreBar percent={percent ?? value} />
+      {value === null ? (
+        <div className="h-1.5 w-full rounded-full bg-gray-100" />
+      ) : (
+        <ScoreBar percent={percent ?? value} />
+      )}
       {caption && (
         <div className="pt-[3px] text-[12px] font-normal leading-[16px]">
           <p className="text-gray-400">{caption.muted}</p>

@@ -154,7 +154,8 @@ export function toPersonalReportView(result: ReportMemberResultResponse): Person
     ownerName: result.memberName,
 
     contributionScore: round(result.finalScore),
-    collaborationStability: round(result.collaborationStability),
+    collaborationStability:
+      result.collaborationStability === null ? null : round(result.collaborationStability),
     aiComment: result.headline ?? '분석할 활동이 충분하지 않아 한줄 평가를 생성하지 못했어요',
 
     // 0~100 환산 점수를 쓴다. 근거가 없는 역량은 0으로 채워 네 항목을 항상 보여준다.

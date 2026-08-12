@@ -69,7 +69,7 @@ export interface PersonalReportView {
   period: string;
   ownerName: string;
   contributionScore: number;
-  collaborationStability: number;
+  collaborationStability: number | null;
   aiComment: string;
   detailRows: { label: string; score: number; color: string }[];
   strengths: { icon: StrengthIconKey; title: string; description: string }[];
