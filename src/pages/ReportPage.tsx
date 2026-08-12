@@ -1,10 +1,13 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Search, Download } from 'lucide-react';
 import { PlogIcon } from '../components/PlogIcon';
 import { AlertModal } from '../components/Modal';
 import { cn } from '../lib/utils';
-import { downloadReportPdfZip, fetchReports, type ReportSearchResponse } from '../api/report';
+import { downloadReportPdfZip, searchReports, type ReportSearchResponse } from '../api/report';
 import { ApiError } from '../api/client';
+import { toReportSearchQuery } from '../lib/reportSearch';
+
+const REPORT_SEARCH_DEBOUNCE_MS = 300;
 
 const formatReportDate = (iso: string | null) => {
   if (!iso) return ''
@@ -29,23 +32,29 @@ export default function ReportPage() {
   const [reports, setReports] = useState<ReportSearchResponse[]>([]);
   const [loading, setLoading] = useState(true);
   const [downloadingReportId, setDownloadingReportId] = useState<number | null>(null);
+  const hasSearchQuery = keyword.trim().length > 0;
 
   useEffect(() => {
     let cancelled = false;
-    fetchReports({ size: 100 })
-      .then((res) => {
-        if (!cancelled) setReports(res.content);
-      })
-      .catch(() => {
-        if (!cancelled) setNotice('리포트 목록을 불러오지 못했어요. 다시 시도해 주세요.');
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
+    setLoading(true);
+    const timer = window.setTimeout(() => {
+      searchReports({ ...toReportSearchQuery(keyword), size: 100 })
+        .then((res) => {
+          if (!cancelled) setReports(res.content);
+        })
+        .catch(() => {
+          if (!cancelled) setNotice('리포트 목록을 불러오지 못했어요. 다시 시도해 주세요.');
+        })
+        .finally(() => {
+          if (!cancelled) setLoading(false);
+        });
+    }, REPORT_SEARCH_DEBOUNCE_MS);
+
     return () => {
       cancelled = true;
+      window.clearTimeout(timer);
     };
-  }, []);
+  }, [keyword]);
 
   const handleDownload = async (report: ReportSearchResponse) => {
     if (downloadingReportId !== null) return;
@@ -58,12 +67,6 @@ export default function ReportPage() {
       setDownloadingReportId(null);
     }
   };
-
-  const filtered = useMemo(() => {
-    const q = keyword.trim().toLowerCase();
-    if (!q) return reports;
-    return reports.filter((r) => r.projectName.toLowerCase().includes(q));
-  }, [reports, keyword]);
 
   return (
     <div className="flex flex-col min-h-full bg-gray-25">
@@ -102,19 +105,19 @@ export default function ReportPage() {
           <div className="flex flex-col items-center justify-center py-16 text-center">
             <p className="text-body-sm text-gray-400">불러오는 중...</p>
           </div>
-        ) : reports.length === 0 ? (
+        ) : reports.length === 0 && !hasSearchQuery ? (
           <div className="flex flex-col items-center justify-center py-16 text-center">
             <p className="text-title text-gray-500">아직 리포트가 없어요</p>
             <p className="mt-1 text-body-sm text-gray-400">참여 중인 프로젝트가 생기면 여기에 표시돼요</p>
           </div>
-        ) : filtered.length === 0 ? (
+        ) : reports.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 text-center">
             <Search className="size-10 text-gray-300 mb-3" />
             <p className="text-title text-gray-500">검색 결과가 없어요</p>
             <p className="mt-1 text-body-sm text-gray-400">다른 키워드로 검색해보세요</p>
           </div>
         ) : (
-          filtered.map((item) => (
+          reports.map((item) => (
             // Figma: bg-white, border gray-100, rounded-16px→rounded-2xl, shadow
             <div
               key={item.reportId}
