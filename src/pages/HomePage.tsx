@@ -120,7 +120,7 @@ export default function HomePage() {
             <NotificationDot
               show={hasUnreadNotification}
               ring="gray-25"
-              className="top-[-6px] right-[-6px] h-[11px] w-[11px]"
+              className="top-[-6px] right-[-6px] h-[9px] w-[9px]"
             />
           </span>
         </button>
