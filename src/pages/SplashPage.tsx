@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "../components/Button";
+import { useAuthStore } from "../store/authStore";
 
 const LOGO_SVG = (
   <svg viewBox="0 0 240 203" fill="none" aria-hidden className="h-44 w-auto">
@@ -74,6 +75,17 @@ const LOGO_SVG = (
 export function SplashPage() {
   const navigate = useNavigate();
   const [showLanding, setShowLanding] = useState(false);
+  const accessToken = useAuthStore((s) => s.accessToken);
+
+  // PWA를 홈 화면 아이콘으로 다시 열면 항상 "/"(SplashPage)로 새로 진입한다. 로그인 세션이
+  // localStorage에 그대로 남아있어도(zustand persist), 이 화면이 그 상태를 확인하지 않고
+  // 무조건 로그인/회원가입 랜딩을 보여주면 실제로는 로그인이 풀리지 않았는데도 로그아웃된
+  // 것처럼 보인다. accessToken이 있으면(하이드레이션 완료 후) 바로 홈으로 보낸다.
+  useEffect(() => {
+    if (accessToken) {
+      navigate("/home", { replace: true });
+    }
+  }, [accessToken, navigate]);
 
   useEffect(() => {
     const timer = setTimeout(() => setShowLanding(true), 1100);
