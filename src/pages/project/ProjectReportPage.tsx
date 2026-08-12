@@ -358,18 +358,16 @@ export default function ProjectReportPage() {
           onClick={handleStartEvaluation}
           className="flex w-full items-center gap-3.5 rounded-18 bg-gradient-to-r from-primary-500 to-aqua-500 px-5 py-[22px] text-left shadow-cta"
         >
-          <div className="flex flex-1 flex-col gap-2">
-            <div className="flex items-center gap-2">
-              <p className="text-body-sm font-bold tracking-[-0.4px] text-gray-25">
-                {evaluationInProgress ? 'Peer 평가를 이어서 해주세요' : 'Peer 평가를 시작하세요'}
-              </p>
-              {deadline && (
-                <span className="flex h-[18px] w-10 items-center justify-center rounded-full bg-primary-100 text-[10px] font-bold text-navy-700">
-                  {deadline.label}
-                </span>
-              )}
-            </div>
-            <p className="text-caption font-medium text-gray-25">
+          <div className="flex min-w-0 flex-1 flex-col gap-2">
+            {deadline && (
+              <span className="flex h-[18px] w-10 shrink-0 items-center justify-center rounded-full bg-primary-100 text-[10px] font-bold text-navy-700">
+                {deadline.label}
+              </span>
+            )}
+            <p className="break-keep text-body-sm font-bold leading-5 tracking-[-0.4px] text-gray-25">
+              {evaluationInProgress ? 'Peer 평가를 이어서 해주세요' : 'Peer 평가를 시작하세요'}
+            </p>
+            <p className="break-keep text-caption font-medium text-gray-25">
               AI 리포트 생성을 위해 평가가 필요해요
             </p>
           </div>
