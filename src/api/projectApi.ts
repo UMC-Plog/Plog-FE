@@ -293,17 +293,17 @@ export function disconnectProjectIntegration(projectId: string, provider: string
 }
 
 /**
- * 프로젝트 완료 전환 및 타임아웃 검증.
+ * 현재 사용자의 최종 제출 요청.
  *
- * 전원 평가 제출 또는 종료일 7일 경과 여부를 서버가 확인해 완료로 바꾼다. 조건이 맞지 않아도
- * 에러가 아니라 200에 현재 상태가 오므로 언제 호출해도 안전하다. 완료로 바뀌면 응답에
- * reportId와 reportStatus가 채워지고, 이것이 리포트 화면이 리포트를 찾는 유일한 경로다.
+ * 서버가 사용자별 최종 제출을 멱등하게 기록하고, 전원 제출 또는 종료일 7일 경과 여부를 확인해
+ * 완료로 바꾼다. Peer 평가가 남아 있으면 서버가 제출을 거부한다.
+ * 완료로 바뀌면 응답에 reportId와 reportStatus가 채워지고, 이것이 리포트 화면이 리포트를 찾는
+ * 유일한 경로다.
  *
- * 종료일 7일 경과(Timeout) 쪽은 서버 배치가 처리하므로 프론트는 "전원 제출" 직후를 노려 부른다.
+ * 종료일 7일 경과(Timeout) 쪽은 서버 배치가 처리하므로 프론트는 "최종 제출" 버튼에서만 부른다.
  */
 export function syncProjectStatus(projectId: string) {
   return apiRequest<ProjectStatusSyncResponse>(`/api/projects/${projectId}/status`, {
     method: "PATCH",
-    body: { status: "COMPLETED" },
   });
 }
