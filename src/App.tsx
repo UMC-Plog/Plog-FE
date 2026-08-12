@@ -60,6 +60,8 @@ function App() {
         <Route path="/find-password" element={<FindPasswordPage />} />
         <Route path="/reset-password" element={<ResetPasswordPage />} />
         <Route path="/oauth/:provider" element={<OAuthCallbackPage />} />
+        <Route path="/internal/report-render/team" element={<TeamReportPage renderMode />} />
+        <Route path="/internal/report-render/personal" element={<PersonalReportPage renderMode />} />
 
         <Route path="/invite/:inviteCode" element={<ProjectInvitationPage />} />
 

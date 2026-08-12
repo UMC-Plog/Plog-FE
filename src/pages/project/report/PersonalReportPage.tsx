@@ -26,6 +26,8 @@ import { useProjectStore } from '../../../store/projectStore';
 import { personalReportCache } from '../../../lib/reportCache';
 import { toPersonalReportView } from '../../../lib/reportView';
 import type { InsightIconKey, StrengthIconKey } from '../../../lib/reportViewTypes';
+import { readReportRenderData } from '../../../lib/reportRenderData';
+import type { ReportMemberResultResponse } from '../../../api/report';
 import insightGrowth from '../../../assets/report/insight-growth.svg';
 import insightStar from '../../../assets/report/insight-star.svg';
 import insightTarget from '../../../assets/report/insight-target.svg';
@@ -57,7 +59,7 @@ function IconBox({ src, className }: { src: string; className: string }) {
   );
 }
 
-export default function PersonalReportPage() {
+export default function PersonalReportPage({ renderMode = false }: { renderMode?: boolean }) {
   const { id: projectId } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const cached = projectId ? personalReportCache.get(projectId) : undefined;
@@ -79,6 +81,16 @@ export default function PersonalReportPage() {
   const projectsSettled = useProjectStore((state) => state.hasFetched || state.error !== null);
 
   useEffect(() => {
+    if (renderMode) {
+      const result = readReportRenderData<ReportMemberResultResponse>();
+      if (result) {
+        setReport(toPersonalReportView(result));
+        setCautionText(result.cautionText);
+      } else {
+        setLoadError(true);
+      }
+      return;
+    }
     const numericProjectId = Number(projectId);
     if (!Number.isFinite(numericProjectId) || !projectId) return;
     // 목록이 아직 도착하지 않았으면 기다린다. 도착했는데도 없으면 이 프로젝트의 멤버가 아니다.
@@ -124,7 +136,7 @@ export default function PersonalReportPage() {
     return () => {
       cancelled = true;
     };
-  }, [projectId, myProjectMemberId, projectsSettled]);
+  }, [projectId, myProjectMemberId, projectsSettled, renderMode]);
 
   const handleTabChange = (tab: ReportTab) => {
     if (tab === 'team') navigate(`/project/${projectId}/report/team`);
@@ -146,8 +158,8 @@ export default function PersonalReportPage() {
 
   if (!report) {
     return (
-      <div className="flex h-dvh min-h-0 flex-col overflow-hidden bg-gray-25">
-        <ReportHeader title="개인 리포트" onBack={handleBack} />
+      <div data-report-error={loadError || undefined} className="flex h-dvh min-h-0 flex-col overflow-hidden bg-gray-25">
+        {!renderMode && <ReportHeader title="개인 리포트" onBack={handleBack} />}
         <div className="flex flex-1 flex-col items-center justify-center gap-3 px-5">
           <p className="text-title font-medium text-gray-500">
             {loadError ? '리포트를 불러오지 못했어요' : '리포트를 불러오는 중...'}
@@ -158,19 +170,22 @@ export default function PersonalReportPage() {
             </p>
           )}
         </div>
-        <ReportTabBar active="personal" onChange={handleTabChange} />
+        {!renderMode && <ReportTabBar active="personal" onChange={handleTabChange} />}
       </div>
     );
   }
 
   return (
-    <div className="flex min-h-svh flex-col bg-gray-25">
-      <ReportHeader
+    <div
+      data-report-ready="true"
+      className={cn('flex min-h-svh flex-col bg-gray-25', renderMode && 'report-print-root')}
+    >
+      {!renderMode && <ReportHeader
         title="개인 리포트"
         onBack={handleBack}
         onDownload={handleDownload}
         downloadDisabled={!reportId || !pdfAvailable || isDownloading}
-      />
+      />}
 
       <ReportHero
         label={report.reportCode}
@@ -336,12 +351,12 @@ export default function PersonalReportPage() {
         </ReportSection>
       </main>
 
-      <ReportTabBar active="personal" onChange={handleTabChange} />
-      <AlertModal
+      {!renderMode && <ReportTabBar active="personal" onChange={handleTabChange} />}
+      {!renderMode && <AlertModal
         open={Boolean(notice)}
         title={notice ?? ''}
         onConfirm={() => setNotice(null)}
-      />
+      />}
     </div>
   );
 }
