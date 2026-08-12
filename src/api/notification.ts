@@ -29,7 +29,7 @@ export interface NotificationResponse {
 export function resolveNotificationPath(
   type: string | undefined,
   projectId: string | number,
-  resourceId?: string | number | null
+  _resourceId?: string | number | null
 ): string {
   const base = `/project/${projectId}`
   switch (type) {
@@ -38,8 +38,7 @@ export function resolveNotificationPath(
     case 'REPORT_PUBLISHED':
       return `${base}/report/team`
     case 'NOTICE':
-      // 공지는 게시글 상세로 보내되, 대상 글을 알 수 없으면 피드에서 찾게 한다
-      return resourceId ? `${base}/posts/${resourceId}` : `${base}/feed`
+      return `${base}/notices`
     default:
       return `${base}/chat`
   }
