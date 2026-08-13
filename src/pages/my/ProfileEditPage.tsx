@@ -397,7 +397,7 @@ export function ProfileEditPage() {
             size="lg"
             onClick={applyAvatar}
             loading={imageReading}
-            disabled={(stagedAvatarId === avatarId && stagedImageUrl === customImageUrl) || imageReading}
+            disabled={(!stagedAvatarId && !stagedImageUrl) || imageReading}
             className="enabled:!text-white disabled:!text-gray-400"
           >
             변경
