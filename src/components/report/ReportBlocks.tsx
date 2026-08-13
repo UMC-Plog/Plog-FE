@@ -69,7 +69,7 @@ export function ReportStatCard({
   caption?: { muted: string; highlight: string };
 }) {
   return (
-    <div className="flex min-w-0 flex-1 flex-col gap-1.5 rounded-16 bg-white p-4 shadow-stat">
+    <div className="report-stat-card flex min-w-0 flex-1 flex-col gap-1.5 rounded-16 bg-white p-4 shadow-stat">
       <p className="text-[12px] font-normal leading-[16px] text-gray-900">{label}</p>
       <div className="flex h-[38px] items-baseline gap-[3px]">
         {value === null ? (

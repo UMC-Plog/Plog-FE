@@ -117,6 +117,16 @@ body {
     padding-bottom: 0;
   }
 
+  /*
+   * Chromium PDF 인쇄에서는 여러 겹의 반투명 box-shadow가 카드 바깥의
+   * 회색 사각형으로 합성될 수 있다. 화면용 그림자는 유지하고 인쇄할 때만
+   * 안정적인 단일 테두리로 카드 경계를 표현한다.
+   */
+  .report-print-root .report-stat-card {
+    border: 1px solid #eceff3;
+    box-shadow: none;
+  }
+
   .report-print-root article {
     break-inside: avoid;
   }
