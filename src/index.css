@@ -106,7 +106,8 @@ body {
   }
 
   .report-print-root {
-    width: 186mm;
+    /* PDF에서는 실제 모바일 리포트의 기준 폭을 유지하고, A4 맞춤 확대는 렌더러가 담당한다. */
+    width: 402px;
     min-height: 0;
     margin: 0 auto;
     print-color-adjust: exact;
@@ -128,6 +129,11 @@ body {
   }
 
   .report-print-root article {
+    break-inside: avoid;
+  }
+
+  /* 한 섹션이 한 페이지에 들어갈 수 있으면 제목과 본문을 함께 이동시킨다. */
+  .report-print-root section {
     break-inside: avoid;
   }
 
