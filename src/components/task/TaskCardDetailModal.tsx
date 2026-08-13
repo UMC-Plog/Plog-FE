@@ -23,7 +23,7 @@ import type {
 import {
   getTaskDueDateInfo,
   parseTaskDate,
-} from '../../utils/taskDate'
+} from '../../lib/taskDate'
 import type { NormalizedAttachment } from '../../types/attachment'
 import {
   SERVER_TASK_CATEGORY_CONFIG,

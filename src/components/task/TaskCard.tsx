@@ -2,7 +2,7 @@ import { CalendarDays, Paperclip, UserRound } from 'lucide-react'
 import { AVATAR_PRESETS } from '../AvatarPicker'
 import { cn } from '../../lib/utils'
 import type { ServerProfilePreset, TaskListItemViewModel } from '../../types/task'
-import { getTaskDueDateInfo, parseTaskDate } from '../../utils/taskDate'
+import { getTaskDueDateInfo, parseTaskDate } from '../../lib/taskDate'
 import { SERVER_TASK_CATEGORY_CONFIG, TASK_BADGE_BASE_CLASS } from './taskCategoryConfig'
 
 interface TaskCardProps {
