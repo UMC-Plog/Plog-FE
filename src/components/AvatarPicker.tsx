@@ -25,7 +25,7 @@ export type AvatarPresetId = (typeof AVATAR_PRESETS)[number]["id"];
 interface AvatarPickerProps {
   value: AvatarPresetId | null;
   customImageUrl?: string | null;
-  onSelect: (id: AvatarPresetId) => void;
+  onSelect: (id: AvatarPresetId | null) => void;
   showLabel?: boolean;
   size?: "md" | "lg" | "profile-edit";
 }
@@ -97,7 +97,7 @@ export function AvatarPicker({
           <button
             key={avatar.id}
             type="button"
-            onClick={() => onSelect(avatar.id)}
+            onClick={() => onSelect(value === avatar.id ? null : avatar.id)}
             aria-pressed={value === avatar.id}
             className={cn(
               "flex items-center justify-center overflow-hidden rounded-full transition-all",
