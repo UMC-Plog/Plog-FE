@@ -21,7 +21,7 @@ import type {
   TaskDetailViewModel,
   TaskListItemViewModel,
 } from '../types/task'
-import { resolveTaskOverdue } from '../utils/taskDate'
+import { resolveTaskOverdue } from '../lib/taskDate'
 
 const PROFILE_PRESETS: ReadonlySet<string> = new Set([
   'OTTER',
