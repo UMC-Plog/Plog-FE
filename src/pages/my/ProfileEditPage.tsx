@@ -222,8 +222,10 @@ export function ProfileEditPage() {
         ...(normalizedNickname !== originalNickname
           ? { nickname: normalizedNickname }
           : {}),
-        ...(avatarId !== initialAvatarId && avatarId
-          ? { preset: toProfilePreset(avatarId) ?? undefined }
+        // 아바타를 선택 해제해 기본 아바타로 되돌린 경우(avatarId === null)에도 변경을
+        // 서버에 알려야 하므로, 기존의 `&& avatarId` 가드를 빼고 null을 그대로 보낸다.
+        ...(avatarId !== initialAvatarId
+          ? { preset: toProfilePreset(avatarId) }
           : {}),
       });
       const latestProfile = await fetchProfile();

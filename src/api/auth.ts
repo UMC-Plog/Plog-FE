@@ -17,7 +17,11 @@ export interface ProfileResponse {
 export interface ProfileUpdateRequest {
   name?: string;
   nickname?: string;
-  preset?: ProfilePreset;
+  /**
+   * 아바타 프리셋. null을 명시적으로 보내 기본 아바타로 되돌릴 수 있는지 검증 중이다.
+   * (Swagger 문서상으로는 null이 "변경하지 않음"으로 적혀 있어, 실제 동작 확인이 필요하다)
+   */
+  preset?: ProfilePreset | null;
 }
 
 export type AgreementType = "SERVICE_TERMS" | "PRIVACY" | "EXTERNAL_DATA" | "MARKETING";
